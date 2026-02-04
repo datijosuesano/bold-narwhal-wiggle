@@ -32,26 +32,4 @@ const AssetsPage: React.FC = () => {
               <CardDescription>
                 Enregistrez les informations de base de votre nouvel actif.
               </CardDescription>
-            </DialogHeader>
-            <CreateAssetForm onSuccess={handleSuccess} />
-          </DialogContent>
-        </Dialog>
-      </div>
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Liste des Actifs</CardTitle>
-          <CardDescription>
-            Visualisez et gérez tous les équipements de votre installation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-center justify-center text-muted-foreground border border-dashed rounded-lg p-4">
-            Tableau des équipements (à implémenter)
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default AssetsPage;
+            </DialogH
