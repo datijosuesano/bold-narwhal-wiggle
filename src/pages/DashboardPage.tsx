@@ -1,6 +1,8 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench, Factory, Clock, TrendingUp } from "lucide-react";
+import MaintenanceTrendsChart from "@/components/MaintenanceTrendsChart";
+import MaintenanceTypeChart from "@/components/MaintenanceTypeChart";
 
 const DashboardPage: React.FC = () => {
   return (
@@ -74,26 +76,21 @@ const DashboardPage: React.FC = () => {
         </Card>
       </div>
       
-      {/* Placeholder for charts/detailed view */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-lg">
           <CardHeader>
             <CardTitle>Tendances des Ordres de Travail</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center text-muted-foreground">
-              Graphique de l'évolution (à implémenter)
-            </div>
+            <MaintenanceTrendsChart />
           </CardContent>
         </Card>
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Maintenance Préventive vs Corrective</CardTitle>
+            <CardTitle>Répartition par Type</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center text-muted-foreground">
-              Diagramme circulaire (à implémenter)
-            </div>
+            <MaintenanceTypeChart />
           </CardContent>
         </Card>
       </div>
