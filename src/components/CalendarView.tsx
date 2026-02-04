@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { fr } from 'date-fns/locale'; // Assuming French locale based on previous content
+import { fr } from 'date-fns/locale'; 
 import { ChevronLeft, ChevronRight, Wrench, Factory, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,16 +14,6 @@ interface ScheduledEvent {
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
 }
-
-// --- Mock Data ---
-
-const mockEvents: ScheduledEvent[] = [
-  { id: 'E1', title: 'Remplacement filtre P-101', date: new Date(2024, 8, 10), type: 'Maintenance Préventive', priority: 'Medium' },
-  { id: 'E2', title: 'Réparation fuite Zone C', date: new Date(2024, 8, 15), type: 'Maintenance Corrective', priority: 'High' },
-  { id: 'E3', title: 'Inspection trimestrielle V12', date: new Date(2024, 8, 22), type: 'Inspection', priority: 'Low' },
-  { id: 'E4', title: 'Calibration Ligne A', date: new Date(2024, 9, 5), type: 'Maintenance Préventive', priority: 'Medium' },
-  { id: 'E5', title: 'Contrôle sécurité Entrepôt', date: new Date(2024, 9, 18), type: 'Inspection', priority: 'Low' },
-];
 
 // --- Utility Functions ---
 
@@ -45,9 +35,13 @@ const getEventIcon = (type: ScheduledEvent['type']) => {
   }
 };
 
+interface CalendarViewProps {
+  events: ScheduledEvent[];
+}
+
 // --- Component ---
 
-const CalendarView: React.FC = () => {
+const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
 
@@ -60,11 +54,10 @@ const CalendarView: React.FC = () => {
     return eachDayOfInterval({ start: startDate, end: endDate });
   }, [startDate, endDate]);
 
-  const eventsInMonth = useMemo(() => {
-    // Note: In a real app, this would fetch data based on the current month range
-    // For the demo, we filter the mock data
-    return mockEvents.filter(event => isSameMonth(event.date, currentDate) || isSameMonth(event.date, subMonths(currentDate, 1)) || isSameMonth(event.date, addMonths(currentDate, 1)));
-  }, [currentDate]);
+  const eventsInView = useMemo(() => {
+    // Filter events to include only those visible in the current calendar view range
+    return events.filter(event => event.date >= startDate && event.date <= endDate);
+  }, [events, startDate, endDate]);
 
   const goToPreviousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -82,7 +75,7 @@ const CalendarView: React.FC = () => {
     const isCurrentMonth = isSameMonth(day, currentDate);
     const isToday = isSameDay(day, today);
     
-    const dayEvents = eventsInMonth.filter(event => isSameDay(event.date, day));
+    const dayEvents = eventsInView.filter(event => isSameDay(event.date, day));
 
     return (
       <div
