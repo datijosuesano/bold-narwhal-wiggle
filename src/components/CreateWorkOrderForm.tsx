@@ -29,13 +29,17 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { showSuccess } from "@/utils/toast";
 
-// 1. Définition du schéma de validation
+// 1. Définition du schéma de validation mis à jour
 const WorkOrderSchema = z.object({
   title: z.string().min(5, {
     message: "Le titre doit contenir au moins 5 caractères.",
   }),
   description: z.string().min(10, {
     message: "La description est trop courte.",
+  }),
+  // Nouveau champ pour le type de maintenance
+  maintenanceType: z.enum(["Preventive", "Corrective", "Palliative", "Ameliorative"], {
+    required_error: "Le type de maintenance est requis.",
   }),
   priority: z.enum(["Low", "Medium", "High"], {
     required_error: "La priorité est requise.",
@@ -69,6 +73,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
     defaultValues: {
       title: "",
       description: "",
+      maintenanceType: "Preventive", // Valeur par défaut
       priority: "Medium",
       assetId: "",
       dueDate: undefined,
@@ -125,25 +130,24 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Équipement */}
+          {/* Champ Type de Maintenance */}
           <FormField
             control={form.control}
-            name="assetId"
+            name="maintenanceType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Équipement concerné</FormLabel>
+                <FormLabel>Type de Maintenance</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Sélectionner un équipement" />
+                      <SelectValue placeholder="Sélectionner le type" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {mockAssets.map((asset) => (
-                      <SelectItem key={asset.id} value={asset.id}>
-                        {asset.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="Preventive">Préventive</SelectItem>
+                    <SelectItem value="Corrective">Corrective</SelectItem>
+                    <SelectItem value="Palliative">Palliative</SelectItem>
+                    <SelectItem value="Ameliorative">Améliorative</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -175,6 +179,32 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             )}
           />
         </div>
+
+        {/* Champ Équipement */}
+        <FormField
+          control={form.control}
+          name="assetId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Équipement concerné</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Sélectionner un équipement" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {mockAssets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Champ Date d'échéance */}
         <FormField
