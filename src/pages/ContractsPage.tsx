@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ContractsTable from '@/components/ContractsTable';
 import ContractDetailView from '@/components/ContractDetailView';
 import EditContractForm from '@/components/EditContractForm';
+import CreateContractForm from '@/components/CreateContractForm';
 
 interface Contract {
   id: string;
@@ -23,6 +24,7 @@ const ContractsPage: React.FC = () => {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const handleView = (contract: Contract) => {
     setSelectedContract(contract);
@@ -32,6 +34,11 @@ const ContractsPage: React.FC = () => {
   const handleEdit = (contract: Contract) => {
     setSelectedContract(contract);
     setIsEditOpen(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setIsCreateOpen(false);
+    // Rafraîchissement simulé
   };
 
   return (
@@ -46,9 +53,22 @@ const ContractsPage: React.FC = () => {
             <p className="text-lg text-muted-foreground">Suivi des engagements et garanties par clinique.</p>
           </div>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-          <Plus className="mr-2 h-4 w-4" /> Nouveau Contrat
-        </Button>
+        
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md"
+            onClick={() => setIsCreateOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nouveau Contrat
+          </Button>
+          <DialogContent className="sm:max-w-[500px] rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">Ajouter un Contrat</DialogTitle>
+              <DialogDescription>Enregistrez un nouvel engagement de maintenance.</DialogDescription>
+            </DialogHeader>
+            <CreateContractForm onSuccess={handleCreateSuccess} />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
