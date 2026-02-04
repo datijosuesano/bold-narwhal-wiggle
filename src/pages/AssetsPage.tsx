@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateAssetForm from "@/components/CreateAssetForm";
-import EditAssetForm from "@/components/EditAssetForm"; // Import du nouveau composant
+import EditAssetForm from "@/components/EditAssetForm"; 
+import AssetDetailView from "@/components/AssetDetailView"; // Import du nouveau composant
 import { cn } from "@/lib/utils";
 
 // Define Asset type based on mock data structure
@@ -16,14 +17,14 @@ interface Asset {
   location: string;
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
   // Ajout de champs pour l'édition (avec des valeurs par défaut pour la démo)
-  serialNumber?: string;
-  model?: string;
-  manufacturer?: string;
-  commissioningDate?: Date;
-  purchaseCost?: number;
+  serialNumber: string; // Rendu obligatoire pour la vue détaillée
+  model: string; // Rendu obligatoire pour la vue détaillée
+  manufacturer: string; // Rendu obligatoire pour la vue détaillée
+  commissioningDate: Date; // Rendu obligatoire pour la vue détaillée
+  purchaseCost: number; // Rendu obligatoire pour la vue détaillée
 }
 
-// Données fictives pour la démo
+// Données fictives pour la démo (mise à jour pour garantir tous les champs)
 const initialEquipments: Asset[] = [
   { id: 'EQ-001', name: 'Compresseur Industriel V12', category: 'Production', location: 'Zone A', status: 'Opérationnel', serialNumber: 'SN-12345', model: 'V12-Turbo', manufacturer: 'AirTech', commissioningDate: new Date('2020-01-15'), purchaseCost: 45000.00 },
   { id: 'EQ-002', name: 'Groupe Électrogène 500kVA', category: 'Énergie', location: 'Extérieur', status: 'Maintenance', serialNumber: 'SN-67890', model: 'GenPower 500', manufacturer: 'ElectroGen', commissioningDate: new Date('2018-05-20'), purchaseCost: 80000.00 },
@@ -36,6 +37,7 @@ const AssetsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // Nouvel état pour la modale de détail
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [equipments, setEquipments] = useState(initialEquipments); 
 
@@ -53,6 +55,11 @@ const AssetsPage: React.FC = () => {
   const handleEditClick = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsEditModalOpen(true);
+  };
+  
+  const handleDetailClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsDetailModalOpen(true);
   };
 
   // 1. Implémentation de la logique de filtrage
@@ -196,14 +203,19 @@ const AssetsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600"
+                            onClick={() => handleDetailClick(item)} // Ajout de l'action de détail
+                          >
                             <Eye size={16} />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                            onClick={() => handleEditClick(item)} // Ajout de l'action de modification
+                            onClick={() => handleEditClick(item)} 
                           >
                             <Edit2 size={16} />
                           </Button>
@@ -224,7 +236,7 @@ const AssetsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Asset Dialog (Separate Modal) */}
+      {/* Edit Asset Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg rounded-xl">
           <DialogHeader>
@@ -235,6 +247,21 @@ const AssetsPage: React.FC = () => {
           </DialogHeader>
           {selectedAsset && (
             <EditAssetForm asset={selectedAsset} onSuccess={handleAssetEditSuccess} />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Asset Detail Dialog (Nouveau) */}
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Détails de l'Équipement</DialogTitle>
+            <CardDescription>
+              Informations complètes et historique de maintenance.
+            </CardDescription>
+          </DialogHeader>
+          {selectedAsset && (
+            <AssetDetailView asset={selectedAsset} />
           )}
         </DialogContent>
       </Dialog>

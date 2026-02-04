@@ -58,11 +58,11 @@ interface Asset {
   category: string;
   location: string;
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
-  serialNumber?: string;
-  model?: string;
-  manufacturer?: string;
-  commissioningDate?: Date;
-  purchaseCost?: number;
+  serialNumber: string; // Rendu obligatoire
+  model: string; // Rendu obligatoire
+  manufacturer: string; // Rendu obligatoire
+  commissioningDate: Date; // Rendu obligatoire
+  purchaseCost: number; // Rendu obligatoire
 }
 
 interface EditAssetFormProps {
@@ -74,15 +74,16 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
 
   // Préparation des valeurs par défaut pour le formulaire
+  // Nous utilisons les valeurs de l'actif directement, car elles sont maintenant garanties par le type Asset
   const defaultValues: AssetFormValues = {
     name: asset.name,
     description: "Description détaillée de l'équipement " + asset.name, // Placeholder for missing data
-    serialNumber: asset.serialNumber || "SN-DEFAULT", // Placeholder for missing data
-    model: asset.model || "Model X", // Placeholder for missing data
-    manufacturer: asset.manufacturer || "Fabricant Y", // Placeholder for missing data
+    serialNumber: asset.serialNumber,
+    model: asset.model,
+    manufacturer: asset.manufacturer,
     location: asset.location,
-    commissioningDate: asset.commissioningDate || new Date(), // Placeholder for missing data
-    purchaseCost: asset.purchaseCost || 10000.00, // Placeholder for missing data
+    commissioningDate: asset.commissioningDate,
+    purchaseCost: asset.purchaseCost,
   };
 
   const form = useForm<AssetFormValues>({
@@ -92,7 +93,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
 
   // Assurez-vous que le coût est affiché correctement si c'est un nombre
   React.useEffect(() => {
-    form.setValue('purchaseCost', defaultValues.purchaseCost);
+    // Utiliser setValue pour s'assurer que le formulaire est synchronisé si l'actif change
+    form.reset(defaultValues);
   }, [asset.id]);
 
 
