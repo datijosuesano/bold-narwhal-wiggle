@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -12,9 +12,10 @@ interface NavItemProps {
   label: string;
   isActive: boolean;
   isMobile?: boolean;
+  onClick?: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile }) => {
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile, onClick }) => {
   const baseClasses = "flex items-center p-3 rounded-xl transition-all duration-200 font-medium";
   const activeClasses = "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg";
   const inactiveClasses = "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
@@ -22,6 +23,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile }
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={cn(
         baseClasses,
         isActive ? activeClasses : inactiveClasses,
@@ -42,6 +44,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord" },
     { to: "/work-orders", icon: <Wrench size={20} />, label: "Ordres de Travail" },
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements" },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification" }, // Nouveau lien
   ];
 
   return (
