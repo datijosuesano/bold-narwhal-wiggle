@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
+import CalendarView from "@/components/CalendarView";
 
 const PlanningPage: React.FC = () => {
   return (
@@ -17,16 +18,19 @@ const PlanningPage: React.FC = () => {
         </div>
       </div>
 
+      <CalendarView />
+      
+      {/* Placeholder for detailed view or filters */}
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Calendrier des Tâches</CardTitle>
+          <CardTitle>Statistiques de Planification</CardTitle>
           <CardDescription>
-            Visualisation des ordres de travail planifiés.
+            Aperçu des ressources et de la charge de travail.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-96 flex items-center justify-center text-muted-foreground border border-dashed rounded-lg p-4">
-            Calendrier interactif (à implémenter)
+          <div className="h-32 flex items-center justify-center text-muted-foreground border border-dashed rounded-lg p-4">
+            Indicateurs de performance (à implémenter)
           </div>
         </CardContent>
       </Card>
