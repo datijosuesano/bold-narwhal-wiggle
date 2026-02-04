@@ -4,7 +4,7 @@ import { fr } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Wrench, Factory, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import DayEventsDialog from './DayEventsDialog'; // Import du nouveau composant
+import DayEventsDialog from './DayEventsDialog'; 
 
 // --- Types ---
 
@@ -14,6 +14,7 @@ interface ScheduledEvent {
   date: Date;
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
+  isCompleted: boolean; // Ajouté
 }
 
 // --- Utility Functions ---
@@ -55,11 +56,12 @@ const getAlertStatus = (date: Date): 'Urgent' | 'Warning' | 'Normal' => {
 
 interface CalendarViewProps {
   events: ScheduledEvent[];
+  onCompleteEvent: (eventId: string) => void; // Ajouté
 }
 
 // --- Component ---
 
-const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -126,19 +128,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         
         <div className="mt-1 space-y-0.5 overflow-y-auto max-h-[75%]">
           {dayEvents.map(event => {
-            const alertStatus = getAlertStatus(event.date);
             
             let alertClasses = '';
             let alertIcon = getEventIcon(event.type);
 
-            if (alertStatus === 'Urgent') {
-              alertClasses = 'bg-red-700 hover:bg-red-800 ring-1 ring-red-400';
-              alertIcon = <Clock size={12} className="mr-1 text-white" />; // Icône d'urgence
-            } else if (alertStatus === 'Warning') {
-              alertClasses = 'bg-amber-500 hover:bg-amber-600 ring-1 ring-amber-300';
+            if (event.isCompleted) {
+              // Couleur dédiée pour les tâches terminées
+              alertClasses = 'bg-gray-500 hover:bg-gray-600 line-through opacity-70';
+              alertIcon = <Clock size={12} className="mr-1 text-white" />;
             } else {
-              alertClasses = getEventStyle(event.type);
+              const alertStatus = getAlertStatus(event.date);
+              
+              if (alertStatus === 'Urgent') {
+                alertClasses = 'bg-red-700 hover:bg-red-800 ring-1 ring-red-400';
+                alertIcon = <Clock size={12} className="mr-1 text-white" />; // Icône d'urgence
+              } else if (alertStatus === 'Warning') {
+                alertClasses = 'bg-amber-500 hover:bg-amber-600 ring-1 ring-amber-300';
+              } else {
+                alertClasses = getEventStyle(event.type);
+              }
             }
+
 
             return (
               <div 
@@ -205,6 +215,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         events={dayEvents}
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+        onCompleteEvent={onCompleteEvent} // Passé à la modale
       />
     </>
   );

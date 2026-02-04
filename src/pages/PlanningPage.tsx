@@ -5,7 +5,8 @@ import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
-import PlanningStats from "@/components/PlanningStats"; // Import du nouveau composant
+import PlanningStats from "@/components/PlanningStats"; 
+import { showSuccess } from "@/utils/toast";
 
 // --- Types et Données Mockées ---
 
@@ -15,6 +16,7 @@ interface ScheduledEvent {
   date: Date;
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
+  isCompleted: boolean; // Nouveau champ
 }
 
 // Définition des dates pour la démo
@@ -29,30 +31,40 @@ nextMonth.setMonth(today.getMonth() + 1);
 
 const initialMockEvents: ScheduledEvent[] = [
   // Urgent (Dépassé)
-  { id: 'E1', title: 'Remplacement filtre (URGENT)', date: yesterday, type: 'Maintenance Préventive', priority: 'Medium' },
+  { id: 'E1', title: 'Remplacement filtre (URGENT)', date: yesterday, type: 'Maintenance Préventive', priority: 'Medium', isCompleted: false },
   // Warning (Proche)
-  { id: 'E2', title: 'Réparation fuite (PROCHE)', date: inTwoDays, type: 'Maintenance Corrective', priority: 'High' },
+  { id: 'E2', title: 'Réparation fuite (PROCHE)', date: inTwoDays, type: 'Maintenance Corrective', priority: 'High', isCompleted: false },
   // Normal (Futur)
-  { id: 'E3', title: 'Inspection trimestrielle V12', date: nextMonth, type: 'Inspection', priority: 'Low' },
-  { id: 'E4', title: 'Graissage mensuel', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10), type: 'Maintenance Préventive', priority: 'Low' },
-  { id: 'E5', title: 'Contrôle sécurité', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5), type: 'Inspection', priority: 'Medium' },
+  { id: 'E3', title: 'Inspection trimestrielle V12', date: nextMonth, type: 'Inspection', priority: 'Low', isCompleted: false },
+  { id: 'E4', title: 'Graissage mensuel', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10), type: 'Maintenance Préventive', priority: 'Low', isCompleted: false },
+  { id: 'E5', title: 'Contrôle sécurité', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5), type: 'Inspection', priority: 'Medium', isCompleted: false },
+  { id: 'E6', title: 'Tâche terminée hier', date: yesterday, type: 'Inspection', priority: 'Low', isCompleted: true },
 ];
 
 const PlanningPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [events, setEvents] = useState(initialMockEvents);
 
+  // Fonction pour marquer un événement comme terminé
+  const handleCompleteEvent = (eventId: string) => {
+    setEvents(prevEvents => 
+      prevEvents.map(event => 
+        event.id === eventId ? { ...event, isCompleted: true } : event
+      )
+    );
+    showSuccess("Action marquée comme terminée !");
+  };
+
   // Simuler l'ajout d'un nouvel événement après la création d'un OT
   const handleWorkOrderSuccess = () => {
     setIsModalOpen(false);
-    // NOTE: Dans une application réelle, nous recevrions les données de l'OT créé.
-    // Ici, nous simulons l'ajout d'un événement pour voir l'impact sur le calendrier.
     const newMockEvent: ScheduledEvent = {
       id: `E${events.length + 1}`,
       title: "Nouvelle Tâche Planifiée (Simulée)",
-      date: new Date(), // Utilise la date du jour pour la démo
+      date: new Date(), 
       type: 'Maintenance Préventive',
       priority: 'Medium',
+      isCompleted: false,
     };
     setEvents(prev => [...prev, newMockEvent]);
   };
@@ -95,9 +107,8 @@ const PlanningPage: React.FC = () => {
       {/* Intégration des statistiques */}
       <PlanningStats events={events} />
 
-      <CalendarView events={events} />
+      <CalendarView events={events} onCompleteEvent={handleCompleteEvent} />
       
-      {/* Le placeholder est retiré car les stats sont implémentées */}
     </div>
   );
 };
