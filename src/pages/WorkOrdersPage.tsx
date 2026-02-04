@@ -4,6 +4,7 @@ import { FilePlus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
+import WorkOrdersTable from "@/components/WorkOrdersTable"; // Import du nouveau tableau
 
 const WorkOrdersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -45,10 +46,8 @@ const WorkOrdersPage: React.FC = () => {
             Suivi des tâches de maintenance en cours, planifiées et terminées.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-center justify-center text-muted-foreground border border-dashed rounded-lg p-4">
-            Tableau des ordres de travail (à implémenter)
-          </div>
+        <CardContent className="p-0">
+          <WorkOrdersTable />
         </CardContent>
       </Card>
     </div>
