@@ -5,6 +5,7 @@ import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
+import PlanningStats from "@/components/PlanningStats"; // Import du nouveau composant
 
 // --- Types et Données Mockées ---
 
@@ -33,6 +34,8 @@ const initialMockEvents: ScheduledEvent[] = [
   { id: 'E2', title: 'Réparation fuite (PROCHE)', date: inTwoDays, type: 'Maintenance Corrective', priority: 'High' },
   // Normal (Futur)
   { id: 'E3', title: 'Inspection trimestrielle V12', date: nextMonth, type: 'Inspection', priority: 'Low' },
+  { id: 'E4', title: 'Graissage mensuel', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10), type: 'Maintenance Préventive', priority: 'Low' },
+  { id: 'E5', title: 'Contrôle sécurité', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5), type: 'Inspection', priority: 'Medium' },
 ];
 
 const PlanningPage: React.FC = () => {
@@ -89,22 +92,12 @@ const PlanningPage: React.FC = () => {
         </Dialog>
       </div>
 
+      {/* Intégration des statistiques */}
+      <PlanningStats events={events} />
+
       <CalendarView events={events} />
       
-      {/* Placeholder for detailed view or filters */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Statistiques de Planification</CardTitle>
-          <CardDescription>
-            Aperçu des ressources et de la charge de travail.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-32 flex items-center justify-center text-muted-foreground border border-dashed rounded-lg p-4">
-            Indicateurs de performance (à implémenter)
-          </div>
-        </CardContent>
-      </Card>
+      {/* Le placeholder est retiré car les stats sont implémentées */}
     </div>
   );
 };
