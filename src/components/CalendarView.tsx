@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale'; 
-import { ChevronLeft, ChevronRight, Wrench, Factory, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Wrench, Factory, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,23 @@ const getEventIcon = (type: ScheduledEvent['type']) => {
     case 'Inspection': return <Factory size={12} className="mr-1" />;
     default: return null;
   }
+};
+
+const getAlertStatus = (date: Date): 'Urgent' | 'Warning' | 'Normal' => {
+  const today = new Date();
+  // Pour comparer uniquement les dates, on met l'heure à minuit
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const daysDifference = differenceInDays(dateOnly, todayOnly);
+
+  if (daysDifference < 0) {
+    return 'Urgent'; // Dépassé
+  }
+  if (daysDifference <= 3) {
+    return 'Warning'; // Proche (dans les 3 jours)
+  }
+  return 'Normal'; // Futur
 };
 
 interface CalendarViewProps {
@@ -94,21 +111,37 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
         </div>
         
         <div className="mt-1 space-y-0.5 overflow-y-auto max-h-[75%]">
-          {dayEvents.map(event => (
-            <div 
-              key={event.id}
-              className={cn(
-                "text-xs text-white px-1 py-0.5 rounded-md truncate cursor-pointer shadow-sm",
-                getEventStyle(event.type)
-              )}
-              title={event.title}
-            >
-              <div className="flex items-center">
-                {getEventIcon(event.type)}
-                {event.title}
+          {dayEvents.map(event => {
+            const alertStatus = getAlertStatus(event.date);
+            
+            let alertClasses = '';
+            let alertIcon = getEventIcon(event.type);
+
+            if (alertStatus === 'Urgent') {
+              alertClasses = 'bg-red-700 hover:bg-red-800 ring-1 ring-red-400';
+              alertIcon = <Clock size={12} className="mr-1 text-white" />; // Icône d'urgence
+            } else if (alertStatus === 'Warning') {
+              alertClasses = 'bg-amber-500 hover:bg-amber-600 ring-1 ring-amber-300';
+            } else {
+              alertClasses = getEventStyle(event.type);
+            }
+
+            return (
+              <div 
+                key={event.id}
+                className={cn(
+                  "text-xs text-white px-1 py-0.5 rounded-md truncate cursor-pointer shadow-sm",
+                  alertClasses
+                )}
+                title={event.title}
+              >
+                <div className="flex items-center">
+                  {alertIcon}
+                  {event.title}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

@@ -16,12 +16,23 @@ interface ScheduledEvent {
   priority: 'Low' | 'Medium' | 'High';
 }
 
+// Définition des dates pour la démo
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+const inTwoDays = new Date(today);
+inTwoDays.setDate(today.getDate() + 2);
+const nextMonth = new Date(today);
+nextMonth.setMonth(today.getMonth() + 1);
+
+
 const initialMockEvents: ScheduledEvent[] = [
-  { id: 'E1', title: 'Remplacement filtre P-101', date: new Date(2024, 8, 10), type: 'Maintenance Préventive', priority: 'Medium' },
-  { id: 'E2', title: 'Réparation fuite Zone C', date: new Date(2024, 8, 15), type: 'Maintenance Corrective', priority: 'High' },
-  { id: 'E3', title: 'Inspection trimestrielle V12', date: new Date(2024, 8, 22), type: 'Inspection', priority: 'Low' },
-  { id: 'E4', title: 'Calibration Ligne A', date: new Date(2024, 9, 5), type: 'Maintenance Préventive', priority: 'Medium' },
-  { id: 'E5', title: 'Contrôle sécurité Entrepôt', date: new Date(2024, 9, 18), type: 'Inspection', priority: 'Low' },
+  // Urgent (Dépassé)
+  { id: 'E1', title: 'Remplacement filtre (URGENT)', date: yesterday, type: 'Maintenance Préventive', priority: 'Medium' },
+  // Warning (Proche)
+  { id: 'E2', title: 'Réparation fuite (PROCHE)', date: inTwoDays, type: 'Maintenance Corrective', priority: 'High' },
+  // Normal (Futur)
+  { id: 'E3', title: 'Inspection trimestrielle V12', date: nextMonth, type: 'Inspection', priority: 'Low' },
 ];
 
 const PlanningPage: React.FC = () => {
