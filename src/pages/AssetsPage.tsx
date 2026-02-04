@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateAssetForm from "@/components/CreateAssetForm";
+import EditAssetForm from "@/components/EditAssetForm"; // Import du nouveau composant
 import { cn } from "@/lib/utils";
 
 // Define Asset type based on mock data structure
@@ -14,25 +15,44 @@ interface Asset {
   category: string;
   location: string;
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
+  // Ajout de champs pour l'édition (avec des valeurs par défaut pour la démo)
+  serialNumber?: string;
+  model?: string;
+  manufacturer?: string;
+  commissioningDate?: Date;
+  purchaseCost?: number;
 }
 
 // Données fictives pour la démo
 const initialEquipments: Asset[] = [
-  { id: 'EQ-001', name: 'Compresseur Industriel V12', category: 'Production', location: 'Zone A', status: 'Opérationnel' },
-  { id: 'EQ-002', name: 'Groupe Électrogène 500kVA', category: 'Énergie', location: 'Extérieur', status: 'Maintenance' },
-  { id: 'EQ-003', name: 'Pompe Hydraulique P-45', category: 'Logistique', location: 'Zone C', status: 'En Panne' },
-  { id: 'EQ-004', name: 'Convoyeur Principal', category: 'Production', location: 'Zone B', status: 'Opérationnel' },
-  { id: 'EQ-005', name: 'Chariot Élévateur E-20', category: 'Logistique', location: 'Entrepôt', status: 'Opérationnel' },
+  { id: 'EQ-001', name: 'Compresseur Industriel V12', category: 'Production', location: 'Zone A', status: 'Opérationnel', serialNumber: 'SN-12345', model: 'V12-Turbo', manufacturer: 'AirTech', commissioningDate: new Date('2020-01-15'), purchaseCost: 45000.00 },
+  { id: 'EQ-002', name: 'Groupe Électrogène 500kVA', category: 'Énergie', location: 'Extérieur', status: 'Maintenance', serialNumber: 'SN-67890', model: 'GenPower 500', manufacturer: 'ElectroGen', commissioningDate: new Date('2018-05-20'), purchaseCost: 80000.00 },
+  { id: 'EQ-003', name: 'Pompe Hydraulique P-45', category: 'Logistique', location: 'Zone C', status: 'En Panne', serialNumber: 'SN-11223', model: 'HydroFlow P45', manufacturer: 'Fluidics', commissioningDate: new Date('2021-11-01'), purchaseCost: 12000.00 },
+  { id: 'EQ-004', name: 'Convoyeur Principal', category: 'Production', location: 'Zone B', status: 'Opérationnel', serialNumber: 'SN-44556', model: 'ConveyMax', manufacturer: 'MoveCorp', commissioningDate: new Date('2019-03-10'), purchaseCost: 30000.00 },
+  { id: 'EQ-005', name: 'Chariot Élévateur E-20', category: 'Logistique', location: 'Entrepôt', status: 'Opérationnel', serialNumber: 'SN-77889', model: 'LiftPro E20', manufacturer: 'ForkLift Inc', commissioningDate: new Date('2022-08-25'), purchaseCost: 22000.00 },
 ];
 
 const AssetsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [equipments, setEquipments] = useState(initialEquipments); // Using state for potential future additions
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [equipments, setEquipments] = useState(initialEquipments); 
 
   const handleAssetCreationSuccess = () => {
-    setIsModalOpen(false);
+    setIsCreateModalOpen(false);
     // En production, on rafraîchirait la liste ici.
+  };
+
+  const handleAssetEditSuccess = () => {
+    setIsEditModalOpen(false);
+    setSelectedAsset(null);
+    // En production, on rafraîchirait la liste ici.
+  };
+
+  const handleEditClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsEditModalOpen(true);
   };
 
   // 1. Implémentation de la logique de filtrage
@@ -83,7 +103,7 @@ const AssetsPage: React.FC = () => {
         </div>
         
         {/* Add Asset Dialog */}
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
               <Plus className="mr-2 h-4 w-4" /> Ajouter Équipement
@@ -179,7 +199,12 @@ const AssetsPage: React.FC = () => {
                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600">
                             <Eye size={16} />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                            onClick={() => handleEditClick(item)} // Ajout de l'action de modification
+                          >
                             <Edit2 size={16} />
                           </Button>
                         </div>
@@ -198,6 +223,21 @@ const AssetsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Asset Dialog (Separate Modal) */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Modifier l'Équipement: {selectedAsset?.name}</DialogTitle>
+            <CardDescription>
+              Mettez à jour les informations de cet actif.
+            </CardDescription>
+          </DialogHeader>
+          {selectedAsset && (
+            <EditAssetForm asset={selectedAsset} onSuccess={handleAssetEditSuccess} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
