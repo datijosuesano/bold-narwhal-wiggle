@@ -14,6 +14,7 @@ interface ScheduledEvent {
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
   isCompleted: boolean;
+  completionDate?: Date; // Ajouté
 }
 
 interface DayEventsDialogProps {
@@ -86,13 +87,20 @@ const DayEventsDialog: React.FC<DayEventsDialogProps> = ({ selectedDate, events,
                       <p className="text-sm text-muted-foreground mt-0.5">
                         Type: {event.type.replace('Maintenance ', '')}
                       </p>
-                      <span className={cn(
-                        "mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        getPriorityColor(event.priority),
-                        event.isCompleted && "opacity-50"
-                      )}>
-                        <Clock size={10} className="mr-1" /> Priorité {event.priority}
-                      </span>
+                      
+                      {event.isCompleted && event.completionDate ? (
+                        <p className="text-xs text-gray-500 mt-1 flex items-center">
+                          <Clock size={12} className="mr-1" />
+                          Terminé le {format(event.completionDate, 'dd/MM/yyyy')}
+                        </p>
+                      ) : (
+                        <span className={cn(
+                          "mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                          getPriorityColor(event.priority)
+                        )}>
+                          <Clock size={10} className="mr-1" /> Priorité {event.priority}
+                        </span>
+                      )}
                     </div>
                   </div>
                   

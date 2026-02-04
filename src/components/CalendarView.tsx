@@ -15,6 +15,7 @@ interface ScheduledEvent {
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
   isCompleted: boolean; // Ajouté
+  completionDate?: Date; // Ajouté
 }
 
 // --- Utility Functions ---

@@ -17,6 +17,7 @@ interface ScheduledEvent {
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
   isCompleted: boolean; // Nouveau champ
+  completionDate?: Date; // Date de complétion
 }
 
 // Définition des dates pour la démo
@@ -38,7 +39,8 @@ const initialMockEvents: ScheduledEvent[] = [
   { id: 'E3', title: 'Inspection trimestrielle V12', date: nextMonth, type: 'Inspection', priority: 'Low', isCompleted: false },
   { id: 'E4', title: 'Graissage mensuel', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10), type: 'Maintenance Préventive', priority: 'Low', isCompleted: false },
   { id: 'E5', title: 'Contrôle sécurité', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5), type: 'Inspection', priority: 'Medium', isCompleted: false },
-  { id: 'E6', title: 'Tâche terminée hier', date: yesterday, type: 'Inspection', priority: 'Low', isCompleted: true },
+  // Tâche terminée hier, avec date de complétion
+  { id: 'E6', title: 'Tâche terminée hier', date: yesterday, type: 'Inspection', priority: 'Low', isCompleted: true, completionDate: yesterday },
 ];
 
 const PlanningPage: React.FC = () => {
@@ -49,7 +51,13 @@ const PlanningPage: React.FC = () => {
   const handleCompleteEvent = (eventId: string) => {
     setEvents(prevEvents => 
       prevEvents.map(event => 
-        event.id === eventId ? { ...event, isCompleted: true } : event
+        event.id === eventId 
+          ? { 
+              ...event, 
+              isCompleted: true, 
+              completionDate: new Date() // Enregistre la date de complétion
+            } 
+          : event
       )
     );
     showSuccess("Action marquée comme terminée !");
@@ -61,7 +69,7 @@ const PlanningPage: React.FC = () => {
     const newMockEvent: ScheduledEvent = {
       id: `E${events.length + 1}`,
       title: "Nouvelle Tâche Planifiée (Simulée)",
-      date: new Date(), 
+      date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7), // Planifié dans 7 jours
       type: 'Maintenance Préventive',
       priority: 'Medium',
       isCompleted: false,
