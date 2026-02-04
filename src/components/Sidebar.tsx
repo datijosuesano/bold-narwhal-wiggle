@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -44,7 +44,8 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord" },
     { to: "/work-orders", icon: <Wrench size={20} />, label: "Ordres de Travail" },
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements" },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification" }, // Nouveau lien
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification" },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats" }, // Nouveau lien
   ];
 
   return (
@@ -67,7 +68,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
       </nav>
       <div className="pt-4 border-t border-sidebar-border">
         <p className="text-xs text-sidebar-foreground/70 text-center">
-          Version 1.0
+          Version 1.1
         </p>
       </div>
     </div>
