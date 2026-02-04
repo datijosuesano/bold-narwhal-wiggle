@@ -4,6 +4,7 @@ import { fr } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Wrench, Factory, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import DayEventsDialog from './DayEventsDialog'; // Import du nouveau composant
 
 // --- Types ---
 
@@ -60,6 +61,8 @@ interface CalendarViewProps {
 
 const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const today = new Date();
 
   const firstDayOfMonth = startOfMonth(currentDate);
@@ -76,6 +79,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
     return events.filter(event => event.date >= startDate && event.date <= endDate);
   }, [events, startDate, endDate]);
 
+  const dayEvents = useMemo(() => {
+    if (!selectedDay) return [];
+    return events.filter(event => isSameDay(event.date, selectedDay));
+  }, [events, selectedDay]);
+
   const goToPreviousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
   };
@@ -88,6 +96,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
     setCurrentDate(new Date());
   };
 
+  const handleDayClick = (day: Date) => {
+    setSelectedDay(day);
+    setIsDialogOpen(true);
+  };
+
   const renderDay = (day: Date) => {
     const isCurrentMonth = isSameMonth(day, currentDate);
     const isToday = isSameDay(day, today);
@@ -98,10 +111,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
       <div
         key={day.toISOString()}
         className={cn(
-          "h-32 p-1 border border-border/50 relative overflow-hidden transition-colors",
-          isCurrentMonth ? "bg-card" : "bg-muted/30 text-muted-foreground",
+          "h-32 p-1 border border-border/50 relative overflow-hidden transition-colors cursor-pointer",
+          isCurrentMonth ? "bg-card hover:bg-accent/50" : "bg-muted/30 text-muted-foreground hover:bg-muted/50",
           isToday && "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-background",
         )}
+        onClick={() => handleDayClick(day)}
       >
         <div className={cn(
           "text-sm font-semibold text-right p-1 rounded-full inline-block",
@@ -134,6 +148,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
                   alertClasses
                 )}
                 title={event.title}
+                // Empêche la propagation du clic pour ne pas ouvrir la modale du jour si on clique sur l'événement
+                onClick={(e) => e.stopPropagation()} 
               >
                 <div className="flex items-center">
                   {alertIcon}
@@ -148,39 +164,49 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events }) => {
   };
 
   return (
-    <div className="bg-card rounded-xl shadow-xl p-6">
-      {/* Header de navigation */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-primary">
-          {format(currentDate, 'MMMM yyyy', { locale: fr })}
-        </h2>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={goToToday} className="rounded-xl">
-            Aujourd'hui
-          </Button>
-          <Button variant="outline" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
-            <ChevronLeft size={18} />
-          </Button>
-          <Button variant="outline" size="icon" onClick={goToNextMonth} className="rounded-xl">
-            <ChevronRight size={18} />
-          </Button>
+    <>
+      <div className="bg-card rounded-xl shadow-xl p-6">
+        {/* Header de navigation */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-primary">
+            {format(currentDate, 'MMMM yyyy', { locale: fr })}
+          </h2>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={goToToday} className="rounded-xl">
+              Aujourd'hui
+            </Button>
+            <Button variant="outline" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+              <ChevronLeft size={18} />
+            </Button>
+            <Button variant="outline" size="icon" onClick={goToNextMonth} className="rounded-xl">
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Jours de la semaine */}
+        <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground border-b border-border/50 mb-1">
+          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
+            <div key={day} className="py-2">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Grille du calendrier */}
+        <div className="grid grid-cols-7 gap-px border-t border-border/50">
+          {days.map(renderDay)}
         </div>
       </div>
-
-      {/* Jours de la semaine */}
-      <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground border-b border-border/50 mb-1">
-        {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
-          <div key={day} className="py-2">
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Grille du calendrier */}
-      <div className="grid grid-cols-7 gap-px border-t border-border/50">
-        {days.map(renderDay)}
-      </div>
-    </div>
+      
+      {/* Modale des événements du jour */}
+      <DayEventsDialog 
+        selectedDate={selectedDay}
+        events={dayEvents}
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+      />
+    </>
   );
 };
 
