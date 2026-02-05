@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, Phone, Mail } from 'lucide-react';
+import { Eye, Edit2, Phone, Mail, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { showSuccess } from "@/utils/toast";
 
 export interface Technician {
   id: string;
@@ -23,12 +24,10 @@ export interface Technician {
   email: string;
 }
 
-const mockTechnicians: Technician[] = [
-  { id: 'TECH-01', name: 'Jean Dupont', specialty: 'Biomédical', status: 'InIntervention', activeOrders: 3, phone: '06 12 34 56 78', email: 'j.dupont@clinique.fr' },
-  { id: 'TECH-02', name: 'Marc Voisin', specialty: 'Electricien', status: 'Available', activeOrders: 0, phone: '06 87 65 43 21', email: 'm.voisin@clinique.fr' },
-  { id: 'TECH-03', name: 'Sophie Laurent', specialty: 'Frigoriste', status: 'Available', activeOrders: 1, phone: '07 11 22 33 44', email: 's.laurent@clinique.fr' },
-  { id: 'TECH-04', name: 'Ahmed Bensaid', specialty: 'Plombier', status: 'OnLeave', activeOrders: 0, phone: '06 55 44 33 22', email: 'a.bensaid@clinique.fr' },
-];
+interface TechniciansTableProps {
+  technicians: Technician[];
+  onEdit: (tech: Technician) => void;
+}
 
 const getStatusBadge = (status: Technician['status']) => {
   switch (status) {
@@ -38,7 +37,18 @@ const getStatusBadge = (status: Technician['status']) => {
   }
 };
 
-const TechniciansTable: React.FC = () => {
+const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit }) => {
+  
+  const handleCall = (tech: Technician) => {
+    showSuccess(`Appel de ${tech.name} au ${tech.phone}...`);
+  };
+
+  const handleShowOT = (tech: Technician) => {
+    if (tech.activeOrders > 0) {
+      showSuccess(`${tech.name} travaille sur ${tech.activeOrders} ordres de travail actuellement.`);
+    }
+  };
+
   return (
     <div className="overflow-x-auto rounded-xl border shadow-md bg-card">
       <Table>
@@ -52,47 +62,70 @@ const TechniciansTable: React.FC = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {mockTechnicians.map((tech) => (
-            <TableRow key={tech.id} className="hover:bg-accent/50 transition-colors">
-              <TableCell>
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10 border-2 border-primary/10">
-                    <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
-                      {tech.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium text-foreground">{tech.name}</div>
-                    <div className="text-xs text-muted-foreground font-mono">{tech.id}</div>
+          {technicians.length > 0 ? (
+            technicians.map((tech) => (
+              <TableRow key={tech.id} className="hover:bg-accent/50 transition-colors">
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10 border-2 border-primary/10">
+                      <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
+                        {tech.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-foreground">{tech.name}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{tech.id}</div>
+                    </div>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="rounded-xl border-blue-200 text-blue-700 bg-blue-50">
-                  {tech.specialty}
-                </Badge>
-              </TableCell>
-              <TableCell>{getStatusBadge(tech.status)}</TableCell>
-              <TableCell className="text-center font-bold">
-                <span className={cn(
-                  "inline-flex items-center justify-center h-8 w-8 rounded-full",
-                  tech.activeOrders > 2 ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
-                )}>
-                  {tech.activeOrders}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600">
-                    <Phone size={16} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground">
-                    <Edit2 size={16} />
-                  </Button>
-                </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="rounded-xl border-blue-200 text-blue-700 bg-blue-50">
+                    {tech.specialty}
+                  </Badge>
+                </TableCell>
+                <TableCell>{getStatusBadge(tech.status)}</TableCell>
+                <TableCell className="text-center">
+                  <button 
+                    onClick={() => handleShowOT(tech)}
+                    className={cn(
+                      "inline-flex items-center justify-center h-8 w-8 rounded-full font-bold transition-transform hover:scale-110",
+                      tech.activeOrders > 2 ? "bg-red-100 text-red-700" : tech.activeOrders > 0 ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {tech.activeOrders}
+                  </button>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
+                      onClick={() => handleCall(tech)}
+                      title="Appeler"
+                    >
+                      <Phone size={16} />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
+                      onClick={() => onEdit(tech)}
+                      title="Modifier"
+                    >
+                      <Edit2 size={16} />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                Aucun technicien trouvé.
               </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </div>

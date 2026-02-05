@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, UserPlus, Search, HardHat, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Search, HardHat, CheckCircle2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import TechniciansTable from '@/components/TechniciansTable';
+import TechniciansTable, { Technician } from '@/components/TechniciansTable';
 import CreateTechnicianForm from '@/components/CreateTechnicianForm';
+
+const initialTechnicians: Technician[] = [
+  { id: 'TECH-01', name: 'Jean Dupont', specialty: 'Biomédical', status: 'InIntervention', activeOrders: 3, phone: '06 12 34 56 78', email: 'j.dupont@clinique.fr' },
+  { id: 'TECH-02', name: 'Marc Voisin', specialty: 'Electricien', status: 'Available', activeOrders: 0, phone: '06 87 65 43 21', email: 'm.voisin@clinique.fr' },
+  { id: 'TECH-03', name: 'Sophie Laurent', specialty: 'Frigoriste', status: 'Available', activeOrders: 1, phone: '07 11 22 33 44', email: 's.laurent@clinique.fr' },
+  { id: 'TECH-04', name: 'Ahmed Bensaid', specialty: 'Plombier', status: 'OnLeave', activeOrders: 0, phone: '06 55 44 33 22', email: 'a.bensaid@clinique.fr' },
+];
 
 const TechniciansPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
+
+  const filteredTechnicians = useMemo(() => {
+    return initialTechnicians.filter(tech => 
+      tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tech.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tech.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
+
+  const handleEdit = (tech: Technician) => {
+    setSelectedTech(tech);
+    // On pourrait ouvrir une modale de modification ici
+  };
 
   return (
     <div className="space-y-8">
@@ -45,21 +67,25 @@ const TechniciansPage: React.FC = () => {
             <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Effectif Total</CardTitle>
             <Users className="h-5 w-5 text-blue-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">8 Techniciens</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{initialTechnicians.length} Techniciens</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-green-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Disponibles</CardTitle>
             <CheckCircle2 className="h-5 w-5 text-green-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">5 Disponibles</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{initialTechnicians.filter(t => t.status === 'Available').length} Disponibles</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Charge Moyenne</CardTitle>
             <HardHat className="h-5 w-5 text-amber-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">1.5 OT / Tech</div></CardContent>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {(initialTechnicians.reduce((acc, t) => acc + t.activeOrders, 0) / initialTechnicians.length).toFixed(1)} OT / Tech
+            </div>
+          </CardContent>
         </Card>
       </div>
 
@@ -72,12 +98,20 @@ const TechniciansPage: React.FC = () => {
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input placeholder="Rechercher un technicien..." className="pl-10 rounded-xl" />
+              <Input 
+                placeholder="Rechercher par nom, spécialité..." 
+                className="pl-10 rounded-xl" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <TechniciansTable />
+          <TechniciansTable 
+            technicians={filteredTechnicians} 
+            onEdit={handleEdit} 
+          />
         </CardContent>
       </Card>
     </div>
