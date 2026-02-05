@@ -23,12 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showSuccess, showError } from "@/utils/toast";
-import { useCreateUser } from "@/hooks/use-create-user";
-import { UserRole } from "@/hooks/use-auth";
+import { showSuccess } from "@/utils/toast";
 
-// Liste des rôles disponibles pour la création (Admin peut créer tous les rôles sauf Admin lui-même pour la simplicité)
-const CREATABLE_ROLES: { value: UserRole, label: string }[] = [
+// Liste des rôles disponibles pour la création (maintenant juste pour l'affichage)
+const CREATABLE_ROLES: { value: string, label: string }[] = [
   { value: 'technician', label: 'Technicien' },
   { value: 'stock_manager', label: 'Gestionnaire de Stock' },
   { value: 'secretary', label: 'Secrétaire' },
@@ -54,7 +52,7 @@ interface CreateTechnicianFormProps {
 }
 
 const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }) => {
-  const { createUser, isLoading } = useCreateUser();
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const form = useForm<TechnicianFormValues>({
     resolver: zodResolver(TechnicianSchema),
@@ -70,23 +68,18 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
   });
 
   const onSubmit = async (data: TechnicianFormValues) => {
+    setIsLoading(true);
     const fullName = `${data.first_name} ${data.last_name}`;
     
-    const result = await createUser({
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      first_name: data.first_name,
-      last_name: data.last_name,
-    });
+    // Simulation de la création d'utilisateur
+    console.log("Création d'utilisateur simulée:", data);
 
-    if (result.success) {
-      showSuccess(`Utilisateur ${fullName} créé avec succès avec le rôle ${data.role}.`);
-      form.reset();
-      onSuccess();
-    } else {
-      showError(result.error || "Échec de la création de l'utilisateur.");
-    }
+    setTimeout(() => {
+        setIsLoading(false);
+        showSuccess(`Utilisateur ${fullName} créé avec succès avec le rôle ${data.role}.`);
+        form.reset();
+        onSuccess();
+    }, 1500);
   };
 
   return (

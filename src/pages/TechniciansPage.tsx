@@ -66,7 +66,7 @@ const TechniciansPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Gestion des Utilisateurs</h1>
-            <p className="text-lg text-muted-foreground">Créez et gérez les comptes utilisateurs et leurs rôles.</p>
+            <p className="text-lg text-muted-foreground">Créez et gérez les comptes utilisateurs.</p>
           </div>
         </div>
         
@@ -79,7 +79,7 @@ const TechniciansPage: React.FC = () => {
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">Nouveau Compte Utilisateur</DialogTitle>
-              <DialogDescription>Créez un nouveau compte et assignez-lui un rôle dans l'entreprise.</DialogDescription>
+              <DialogDescription>Créez un nouveau compte utilisateur pour l'application.</DialogDescription>
             </DialogHeader>
             <CreateTechnicianForm onSuccess={() => setIsCreateOpen(false)} />
           </DialogContent>
