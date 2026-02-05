@@ -128,7 +128,8 @@ const CreateInteractionForm: React.FC<CreateInteractionFormProps> = ({ onSuccess
                 <FormMessage />
               </FormItem>
             )}
-          )}
+          />
+        )}
 
         <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <MessageSquare className="mr-2" size={18} />}
