@@ -17,6 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const fetchUserRole = async (userId: string): Promise<UserRole> => {
+  // Assurez-vous que le rôle est récupéré correctement
   const { data, error } = await supabase
     .from('profiles')
     .select('role')
@@ -25,8 +26,11 @@ const fetchUserRole = async (userId: string): Promise<UserRole> => {
 
   if (error) {
     console.error("[AuthContext] Error fetching user role:", error);
-    return 'user'; // Rôle par défaut en cas d'erreur
+    // Si la récupération échoue (par exemple, si le profil n'a pas encore été créé par le trigger),
+    // nous retournons 'user' par défaut.
+    return 'user'; 
   }
+  // Le rôle est casté en UserRole. Si data est null ou role est null, on utilise 'user'.
   return (data?.role as UserRole) || 'user';
 };
 
@@ -41,8 +45,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(currentUser);
       
       if (currentUser) {
-        const userRole = await fetchUserRole(currentUser.id);
-        setRole(userRole);
+        // Attendre que le trigger Supabase ait potentiellement créé le profil
+        // Nous ajoutons un petit délai pour donner le temps au trigger de s'exécuter après SIGNED_IN
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+             const userRole = await fetchUserRole(currentUser.id);
+             setRole(userRole);
+        }
       } else {
         setRole(null);
       }

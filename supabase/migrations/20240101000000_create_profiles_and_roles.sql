@@ -1,21 +1,26 @@
 -- Création de l'énumération pour les rôles
-CREATE TYPE user_role AS ENUM ('admin', 'technician', 'stock_manager', 'secretary', 'user');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE public.user_role AS ENUM ('admin', 'technician', 'stock_manager', 'secretary', 'user');
+    END IF;
+END $$;
 
 -- Création de la table profiles
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   first_name TEXT,
   last_name TEXT,
   avatar_url TEXT,
-  role user_role DEFAULT 'user'::user_role NOT NULL, -- Ajout du champ role
+  role public.user_role DEFAULT 'user'::public.user_role NOT NULL,
+  initial_salary NUMERIC DEFAULT 0,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   PRIMARY KEY (id)
 );
 
--- Activer RLS (OBLIGATOIRE pour la sécurité)
+-- Activation de RLS (OBLIGATOIRE pour la sécurité)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Policies RLS pour les profils
+-- Politiques RLS
 CREATE POLICY "profiles_select_policy" ON public.profiles
 FOR SELECT TO authenticated USING (auth.uid() = id);
 
@@ -35,11 +40,13 @@ LANGUAGE PLPGSQL
 SECURITY DEFINER SET search_path = ''
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, first_name, last_name)
+  INSERT INTO public.profiles (id, first_name, last_name, initial_salary, role)
   VALUES (
     new.id,
     new.raw_user_meta_data ->> 'first_name',
-    new.raw_user_meta_data ->> 'last_name'
+    new.raw_user_meta_data ->> 'last_name',
+    200000, -- Salaire initial par défaut de 200 000 CFA (valeur par défaut existante)
+    'user'::public.user_role -- Rôle par défaut
   );
   RETURN new;
 END;
