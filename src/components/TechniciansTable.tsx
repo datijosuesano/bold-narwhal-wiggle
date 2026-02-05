@@ -9,10 +9,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, Phone, Mail, Info } from 'lucide-react';
+import { Eye, Edit2, Phone, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { showSuccess } from "@/utils/toast";
 
 export interface Technician {
   id: string;
@@ -27,6 +26,7 @@ export interface Technician {
 interface TechniciansTableProps {
   technicians: Technician[];
   onEdit: (tech: Technician) => void;
+  onShowTasks: (tech: Technician) => void;
 }
 
 const getStatusBadge = (status: Technician['status']) => {
@@ -37,16 +37,13 @@ const getStatusBadge = (status: Technician['status']) => {
   }
 };
 
-const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit }) => {
+const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks }) => {
   
-  const handleCall = (tech: Technician) => {
-    showSuccess(`Appel de ${tech.name} au ${tech.phone}...`);
-  };
-
-  const handleShowOT = (tech: Technician) => {
-    if (tech.activeOrders > 0) {
-      showSuccess(`${tech.name} travaille sur ${tech.activeOrders} ordres de travail actuellement.`);
-    }
+  const handleWhatsApp = (tech: Technician) => {
+    // Nettoyage du numéro de téléphone (garder seulement les chiffres)
+    const cleanNumber = tech.phone.replace(/\D/g, '');
+    const formattedNumber = cleanNumber.startsWith('0') ? '33' + cleanNumber.substring(1) : cleanNumber;
+    window.open(`https://wa.me/${formattedNumber}?text=Bonjour ${tech.name}, vous avez une nouvelle intervention...`, '_blank');
   };
 
   return (
@@ -86,11 +83,12 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                 <TableCell>{getStatusBadge(tech.status)}</TableCell>
                 <TableCell className="text-center">
                   <button 
-                    onClick={() => handleShowOT(tech)}
+                    onClick={() => onShowTasks(tech)}
                     className={cn(
-                      "inline-flex items-center justify-center h-8 w-8 rounded-full font-bold transition-transform hover:scale-110",
-                      tech.activeOrders > 2 ? "bg-red-100 text-red-700" : tech.activeOrders > 0 ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
+                      "inline-flex items-center justify-center h-8 w-8 rounded-full font-bold transition-all hover:scale-110 shadow-sm",
+                      tech.activeOrders > 2 ? "bg-red-500 text-white" : tech.activeOrders > 0 ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground"
                     )}
+                    title="Voir les tâches"
                   >
                     {tech.activeOrders}
                   </button>
@@ -100,18 +98,18 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
-                      onClick={() => handleCall(tech)}
-                      title="Appeler"
+                      className="h-8 w-8 rounded-full text-green-600 hover:bg-green-50"
+                      onClick={() => handleWhatsApp(tech)}
+                      title="Contacter sur WhatsApp"
                     >
-                      <Phone size={16} />
+                      <MessageCircle size={18} />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
                       onClick={() => onEdit(tech)}
-                      title="Modifier"
+                      title="Modifier le profil"
                     >
                       <Edit2 size={16} />
                     </Button>

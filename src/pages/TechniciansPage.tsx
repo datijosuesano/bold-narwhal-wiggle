@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import TechniciansTable, { Technician } from '@/components/TechniciansTable';
 import CreateTechnicianForm from '@/components/CreateTechnicianForm';
+import EditTechnicianForm from '@/components/EditTechnicianForm';
+import TechnicianTasksDialog from '@/components/TechnicianTasksDialog';
 
 const initialTechnicians: Technician[] = [
   { id: 'TECH-01', name: 'Jean Dupont', specialty: 'Biomédical', status: 'InIntervention', activeOrders: 3, phone: '06 12 34 56 78', email: 'j.dupont@clinique.fr' },
@@ -16,6 +18,8 @@ const initialTechnicians: Technician[] = [
 
 const TechniciansPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
 
@@ -29,7 +33,12 @@ const TechniciansPage: React.FC = () => {
 
   const handleEdit = (tech: Technician) => {
     setSelectedTech(tech);
-    // On pourrait ouvrir une modale de modification ici
+    setIsEditOpen(true);
+  };
+
+  const handleShowTasks = (tech: Technician) => {
+    setSelectedTech(tech);
+    setIsTasksOpen(true);
   };
 
   return (
@@ -110,10 +119,34 @@ const TechniciansPage: React.FC = () => {
         <CardContent className="p-0">
           <TechniciansTable 
             technicians={filteredTechnicians} 
-            onEdit={handleEdit} 
+            onEdit={handleEdit}
+            onShowTasks={handleShowTasks}
           />
         </CardContent>
       </Card>
+
+      {/* Modale de Modification */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Modifier le Technicien</DialogTitle>
+            <DialogDescription>Mettez à jour les informations de {selectedTech?.name}.</DialogDescription>
+          </DialogHeader>
+          {selectedTech && (
+            <EditTechnicianForm 
+              technician={selectedTech} 
+              onSuccess={() => setIsEditOpen(false)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale des Tâches Assignées */}
+      <TechnicianTasksDialog 
+        technician={selectedTech} 
+        isOpen={isTasksOpen} 
+        onClose={() => setIsTasksOpen(false)} 
+      />
     </div>
   );
 };
