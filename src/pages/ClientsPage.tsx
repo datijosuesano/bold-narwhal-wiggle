@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Plus, Phone, Mail, MapPin, History, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Building2, Plus, Phone, Mail, MapPin, History, MessageSquare, ShieldCheck, Users } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from '@/components/ui/badge';
 
