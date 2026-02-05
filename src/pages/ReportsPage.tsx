@@ -8,6 +8,7 @@ import CreateReportForm from '@/components/CreateReportForm';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { cn } from "@/lib/utils";
 
 interface Report {
   id: string;
