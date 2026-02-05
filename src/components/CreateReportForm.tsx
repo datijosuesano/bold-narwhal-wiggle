@@ -31,6 +31,7 @@ const ReportSchema = z.object({
     required_error: "Veuillez choisir un type de rapport",
   }),
   title: z.string().min(5, "Le titre est trop court"),
+  client: z.string().min(2, "Le nom du client/site est requis"),
   technician: z.string().min(1, "Technicien requis"),
   content: z.string().min(20, "Le contenu doit être détaillé (20 caractères min)"),
   date: z.string(),
@@ -50,6 +51,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     defaultValues: {
       type: "Intervention",
       title: "",
+      client: "",
       technician: "",
       content: "",
       date: new Date().toISOString().split('T')[0],
@@ -60,7 +62,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      showSuccess(`Rapport de ${data.type} enregistré !`);
+      showSuccess(`Rapport pour ${data.client} enregistré !`);
       form.reset();
       onSuccess();
     }, 1500);
@@ -103,6 +105,18 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="client"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Client / Site d'intervention</FormLabel>
+              <FormControl><Input placeholder="Ex: Clinique du Parc, Hôpital Nord..." {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

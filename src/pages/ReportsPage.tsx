@@ -1,32 +1,54 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, FileText, Map, Filter } from 'lucide-react';
+import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import CreateReportForm from '@/components/CreateReportForm';
+import ReportPDFPreview from '@/components/ReportPDFPreview';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
+import { showSuccess } from '@/utils/toast';
 
 interface Report {
   id: string;
   title: string;
   type: 'Intervention' | 'Mission';
+  client: string;
   technician: string;
   date: Date;
   status: 'Draft' | 'Finalized';
 }
 
-const mockReports: Report[] = [
-  { id: 'REP-001', title: 'Maintenance Préventive Climatisation', type: 'Intervention', technician: 'Jean Dupont', date: new Date(), status: 'Finalized' },
-  { id: 'REP-002', title: 'Mission de Formation Bloc Nord', type: 'Mission', technician: 'Sophie Laurent', date: new Date(Date.now() - 86400000), status: 'Finalized' },
-  { id: 'REP-003', title: 'Réparation Fuite Hydraulique', type: 'Intervention', technician: 'Ahmed Bensaid', date: new Date(Date.now() - 172800000), status: 'Draft' },
+const initialMockReports: Report[] = [
+  { id: 'REP-001', title: 'Maintenance Préventive Climatisation', type: 'Intervention', client: 'Clinique du Parc', technician: 'Jean Dupont', date: new Date(), status: 'Finalized' },
+  { id: 'REP-002', title: 'Mission de Formation Bloc Nord', type: 'Mission', client: 'Hôpital Privé Nord', technician: 'Sophie Laurent', date: new Date(Date.now() - 86400000), status: 'Finalized' },
+  { id: 'REP-003', title: 'Réparation Fuite Hydraulique', type: 'Intervention', client: 'Centre Médical Sud', technician: 'Ahmed Bensaid', date: new Date(Date.now() - 172800000), status: 'Draft' },
 ];
 
 const ReportsPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reports, setReports] = useState(initialMockReports);
+
+  const handleViewPDF = (report: Report) => {
+    setSelectedReport(report);
+    setIsPreviewOpen(true);
+  };
+
+  const handleValidate = (reportId: string) => {
+    setReports(prev => prev.map(r => 
+      r.id === reportId ? { ...r, status: 'Finalized' } : r
+    ));
+    showSuccess("Rapport validé avec succès. Le document est maintenant verrouillé.");
+  };
+
+  const handleDownload = () => {
+    showSuccess("Téléchargement du PDF lancé...");
+  };
 
   return (
     <div className="space-y-8">
@@ -36,8 +58,8 @@ const ReportsPage: React.FC = () => {
             <ClipboardList className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Rapports</h1>
-            <p className="text-lg text-muted-foreground">Historique et création de comptes-rendus d'activité.</p>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Rapports d'Activité</h1>
+            <p className="text-lg text-muted-foreground">Centralisation des interventions multi-sites.</p>
           </div>
         </div>
         
@@ -50,7 +72,7 @@ const ReportsPage: React.FC = () => {
           <DialogContent className="sm:max-w-[550px] rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">Créer un Rapport</DialogTitle>
-              <DialogDescription>Saisissez les détails de l'intervention ou de la mission.</DialogDescription>
+              <DialogDescription>Saisissez les détails de l'intervention multi-sites.</DialogDescription>
             </DialogHeader>
             <CreateReportForm onSuccess={() => setIsCreateOpen(false)} />
           </DialogContent>
@@ -60,17 +82,17 @@ const ReportsPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-lg border-l-4 border-blue-500 bg-blue-50/30">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase">Interventions</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase">Total Interventions</CardTitle>
             <FileText className="h-5 w-5 text-blue-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">145 Rapports</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{reports.filter(r => r.type === 'Intervention').length} Rapports</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-purple-500 bg-purple-50/30">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase">Missions</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase">Missions Externes</CardTitle>
             <Map className="h-5 w-5 text-purple-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">28 Missions</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{reports.filter(r => r.type === 'Mission').length} Missions</div></CardContent>
         </Card>
       </div>
 
@@ -79,12 +101,12 @@ const ReportsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>Journal des Rapports</CardTitle>
-              <CardDescription>Tous vos documents centralisés.</CardDescription>
+              <CardDescription>Documents classés par ordre chronologique.</CardDescription>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input placeholder="Rechercher..." className="pl-10 rounded-xl" />
+                <Input placeholder="Rechercher (Client, Objet...)" className="pl-10 rounded-xl" />
               </div>
               <Button variant="outline" className="rounded-xl"><Filter size={18} /></Button>
             </div>
@@ -92,7 +114,7 @@ const ReportsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {mockReports.map((report) => (
+            {reports.map((report) => (
               <div key={report.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
                 <div className="flex items-center space-x-4">
                   <div className={cn(
@@ -103,20 +125,61 @@ const ReportsPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-foreground">{report.title}</h4>
-                    <p className="text-sm text-muted-foreground">Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}</p>
+                    <p className="text-sm font-medium text-blue-600">{report.client}</p>
+                    <p className="text-xs text-muted-foreground">Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <Badge variant={report.status === 'Finalized' ? "default" : "secondary"} className="rounded-full">
+                <div className="flex items-center space-x-3">
+                  <Badge variant={report.status === 'Finalized' ? "default" : "secondary"} className={cn(
+                    "rounded-full",
+                    report.status === 'Finalized' ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
+                  )}>
                     {report.status === 'Finalized' ? 'Validé' : 'Brouillon'}
                   </Badge>
-                  <Button variant="ghost" size="sm" className="rounded-xl text-blue-600">Voir PDF</Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {report.status === 'Draft' && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 text-green-600 hover:bg-green-50" 
+                        onClick={() => handleValidate(report.id)}
+                        title="Valider le rapport"
+                      >
+                        <CheckCircle2 size={18} />
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-blue-600 hover:bg-blue-50" 
+                      onClick={() => handleViewPDF(report)}
+                      title="Voir Aperçu PDF"
+                    >
+                      <Eye size={18} />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      {/* Modale d'Aperçu PDF */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
+          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm">
+            <DialogTitle className="text-lg font-bold">Aperçu du Rapport de Maintenance</DialogTitle>
+            <Button onClick={handleDownload} className="bg-blue-600 rounded-xl">
+              <Download size={18} className="mr-2" /> Télécharger PDF
+            </Button>
+          </div>
+          <div className="p-6 md:p-12">
+            {selectedReport && <ReportPDFPreview report={selectedReport} />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
