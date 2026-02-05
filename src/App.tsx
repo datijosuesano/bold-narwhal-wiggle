@@ -17,6 +17,7 @@ import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import ReagentsPage from "./pages/ReagentsPage"; // Import the new page
 
 const queryClient = new QueryClient();
 
@@ -43,7 +44,7 @@ const App = () => (
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
-                <Route path="/reagents" element={<div>Page Réactifs Labo (À implémenter)</div>} />
+                <Route path="/reagents" element={<ReagentsPage />} /> {/* Use the new page */}
               </Route>
             </Route>
             
