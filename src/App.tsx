@@ -10,7 +10,9 @@ import WorkOrdersPage from "./pages/WorkOrdersPage";
 import PlanningPage from "./pages/PlanningPage";
 import ContractsPage from "./pages/ContractsPage";
 import TechniciansPage from "./pages/TechniciansPage";
-import ReportsPage from "./pages/ReportsPage"; // Nouveau
+import ReportsPage from "./pages/ReportsPage";
+import ClientsPage from "./pages/ClientsPage"; // Nouveau
+import InventoryPage from "./pages/InventoryPage"; // Nouveau
 import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,8 @@ const App = () => (
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/technicians" element={<TechniciansPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
