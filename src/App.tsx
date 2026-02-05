@@ -14,6 +14,9 @@ import ReportsPage from "./pages/ReportsPage";
 import ClientsPage from "./pages/ClientsPage";
 import InventoryPage from "./pages/InventoryPage";
 import MainLayout from "./components/MainLayout";
+import LoginPage from "./pages/LoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -23,22 +26,30 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="/assets" element={<AssetsPage />} />
-            <Route path="/work-orders" element={<WorkOrdersPage />} />
-            <Route path="/planning" element={<PlanningPage />} />
-            <Route path="/contracts" element={<ContractsPage />} />
-            <Route path="/technicians" element={<TechniciansPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/clients" element={<ClientsPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/reagents" element={<div>Page Réactifs Labo (À implémenter)</div>} />
-          </Route>
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public Route */}
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* Protected Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="/assets" element={<AssetsPage />} />
+                <Route path="/work-orders" element={<WorkOrdersPage />} />
+                <Route path="/planning" element={<PlanningPage />} />
+                <Route path="/contracts" element={<ContractsPage />} />
+                <Route path="/technicians" element={<TechniciansPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/clients" element={<ClientsPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/reagents" element={<div>Page Réactifs Labo (À implémenter)</div>} />
+              </Route>
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

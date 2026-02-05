@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 interface NavItemProps {
   to: string;
@@ -39,6 +40,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile, 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { user, signOut } = useAuth(); // Use auth context
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord" },
@@ -53,11 +55,6 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/reports", icon: <ClipboardList size={20} />, label: "Rapports" },
   ];
   
-  // Simuler la déconnexion (qui ne fait rien maintenant)
-  const handleSignOut = () => {
-    console.log("Déconnexion simulée.");
-  };
-
   return (
     <div className="flex flex-col h-full p-4 space-y-4">
       <div className="text-2xl font-extrabold text-sidebar-primary-foreground mb-6 text-center">
@@ -77,15 +74,17 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
           ))}
       </nav>
       <div className="pt-4 border-t border-sidebar-border space-y-2">
-        <p className="text-sm text-sidebar-foreground/90 text-center font-medium">
-          Mode Démo (Authentification désactivée)
-        </p>
+        {user && (
+          <p className="text-sm text-sidebar-foreground/90 text-center font-medium truncate" title={user.email || ''}>
+            Connecté: {user.email}
+          </p>
+        )}
         <Button 
-          onClick={handleSignOut} 
+          onClick={signOut} 
           variant="secondary" 
           className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white"
         >
-          <LogOut size={18} className="mr-2" /> Déconnexion (Simulée)
+          <LogOut size={18} className="mr-2" /> Déconnexion
         </Button>
       </div>
     </div>
