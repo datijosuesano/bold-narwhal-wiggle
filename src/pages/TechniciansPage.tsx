@@ -65,21 +65,21 @@ const TechniciansPage: React.FC = () => {
             <Users className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Équipe Technique</h1>
-            <p className="text-lg text-muted-foreground">Gérez vos techniciens et suivez leur charge de travail.</p>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Gestion des Utilisateurs</h1>
+            <p className="text-lg text-muted-foreground">Créez et gérez les comptes utilisateurs et leurs rôles.</p>
           </div>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <UserPlus className="mr-2 h-4 w-4" /> Ajouter Technicien
+              <UserPlus className="mr-2 h-4 w-4" /> Créer Utilisateur
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Nouveau Technicien</DialogTitle>
-              <DialogDescription>Ajoutez un membre à votre équipe technique.</DialogDescription>
+              <DialogTitle className="text-2xl font-bold">Nouveau Compte Utilisateur</DialogTitle>
+              <DialogDescription>Créez un nouveau compte et assignez-lui un rôle dans l'entreprise.</DialogDescription>
             </DialogHeader>
             <CreateTechnicianForm onSuccess={() => setIsCreateOpen(false)} />
           </DialogContent>
@@ -92,11 +92,11 @@ const TechniciansPage: React.FC = () => {
             <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Effectif Total</CardTitle>
             <Users className="h-5 w-5 text-blue-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{initialTechnicians.length} Techniciens</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{initialTechnicians.length} Utilisateurs</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-green-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Disponibles</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Techniciens Disponibles</CardTitle>
             <CheckCircle2 className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent><div className="text-3xl font-bold">{initialTechnicians.filter(t => t.status === 'Available').length} Disponibles</div></CardContent>
@@ -118,7 +118,7 @@ const TechniciansPage: React.FC = () => {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Liste de l'Équipe</CardTitle>
+              <CardTitle>Liste des Utilisateurs</CardTitle>
               <CardDescription>Suivi des disponibilités et des interventions en cours.</CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
