@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Users, UserPlus, Search, HardHat, CheckCircle2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TechniciansTable, { Technician } from '@/components/TechniciansTable';
 import CreateTechnicianForm from '@/components/CreateTechnicianForm';
 import EditTechnicianForm from '@/components/EditTechnicianForm';
 import TechnicianTasksDialog from '@/components/TechnicianTasksDialog';
+import { showSuccess } from '@/utils/toast';
 
 const initialTechnicians: Technician[] = [
   { id: 'TECH-01', name: 'Jean Dupont', specialty: 'Biomédical', status: 'InIntervention', activeOrders: 3, phone: '06 12 34 56 78', email: 'j.dupont@clinique.fr' },
@@ -20,6 +22,7 @@ const TechniciansPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
 
@@ -39,6 +42,19 @@ const TechniciansPage: React.FC = () => {
   const handleShowTasks = (tech: Technician) => {
     setSelectedTech(tech);
     setIsTasksOpen(true);
+  };
+
+  const handleDeleteClick = (tech: Technician) => {
+    setSelectedTech(tech);
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedTech) {
+      showSuccess(`Technicien ${selectedTech.name} supprimé avec succès.`);
+      setIsDeleteOpen(false);
+      setSelectedTech(null);
+    }
   };
 
   return (
@@ -63,7 +79,7 @@ const TechniciansPage: React.FC = () => {
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">Nouveau Technicien</DialogTitle>
-              <DialogDescription>Ajoutez un nouveau membre à votre équipe technique.</DialogDescription>
+              <DialogDescription>Ajoutez un membre à votre équipe technique.</DialogDescription>
             </DialogHeader>
             <CreateTechnicianForm onSuccess={() => setIsCreateOpen(false)} />
           </DialogContent>
@@ -121,6 +137,7 @@ const TechniciansPage: React.FC = () => {
             technicians={filteredTechnicians} 
             onEdit={handleEdit}
             onShowTasks={handleShowTasks}
+            onDelete={handleDeleteClick}
           />
         </CardContent>
       </Card>
@@ -140,6 +157,24 @@ const TechniciansPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Alerte de Suppression */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Cela supprimera définitivement le profil de {selectedTech?.name} de la base de données.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modale des Tâches Assignées */}
       <TechnicianTasksDialog 

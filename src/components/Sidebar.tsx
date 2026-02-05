@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -47,6 +47,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification" },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats" },
     { to: "/technicians", icon: <Users size={20} />, label: "Techniciens" },
+    { to: "/reports", icon: <ClipboardList size={20} />, label: "Rapports" },
   ];
 
   return (

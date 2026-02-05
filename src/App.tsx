@@ -9,7 +9,8 @@ import AssetsPage from "./pages/AssetsPage";
 import WorkOrdersPage from "./pages/WorkOrdersPage";
 import PlanningPage from "./pages/PlanningPage";
 import ContractsPage from "./pages/ContractsPage";
-import TechniciansPage from "./pages/TechniciansPage"; // Nouveau
+import TechniciansPage from "./pages/TechniciansPage";
+import ReportsPage from "./pages/ReportsPage"; // Nouveau
 import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/planning" element={<PlanningPage />} />
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/technicians" element={<TechniciansPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

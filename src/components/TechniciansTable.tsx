@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, Phone, MessageCircle } from 'lucide-react';
+import { Edit2, MessageCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -27,6 +27,7 @@ interface TechniciansTableProps {
   technicians: Technician[];
   onEdit: (tech: Technician) => void;
   onShowTasks: (tech: Technician) => void;
+  onDelete: (tech: Technician) => void;
 }
 
 const getStatusBadge = (status: Technician['status']) => {
@@ -37,13 +38,12 @@ const getStatusBadge = (status: Technician['status']) => {
   }
 };
 
-const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks }) => {
+const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks, onDelete }) => {
   
   const handleWhatsApp = (tech: Technician) => {
-    // Nettoyage du numéro de téléphone (garder seulement les chiffres)
     const cleanNumber = tech.phone.replace(/\D/g, '');
     const formattedNumber = cleanNumber.startsWith('0') ? '33' + cleanNumber.substring(1) : cleanNumber;
-    window.open(`https://wa.me/${formattedNumber}?text=Bonjour ${tech.name}, vous avez une nouvelle intervention...`, '_blank');
+    window.open(`https://wa.me/${formattedNumber}`, '_blank');
   };
 
   return (
@@ -100,7 +100,7 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                       size="icon" 
                       className="h-8 w-8 rounded-full text-green-600 hover:bg-green-50"
                       onClick={() => handleWhatsApp(tech)}
-                      title="Contacter sur WhatsApp"
+                      title="WhatsApp"
                     >
                       <MessageCircle size={18} />
                     </Button>
@@ -109,9 +109,18 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                       size="icon" 
                       className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
                       onClick={() => onEdit(tech)}
-                      title="Modifier le profil"
+                      title="Modifier"
                     >
                       <Edit2 size={16} />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
+                      onClick={() => onDelete(tech)}
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
                     </Button>
                   </div>
                 </TableCell>
