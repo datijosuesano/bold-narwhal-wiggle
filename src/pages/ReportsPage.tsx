@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download } from 'lucide-react';
@@ -33,6 +33,7 @@ const ReportsPage: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reports, setReports] = useState(initialMockReports);
+  const [searchTerm, setSearchTerm] = useState(''); // Nouvel état pour la recherche
 
   const handleViewPDF = (report: Report) => {
     setSelectedReport(report);
@@ -49,6 +50,17 @@ const ReportsPage: React.FC = () => {
   const handleDownload = () => {
     showSuccess("Téléchargement du PDF lancé...");
   };
+  
+  // Logique de filtrage
+  const filteredReports = useMemo(() => {
+    if (!searchTerm) return reports;
+    const lowerCaseSearch = searchTerm.toLowerCase();
+    return reports.filter(report =>
+      report.title.toLowerCase().includes(lowerCaseSearch) ||
+      report.client.toLowerCase().includes(lowerCaseSearch) ||
+      report.technician.toLowerCase().includes(lowerCaseSearch)
+    );
+  }, [reports, searchTerm]);
 
   return (
     <div className="space-y-8">
@@ -106,7 +118,12 @@ const ReportsPage: React.FC = () => {
             <div className="flex gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input placeholder="Rechercher (Client, Objet...)" className="pl-10 rounded-xl" />
+                <Input 
+                  placeholder="Rechercher (Client, Objet...)" 
+                  className="pl-10 rounded-xl" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)} // Ajout de l'onChange
+                />
               </div>
               <Button variant="outline" className="rounded-xl"><Filter size={18} /></Button>
             </div>
@@ -114,54 +131,60 @@ const ReportsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {reports.map((report) => (
-              <div key={report.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className={cn(
-                    "p-2 rounded-lg",
-                    report.type === 'Intervention' ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"
-                  )}>
-                    {report.type === 'Intervention' ? <FileText size={20} /> : <Map size={20} />}
+            {filteredReports.length > 0 ? (
+              filteredReports.map((report) => (
+                <div key={report.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className={cn(
+                      "p-2 rounded-lg",
+                      report.type === 'Intervention' ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"
+                    )}>
+                      {report.type === 'Intervention' ? <FileText size={20} /> : <Map size={20} />}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground">{report.title}</h4>
+                      <p className="text-sm font-medium text-blue-600">{report.client}</p>
+                      <p className="text-xs text-muted-foreground">Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-foreground">{report.title}</h4>
-                    <p className="text-sm font-medium text-blue-600">{report.client}</p>
-                    <p className="text-xs text-muted-foreground">Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Badge variant={report.status === 'Finalized' ? "default" : "secondary"} className={cn(
-                    "rounded-full",
-                    report.status === 'Finalized' ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
-                  )}>
-                    {report.status === 'Finalized' ? 'Validé' : 'Brouillon'}
-                  </Badge>
-                  
-                  <div className="flex items-center gap-1">
-                    {report.status === 'Draft' && (
+                  <div className="flex items-center space-x-3">
+                    <Badge variant={report.status === 'Finalized' ? "default" : "secondary"} className={cn(
+                      "rounded-full",
+                      report.status === 'Finalized' ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
+                    )}>
+                      {report.status === 'Finalized' ? 'Validé' : 'Brouillon'}
+                    </Badge>
+                    
+                    <div className="flex items-center gap-1">
+                      {report.status === 'Draft' && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 text-green-600 hover:bg-green-50" 
+                          onClick={() => handleValidate(report.id)}
+                          title="Valider le rapport"
+                        >
+                          <CheckCircle2 size={18} />
+                        </Button>
+                      )}
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 text-green-600 hover:bg-green-50" 
-                        onClick={() => handleValidate(report.id)}
-                        title="Valider le rapport"
+                        className="h-9 w-9 text-blue-600 hover:bg-blue-50" 
+                        onClick={() => handleViewPDF(report)}
+                        title="Voir Aperçu PDF"
                       >
-                        <CheckCircle2 size={18} />
+                        <Eye size={18} />
                       </Button>
-                    )}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 text-blue-600 hover:bg-blue-50" 
-                      onClick={() => handleViewPDF(report)}
-                      title="Voir Aperçu PDF"
-                    >
-                      <Eye size={18} />
-                    </Button>
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucun rapport trouvé correspondant à votre recherche.
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
