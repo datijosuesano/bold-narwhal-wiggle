@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wrench, Clock, TrendingUp, Zap, CalendarDays } from 'lucide-react';
+import { Wrench, Clock, TrendingUp, Zap, CalendarDays, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFMDPerformance } from '@/hooks/use-fmd-performance';
 import { Input } from '@/components/ui/input';
