@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2 } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import AssetLifeSheet from './AssetLifeSheet'; // Import du nouveau composant
 
 // Définition du type Asset (doit correspondre à celui utilisé dans AssetsPage)
 interface Asset {
@@ -40,6 +43,7 @@ interface AssetDetailViewProps {
 }
 
 const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
+  const [activeTab, setActiveTab] = useState('details');
   
   const getStatusStyle = (status: Asset['status']) => {
     switch (status) {
@@ -52,6 +56,10 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+  };
+  
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -73,72 +81,96 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
         </span>
       </div>
 
-      {/* Détails Techniques */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg">Spécifications Techniques</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center space-x-3">
-            <Hash size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">N° Série:</span> {asset.serialNumber}</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Tag size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">Modèle:</span> {asset.model}</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Factory size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">Fabricant:</span> {asset.manufacturer}</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <MapPin size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">Localisation:</span> {asset.location}</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Calendar size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <DollarSign size={16} className="text-muted-foreground" />
-            <p><span className="font-medium">Coût d'achat:</span> {formatCurrency(asset.purchaseCost)}</p>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="bg-muted p-1 rounded-xl">
+            <TabsTrigger value="details" className="rounded-lg px-4">Détails Rapides</TabsTrigger>
+            <TabsTrigger value="life-sheet" className="rounded-lg px-4">Fiche de Vie</TabsTrigger>
+          </TabsList>
+          
+          {activeTab === 'life-sheet' && (
+            <Button 
+              onClick={handlePrint} 
+              className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md print:hidden"
+            >
+              <Printer size={16} className="mr-2" /> Imprimer / PDF
+            </Button>
+          )}
+        </div>
 
-      {/* Historique des Ordres de Travail */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg">Historique des 3 derniers OT</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {mockHistory.map((ot) => (
-              <div key={ot.id} className="flex justify-between items-center p-4 hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-3">
-                    {ot.status === 'Completed' ? (
-                        <CheckCircle2 size={18} className="text-green-500" />
-                    ) : (
-                        <Clock size={18} className="text-amber-500 animate-pulse" />
-                    )}
-                    <div>
-                        <p className="font-medium">{ot.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {ot.type === 'Preventive' ? 'Préventive' : 'Corrective'} | {format(ot.date, 'dd/MM/yyyy')}
-                        </p>
-                    </div>
-                </div>
-                <span className={cn(
-                    "text-xs font-semibold px-2 py-0.5 rounded-full",
-                    ot.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                )}>
-                    {ot.status === 'Completed' ? 'Terminé' : 'En Cours'}
-                </span>
+        <TabsContent value="details" className="space-y-6">
+          {/* Détails Techniques */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg">Spécifications Techniques</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center space-x-3">
+                <Hash size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">N° Série:</span> {asset.serialNumber}</p>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex items-center space-x-3">
+                <Tag size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">Modèle:</span> {asset.model}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Factory size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">Fabricant:</span> {asset.manufacturer}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <MapPin size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">Localisation:</span> {asset.location}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Calendar size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <DollarSign size={16} className="text-muted-foreground" />
+                <p><span className="font-medium">Coût d'achat:</span> {formatCurrency(asset.purchaseCost)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Historique des Ordres de Travail */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg">Historique des 3 derniers OT</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {mockHistory.map((ot) => (
+                  <div key={ot.id} className="flex justify-between items-center p-4 hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center space-x-3">
+                        {ot.status === 'Completed' ? (
+                            <CheckCircle2 size={18} className="text-green-500" />
+                        ) : (
+                            <Clock size={18} className="text-amber-500 animate-pulse" />
+                        )}
+                        <div>
+                            <p className="font-medium">{ot.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {ot.type === 'Preventive' ? 'Préventive' : 'Corrective'} | {format(ot.date, 'dd/MM/yyyy')}
+                            </p>
+                        </div>
+                    </div>
+                    <span className={cn(
+                        "text-xs font-semibold px-2 py-0.5 rounded-full",
+                        ot.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    )}>
+                        {ot.status === 'Completed' ? 'Terminé' : 'En Cours'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="life-sheet">
+          <AssetLifeSheet asset={asset} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
