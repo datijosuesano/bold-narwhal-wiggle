@@ -24,6 +24,38 @@ interface FMDMetrics {
 // Période d'analyse par défaut: 30 jours (en millisecondes)
 const DEFAULT_PERIOD_MS = 30 * 24 * 60 * 60 * 1000; 
 
+// Données mockées pour simuler des événements de panne sur 30 jours
+const mockBreakdownEvents: BreakdownEvent[] = [
+  {
+    id: 'B1',
+    asset_id: 'EQ-001',
+    breakdown_start: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 10 jours
+    breakdown_end: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(), // Durée 4h
+    repair_start: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 1 * 60 * 60 * 1000).toISOString(), // Réparation après 1h
+    repair_end: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(), // Réparation durée 2h
+    is_planned_stop: false,
+  },
+  {
+    id: 'B2',
+    asset_id: 'EQ-001',
+    breakdown_start: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 25 jours
+    breakdown_end: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(), // Durée 8h
+    repair_start: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(), // Réparation après 2h
+    repair_end: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(), // Réparation durée 4h
+    is_planned_stop: false,
+  },
+  // Événement planifié (ne compte pas dans MTTR/MTBF)
+  {
+    id: 'B3',
+    asset_id: 'EQ-002',
+    breakdown_start: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    breakdown_end: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 1 * 60 * 60 * 1000).toISOString(),
+    repair_start: null,
+    repair_end: null,
+    is_planned_stop: true,
+  },
+];
+
 export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => {
   const { user } = useAuth();
   const [events, setEvents] = useState<BreakdownEvent[]>([]);
@@ -31,7 +63,12 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
   const [error, setError] = useState<string | null>(null);
 
   const fetchBreakdownEvents = async () => {
-    if (!user) return;
+    if (!user) {
+      // Si non authentifié, utiliser les mocks
+      setEvents(mockBreakdownEvents);
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -52,7 +89,9 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
 
     if (error) {
       console.error("Supabase error fetching breakdown events:", error);
-      showError("Erreur de chargement des données de performance.");
+      // SOLUTION PALLIATIVE: Utiliser les données mockées en cas d'échec de la connexion à la table
+      showError("Erreur de chargement des données de performance. Utilisation des données de démonstration.");
+      setEvents(mockBreakdownEvents.filter(e => !assetId || e.asset_id === assetId));
       setError(error.message);
     } else {
       setEvents(data as BreakdownEvent[]);
@@ -96,6 +135,7 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
     });
 
     // Période d'analyse en millisecondes (pour le MTBF)
+    // Nous utilisons la période définie par l'utilisateur (periodDays)
     const analysisPeriodMs = periodDays * 24 * 60 * 60 * 1000;
     
     // 3. Temps de Bon Fonctionnement (TBF)
