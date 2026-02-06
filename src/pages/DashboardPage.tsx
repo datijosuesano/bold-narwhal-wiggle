@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, LineChart, Line, Legend 
 } from 'recharts';
+import PerformanceDashboard from "@/components/PerformanceDashboard"; // Import du nouveau composant
 
 const DashboardPage: React.FC = () => {
   // Données mockées pour les graphiques
@@ -34,7 +35,10 @@ const DashboardPage: React.FC = () => {
         </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* NOUVEAU: Indicateurs FMD */}
+      <PerformanceDashboard />
+
+      {/* KPI Cards (Anciens, conservés pour la démo) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-lg border-l-4 border-blue-500 transition-transform hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
