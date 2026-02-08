@@ -262,7 +262,7 @@ const AssetsPage: React.FC = () => {
       </Card>
 
       {/* Edit Asset Dialog (Requires data mapping for EditAssetForm) */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditOpen}>
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Modifier l'Équipement: {selectedAsset?.name}</DialogTitle>
@@ -286,7 +286,7 @@ const AssetsPage: React.FC = () => {
       </Dialog>
       
       {/* Asset Detail Dialog (Requires data mapping for AssetDetailView) */}
-      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailOpen}>
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Détails de l'Équipement</DialogTitle>
