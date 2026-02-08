@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -9,32 +9,29 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, CheckCircle2, Clock } from 'lucide-react';
+import { Eye, Edit2, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
 
 // --- Types ---
 
 interface WorkOrder {
   id: string;
   title: string;
-  assetName: string;
+  asset_id: string; // ID de l'actif
+  assetName: string; // Nom de l'actif joint
   priority: 'Low' | 'Medium' | 'High';
   status: 'Open' | 'InProgress' | 'Completed' | 'Cancelled';
-  dueDate: Date;
-  type: 'Preventive' | 'Corrective';
+  due_date: string; // Date de la DB (string ISO)
+  maintenance_type: 'Preventive' | 'Corrective' | 'Palliative' | 'Ameliorative';
 }
 
-// --- Données Mockées ---
-
-const mockWorkOrders: WorkOrder[] = [
-  { id: 'OT-1001', title: 'Remplacement du roulement de la pompe P-101', assetName: 'Pompe P-101', priority: 'High', status: 'InProgress', dueDate: new Date(Date.now() + 86400000 * 2), type: 'Corrective' },
-  { id: 'OT-1002', title: 'Inspection trimestrielle du compresseur', assetName: 'Compresseur V12', priority: 'Medium', status: 'Open', dueDate: new Date(Date.now() + 86400000 * 7), type: 'Preventive' },
-  { id: 'OT-1003', title: 'Réparation fuite hydraulique Zone C', assetName: 'Presse H-500', priority: 'High', status: 'Open', dueDate: new Date(Date.now() - 86400000 * 1), type: 'Corrective' }, // En retard
-  { id: 'OT-1004', title: 'Graissage général des convoyeurs', assetName: 'Convoyeur Principal', priority: 'Low', status: 'Completed', dueDate: new Date(Date.now() - 86400000 * 10), type: 'Preventive' },
-  { id: 'OT-1005', title: 'Vérification des systèmes de sécurité', assetName: 'Système général', priority: 'Medium', status: 'InProgress', dueDate: new Date(Date.now() + 86400000 * 14), type: 'Preventive' },
-];
+interface WorkOrdersTableProps {
+  refreshTrigger: number; // Prop pour forcer le rafraîchissement
+}
 
 // --- Utility Functions ---
 
@@ -47,9 +44,10 @@ const getPriorityBadge = (priority: WorkOrder['priority']) => {
   }
 };
 
-const getStatusBadge = (status: WorkOrder['status'], dueDate: Date) => {
+const getStatusBadge = (status: WorkOrder['status'], dueDate: string) => {
   const base = "rounded-full text-xs font-medium";
-  const isOverdue = status !== 'Completed' && status !== 'Cancelled' && dueDate < new Date();
+  const date = new Date(dueDate);
+  const isOverdue = status !== 'Completed' && status !== 'Cancelled' && date < new Date();
 
   if (isOverdue) {
     return <Badge variant="destructive" className={cn(base, "bg-red-700 hover:bg-red-800 text-white")}>En Retard</Badge>;
@@ -64,9 +62,42 @@ const getStatusBadge = (status: WorkOrder['status'], dueDate: Date) => {
   }
 };
 
-const WorkOrdersTable: React.FC = () => {
-  // En production, cette liste viendrait d'un state ou d'une API
-  const workOrders = mockWorkOrders; 
+const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => {
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchWorkOrders = async () => {
+    setIsLoading(true);
+    
+    // Jointure pour récupérer le nom de l'actif
+    const { data, error } = await supabase
+      .from('work_orders')
+      .select(`
+        *,
+        assets (name)
+      `)
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      console.error("Error fetching work orders:", error);
+      showError("Erreur lors du chargement des Ordres de Travail.");
+      setWorkOrders([]);
+    } else {
+      // Mapper les données pour inclure assetName
+      const mappedOrders: WorkOrder[] = data.map((item: any) => ({
+        ...item,
+        assetName: item.assets ? item.assets.name : 'Actif Inconnu',
+        due_date: item.due_date, // Reste en string ISO
+        maintenance_type: item.maintenance_type,
+      }));
+      setWorkOrders(mappedOrders);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchWorkOrders();
+  }, [refreshTrigger]); // Déclenche le fetch lors du montage et du rafraîchissement
 
   return (
     <div className="overflow-x-auto rounded-xl border shadow-lg">
@@ -83,41 +114,56 @@ const WorkOrdersTable: React.FC = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {workOrders.map((ot) => (
-            <TableRow key={ot.id} className="hover:bg-accent/50 transition-colors">
-              <TableCell className="font-mono text-sm text-muted-foreground">{ot.id}</TableCell>
-              <TableCell>
-                <div className="font-medium text-foreground">{ot.title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{ot.type === 'Preventive' ? 'Préventive' : 'Corrective'}</div>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">{ot.assetName}</TableCell>
-              <TableCell>{getPriorityBadge(ot.priority)}</TableCell>
-              <TableCell>
-                <div className={cn(
-                  "text-sm font-medium",
-                  ot.status !== 'Completed' && ot.dueDate < new Date() ? 'text-red-600 dark:text-red-400' : 'text-foreground'
-                )}>
-                  {format(ot.dueDate, 'dd MMM yyyy', { locale: fr })}
-                </div>
-              </TableCell>
-              <TableCell>{getStatusBadge(ot.status, ot.dueDate)}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600">
-                    <Eye size={16} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground">
-                    <Edit2 size={16} />
-                  </Button>
-                  {ot.status !== 'Completed' && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-green-500 hover:bg-green-500/10">
-                      <CheckCircle2 size={16} />
-                    </Button>
-                  )}
-                </div>
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+                Chargement des ordres de travail...
               </TableCell>
             </TableRow>
-          ))}
+          ) : workOrders.length > 0 ? (
+            workOrders.map((ot) => (
+              <TableRow key={ot.id} className="hover:bg-accent/50 transition-colors">
+                <TableCell className="font-mono text-sm text-muted-foreground">{ot.id.substring(0, 8)}...</TableCell>
+                <TableCell>
+                  <div className="font-medium text-foreground">{ot.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{ot.maintenance_type}</div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">{ot.assetName}</TableCell>
+                <TableCell>{getPriorityBadge(ot.priority)}</TableCell>
+                <TableCell>
+                  <div className={cn(
+                    "text-sm font-medium",
+                    ot.status !== 'Completed' && new Date(ot.due_date) < new Date() ? 'text-red-600 dark:text-red-400' : 'text-foreground'
+                  )}>
+                    {format(new Date(ot.due_date), 'dd MMM yyyy', { locale: fr })}
+                  </div>
+                </TableCell>
+                <TableCell>{getStatusBadge(ot.status, ot.due_date)}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600">
+                      <Eye size={16} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground">
+                      <Edit2 size={16} />
+                    </Button>
+                    {ot.status !== 'Completed' && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-green-500 hover:bg-green-500/10">
+                        <CheckCircle2 size={16} />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                Aucun Ordre de Travail trouvé.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

@@ -4,14 +4,15 @@ import { FilePlus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
-import WorkOrdersTable from "@/components/WorkOrdersTable"; // Import du nouveau tableau
+import WorkOrdersTable from "@/components/WorkOrdersTable"; 
 
 const WorkOrdersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0); // État pour forcer le rafraîchissement
 
   const handleSuccess = () => {
     setIsModalOpen(false);
-    // Ici, vous pourriez rafraîchir la liste des OT si elle était implémentée
+    setRefreshTrigger(prev => prev + 1); // Incrémente pour rafraîchir le tableau
   };
 
   return (
@@ -47,7 +48,7 @@ const WorkOrdersPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <WorkOrdersTable />
+          <WorkOrdersTable refreshTrigger={refreshTrigger} />
         </CardContent>
       </Card>
     </div>

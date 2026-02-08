@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,7 +27,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 // 1. Définition du schéma de validation mis à jour
 const WorkOrderSchema = z.object({
@@ -37,7 +39,6 @@ const WorkOrderSchema = z.object({
   description: z.string().min(10, {
     message: "La description est trop courte.",
   }),
-  // Nouveau champ pour le type de maintenance
   maintenanceType: z.enum(["Preventive", "Corrective", "Palliative", "Ameliorative"], {
     required_error: "Le type de maintenance est requis.",
   }),
@@ -58,39 +59,80 @@ interface CreateWorkOrderFormProps {
   onSuccess: () => void;
 }
 
-// Données mockées pour les équipements (à remplacer par une API)
-const mockAssets = [
-  { id: "asset-1", name: "Machine CNC 1" },
-  { id: "asset-2", name: "Compresseur principal" },
-  { id: "asset-3", name: "Ligne d'assemblage A" },
-];
+interface Asset {
+  id: string;
+  name: string;
+}
 
 const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [assets, setAssets] = React.useState<Asset[]>([]);
+  const [isAssetsLoading, setIsAssetsLoading] = React.useState(true);
+  const { user } = useAuth();
 
   const form = useForm<WorkOrderFormValues>({
     resolver: zodResolver(WorkOrderSchema),
     defaultValues: {
       title: "",
       description: "",
-      maintenanceType: "Preventive", // Valeur par défaut
+      maintenanceType: "Preventive",
       priority: "Medium",
       assetId: "",
       dueDate: undefined,
     },
   });
 
-  const onSubmit = (data: WorkOrderFormValues) => {
-    setIsLoading(true);
-    console.log("Nouvel Ordre de Travail soumis:", data);
+  // Charger les équipements depuis Supabase
+  useEffect(() => {
+    const fetchAssets = async () => {
+      setIsAssetsLoading(true);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('id, name');
 
-    // Simuler une requête API
-    setTimeout(() => {
-      setIsLoading(false);
+      if (error) {
+        console.error("Error fetching assets:", error);
+        showError("Erreur lors du chargement des équipements disponibles.");
+      } else {
+        setAssets(data as Asset[]);
+      }
+      setIsAssetsLoading(false);
+    };
+    fetchAssets();
+  }, []);
+
+
+  const onSubmit = async (data: WorkOrderFormValues) => {
+    if (!user) {
+      showError("Utilisateur non authentifié.");
+      return;
+    }
+    
+    setIsLoading(true);
+
+    const { error } = await supabase
+      .from('work_orders')
+      .insert({
+        user_id: user.id,
+        title: data.title,
+        description: data.description,
+        maintenance_type: data.maintenanceType,
+        priority: data.priority,
+        asset_id: data.assetId,
+        due_date: format(data.dueDate, 'yyyy-MM-dd'),
+        status: 'Open', // Statut par défaut lors de la création
+      });
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur lors de la création de l'Ordre de Travail:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess("Ordre de Travail créé avec succès !");
       form.reset();
       onSuccess(); // Ferme le modal
-    }, 1500);
+    }
   };
 
   return (
@@ -187,14 +229,14 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           render={({ field }) => (
             <FormItem>
               <FormLabel>Équipement concerné</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isAssetsLoading || assets.length === 0}>
                 <FormControl>
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Sélectionner un équipement" />
+                    <SelectValue placeholder={isAssetsLoading ? "Chargement..." : assets.length === 0 ? "Aucun équipement trouvé" : "Sélectionner un équipement"} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {mockAssets.map((asset) => (
+                  {assets.map((asset) => (
                     <SelectItem key={asset.id} value={asset.id}>
                       {asset.name}
                     </SelectItem>
@@ -246,7 +288,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           )}
         />
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md" disabled={isLoading || isAssetsLoading}>
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
