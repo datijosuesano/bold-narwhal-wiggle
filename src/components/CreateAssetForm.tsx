@@ -19,7 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 // 1. Définition du schéma de validation mis à jour
 const AssetSchema = z.object({
@@ -58,6 +60,7 @@ interface CreateAssetFormProps {
 
 const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const { user } = useAuth();
 
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(AssetSchema),
@@ -73,17 +76,44 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     },
   });
 
-  const onSubmit = (data: AssetFormValues) => {
+  const onSubmit = async (data: AssetFormValues) => {
+    if (!user) {
+      showError("Vous devez être connecté pour créer un équipement.");
+      return;
+    }
+    
     setIsLoading(true);
-    console.log("Nouvel Équipement soumis:", data);
 
-    // Simuler une requête API
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await supabase
+      .from('assets')
+      .insert({
+        user_id: user.id,
+        name: data.name,
+        description: data.description,
+        serial_number: data.serialNumber,
+        model: data.model,
+        manufacturer: data.manufacturer,
+        location: data.location,
+        commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
+        purchase_cost: data.purchaseCost,
+        // status et category sont laissés par défaut ou non spécifiés ici, 
+        // car ils ne sont pas dans le formulaire actuel, mais requis par la table.
+        // Pour l'instant, nous allons les laisser de côté ou utiliser des valeurs par défaut si la DB le permet.
+        // La migration assets a des valeurs par défaut pour status et category n'est pas requise.
+        // Je vais ajouter une valeur par défaut pour category pour éviter une erreur d'insertion.
+        category: "Non classé", 
+      });
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur lors de la création de l'équipement:", error);
+      showError(`Erreur lors de l'enregistrement: ${error.message}`);
+    } else {
       showSuccess("Équipement créé avec succès !");
       form.reset();
-      onSuccess(); // Ferme le modal
-    }, 1500);
+      onSuccess(); // Ferme le modal et déclenche le rafraîchissement
+    }
   };
 
   return (

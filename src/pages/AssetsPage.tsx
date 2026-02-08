@@ -1,55 +1,73 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, Eye, Edit2, Filter, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Eye, Edit2, Filter, AlertCircle, CheckCircle2, Settings, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateAssetForm from "@/components/CreateAssetForm";
 import EditAssetForm from "@/components/EditAssetForm"; 
-import AssetDetailView from "@/components/AssetDetailView"; // Import du nouveau composant
+import AssetDetailView from "@/components/AssetDetailView"; 
 import { cn } from "@/lib/utils";
+import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
 
-// Define Asset type based on mock data structure
+// Define Asset type based on DB structure
 interface Asset {
   id: string;
   name: string;
   category: string;
   location: string;
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
-  // Ajout de champs pour l'édition (avec des valeurs par défaut pour la démo)
-  serialNumber: string; // Rendu obligatoire pour la vue détaillée
-  model: string; // Rendu obligatoire pour la vue détaillée
-  manufacturer: string; // Rendu obligatoire pour la vue détaillée
-  commissioningDate: Date; // Rendu obligatoire pour la vue détaillée
-  purchaseCost: number; // Rendu obligatoire pour la vue détaillée
+  serial_number: string; // DB field name
+  model: string;
+  manufacturer: string;
+  commissioning_date: string; // DB returns string/ISO date
+  purchase_cost: number;
 }
 
-// Données fictives pour la démo (mise à jour pour garantir tous les champs)
-const initialEquipments: Asset[] = [
-  { id: 'EQ-001', name: 'Compresseur Industriel V12', category: 'Production', location: 'Zone A', status: 'Opérationnel', serialNumber: 'SN-12345', model: 'V12-Turbo', manufacturer: 'AirTech', commissioningDate: new Date('2020-01-15'), purchaseCost: 45000.00 },
-  { id: 'EQ-002', name: 'Groupe Électrogène 500kVA', category: 'Énergie', location: 'Extérieur', status: 'Maintenance', serialNumber: 'SN-67890', model: 'GenPower 500', manufacturer: 'ElectroGen', commissioningDate: new Date('2018-05-20'), purchaseCost: 80000.00 },
-  { id: 'EQ-003', name: 'Pompe Hydraulique P-45', category: 'Logistique', location: 'Zone C', status: 'En Panne', serialNumber: 'SN-11223', model: 'HydroFlow P45', manufacturer: 'Fluidics', commissioningDate: new Date('2021-11-01'), purchaseCost: 12000.00 },
-  { id: 'EQ-004', name: 'Convoyeur Principal', category: 'Production', location: 'Zone B', status: 'Opérationnel', serialNumber: 'SN-44556', model: 'ConveyMax', manufacturer: 'MoveCorp', commissioningDate: new Date('2019-03-10'), purchaseCost: 30000.00 },
-  { id: 'EQ-005', name: 'Chariot Élévateur E-20', category: 'Logistique', location: 'Entrepôt', status: 'Opérationnel', serialNumber: 'SN-77889', model: 'LiftPro E20', manufacturer: 'ForkLift Inc', commissioningDate: new Date('2022-08-25'), purchaseCost: 22000.00 },
-];
+// Helper function to map DB fields to component props (if needed, but we adjust the component type)
+// For simplicity, we will use the DB field names in this page component.
 
 const AssetsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // Nouvel état pour la modale de détail
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [equipments, setEquipments] = useState(initialEquipments); 
+  const [equipments, setEquipments] = useState<Asset[]>([]); 
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchAssets = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*');
+
+    if (error) {
+      console.error("Error fetching assets:", error);
+      showError("Erreur lors du chargement des équipements.");
+      setEquipments([]); // Clear existing data on error
+    } else {
+      // Cast dates to Date objects for compatibility with sub-components if necessary, 
+      // but for display and simple passing, string ISO date is often fine.
+      setEquipments(data as Asset[]);
+    }
+    setIsLoading(false);
+  };
+  
+  useEffect(() => {
+    fetchAssets();
+  }, []);
 
   const handleAssetCreationSuccess = () => {
     setIsCreateModalOpen(false);
-    // En production, on rafraîchirait la liste ici.
+    fetchAssets(); // Refresh list
   };
 
   const handleAssetEditSuccess = () => {
     setIsEditModalOpen(false);
     setSelectedAsset(null);
-    // En production, on rafraîchirait la liste ici.
+    fetchAssets(); // Refresh list
   };
 
   const handleEditClick = (asset: Asset) => {
@@ -184,7 +202,14 @@ const AssetsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredEquipments.length > 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+                      Chargement des équipements...
+                    </td>
+                  </tr>
+                ) : filteredEquipments.length > 0 ? (
                   filteredEquipments.map((item) => (
                     <tr key={item.id} className="hover:bg-accent/50 transition-colors">
                       <td className="px-6 py-4">
@@ -207,7 +232,7 @@ const AssetsPage: React.FC = () => {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-600"
-                            onClick={() => handleDetailClick(item)} // Ajout de l'action de détail
+                            onClick={() => handleDetailClick(item)}
                           >
                             <Eye size={16} />
                           </Button>
@@ -226,7 +251,7 @@ const AssetsPage: React.FC = () => {
                 ) : (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Aucun équipement trouvé correspondant à votre recherche.
+                      Aucun équipement trouvé. Ajoutez-en un pour commencer.
                     </td>
                   </tr>
                 )}
@@ -236,8 +261,8 @@ const AssetsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Asset Dialog */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      {/* Edit Asset Dialog (Requires data mapping for EditAssetForm) */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Modifier l'Équipement: {selectedAsset?.name}</DialogTitle>
@@ -246,13 +271,22 @@ const AssetsPage: React.FC = () => {
             </CardDescription>
           </DialogHeader>
           {selectedAsset && (
-            <EditAssetForm asset={selectedAsset} onSuccess={handleAssetEditSuccess} />
+            <EditAssetForm 
+              // Mapping des noms de champs de la DB vers les noms de props du formulaire
+              asset={{
+                ...selectedAsset,
+                serialNumber: selectedAsset.serial_number,
+                commissioningDate: new Date(selectedAsset.commissioning_date),
+                purchaseCost: selectedAsset.purchase_cost,
+              }} 
+              onSuccess={handleAssetEditSuccess} 
+            />
           )}
         </DialogContent>
       </Dialog>
       
-      {/* Asset Detail Dialog (Nouveau) */}
-      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+      {/* Asset Detail Dialog (Requires data mapping for AssetDetailView) */}
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Détails de l'Équipement</DialogTitle>
@@ -261,7 +295,14 @@ const AssetsPage: React.FC = () => {
             </CardDescription>
           </DialogHeader>
           {selectedAsset && (
-            <AssetDetailView asset={selectedAsset} />
+            <AssetDetailView 
+              asset={{
+                ...selectedAsset,
+                serialNumber: selectedAsset.serial_number,
+                commissioningDate: new Date(selectedAsset.commissioning_date),
+                purchaseCost: selectedAsset.purchase_cost,
+              }} 
+            />
           )}
         </DialogContent>
       </Dialog>
