@@ -1,21 +1,21 @@
--- Table pour la gestion des réactifs de laboratoire
+-- Table des Réactifs de Laboratoire
 CREATE TABLE public.lab_reagents (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   reference TEXT UNIQUE NOT NULL,
-  current_stock INTEGER NOT NULL DEFAULT 0,
-  min_stock INTEGER NOT NULL DEFAULT 1,
-  unit TEXT NOT NULL, -- Ex: ml, g, flacon
+  current_stock INTEGER DEFAULT 0 NOT NULL,
+  min_stock INTEGER DEFAULT 1 NOT NULL,
+  unit TEXT NOT NULL,
   supplier TEXT,
-  purchase_cost NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  purchase_cost NUMERIC DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Activer RLS (Row Level Security)
+-- Activer RLS (OBLIGATOIRE)
 ALTER TABLE public.lab_reagents ENABLE ROW LEVEL SECURITY;
 
--- Policies RLS pour l'accès utilisateur
+-- Policies RLS: Les utilisateurs ne peuvent voir/modifier que leurs propres réactifs
 CREATE POLICY "Users can only see their own reagents" ON public.lab_reagents
 FOR SELECT TO authenticated USING (auth.uid() = user_id);
 

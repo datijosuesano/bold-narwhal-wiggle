@@ -1,23 +1,17 @@
--- Table pour enregistrer les événements de panne et les temps d'intervention précis
+-- Table des Événements de Panne (pour calcul FMD)
 CREATE TABLE public.breakdown_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  asset_id TEXT NOT NULL, -- Utilisation de TEXT pour l'ID de l'actif mocké, à remplacer par UUID si la table assets est créée
-  
-  -- Temps d'arrêt (pour la Disponibilité)
+  asset_id UUID REFERENCES public.assets(id) ON DELETE CASCADE NOT NULL,
   breakdown_start TIMESTAMP WITH TIME ZONE NOT NULL,
-  breakdown_end TIMESTAMP WITH TIME ZONE NOT NULL,
-  
-  -- Temps de réparation technique (pour le MTTR)
+  breakdown_end TIMESTAMP WITH TIME ZONE,
   repair_start TIMESTAMP WITH TIME ZONE,
   repair_end TIMESTAMP WITH TIME ZONE,
-  
-  description TEXT,
-  is_planned_stop BOOLEAN DEFAULT FALSE,
+  is_planned_stop BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Activation de RLS (OBLIGATOIRE)
+-- Activer RLS (OBLIGATOIRE)
 ALTER TABLE public.breakdown_events ENABLE ROW LEVEL SECURITY;
 
 -- Policies RLS: Les utilisateurs ne peuvent voir/modifier que leurs propres événements
