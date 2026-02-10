@@ -2,8 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = "https://bqbyrdwuailtmavbosyr.supabase.co";
-// REMPLACEZ LA VALEUR CI-DESSOUS PAR VOTRE CLÉ ANON (PUBLIC KEY)
-const SUPABASE_PUBLISHABLE_KEY = "VOTRE_CLE_ANON_ICI";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BYF5nI89FWDP987_QXrg6w_22NHgPUO";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
