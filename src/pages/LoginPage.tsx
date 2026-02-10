@@ -5,10 +5,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2 } from 'lucide-react';
+import { Building2, LogIn } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { showSuccess, showError } from '@/utils/toast';
+
+const DEMO_EMAIL = "datijosuesano@gmail.com";
+const DEMO_PASSWORD = "azertyuiop";
 
 const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
+
+  const handleDemoLogin = async () => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: DEMO_EMAIL,
+      password: DEMO_PASSWORD,
+    });
+
+    if (error) {
+      console.error("Demo login failed:", error);
+      showError(`Échec de la connexion de démonstration: ${error.message}. Veuillez vérifier les identifiants dans Supabase.`);
+    } else {
+      showSuccess("Connexion de démonstration réussie !");
+    }
+  };
 
   if (isLoading) {
     return null; // Wait for AuthProvider to finish loading
@@ -63,6 +82,15 @@ const LoginPage: React.FC = () => {
               },
             }}
           />
+          
+          <div className="mt-6 pt-4 border-t">
+            <Button 
+              onClick={handleDemoLogin} 
+              className="w-full bg-green-600 hover:bg-green-700 rounded-xl shadow-md"
+            >
+              <LogIn className="mr-2 h-4 w-4" /> Connexion Démo (datijosuesano@gmail.com)
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
