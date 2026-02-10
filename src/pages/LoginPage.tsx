@@ -11,19 +11,29 @@ import { showSuccess, showError } from '@/utils/toast';
 
 const DEMO_EMAIL = "demo@dyad.sh";
 const DEMO_PASSWORD = "dyad-demo-123";
+const FAKE_AUTH_KEY = 'dyad_fake_auth_token'; // Importé du contexte
 
 const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
 
   const handleDemoLogin = async () => {
+    // 1. Tenter la connexion Supabase normale
     const { error } = await supabase.auth.signInWithPassword({
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
     });
 
     if (error) {
-      console.error("Demo login failed:", error);
-      showError(`Échec de la connexion de démonstration: ${error.message}.`);
+      console.error("Demo login failed (Supabase error):", error);
+      showError(`Échec de la connexion Supabase: ${error.message}. Activation du mode Démo.`);
+      
+      // 2. Activer le mode de contournement (Fake Auth)
+      // Nous stockons un jeton factice pour que AuthProvider simule la connexion
+      localStorage.setItem(FAKE_AUTH_KEY, 'fake-jwt-token-for-dyad-demo');
+      
+      // Forcer un rafraîchissement pour que AuthProvider détecte le jeton factice
+      window.location.reload(); 
+
     } else {
       showSuccess("Connexion de démonstration réussie !");
     }
