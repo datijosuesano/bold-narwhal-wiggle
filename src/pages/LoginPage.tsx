@@ -9,8 +9,8 @@ import { Building2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showSuccess, showError } from '@/utils/toast';
 
-const DEMO_EMAIL = "datijosuesano@gmail.com";
-const DEMO_PASSWORD = "azertyuiop";
+const DEMO_EMAIL = "demo@dyad.sh";
+const DEMO_PASSWORD = "dyad-demo-123";
 
 const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -23,7 +23,7 @@ const LoginPage: React.FC = () => {
 
     if (error) {
       console.error("Demo login failed:", error);
-      showError(`Échec de la connexion de démonstration: ${error.message}. Veuillez vérifier les identifiants dans Supabase.`);
+      showError(`Échec de la connexion de démonstration: ${error.message}.`);
     } else {
       showSuccess("Connexion de démonstration réussie !");
     }
@@ -88,7 +88,7 @@ const LoginPage: React.FC = () => {
               onClick={handleDemoLogin} 
               className="w-full bg-green-600 hover:bg-green-700 rounded-xl shadow-md"
             >
-              <LogIn className="mr-2 h-4 w-4" /> Connexion Démo (datijosuesano@gmail.com)
+              <LogIn className="mr-2 h-4 w-4" /> Connexion Démo (demo@dyad.sh)
             </Button>
           </div>
         </CardContent>
