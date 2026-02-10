@@ -16,7 +16,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ClientSchema = z.object({
   name: z.string().min(3, "Le nom du site est requis"),
@@ -34,6 +36,7 @@ interface CreateClientFormProps {
 
 const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const { user } = useAuth();
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(ClientSchema),
@@ -46,14 +49,35 @@ const CreateClientForm: React.FC<CreateClientFormProps> = ({ onSuccess }) => {
     },
   });
 
-  const onSubmit = (data: ClientFormValues) => {
+  const onSubmit = async (data: ClientFormValues) => {
+    if (!user) {
+      showError("Utilisateur non authentifié.");
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await supabase
+      .from('clients')
+      .insert({
+        user_id: user.id,
+        name: data.name,
+        address: data.address,
+        city: data.city,
+        contact_name: data.contactName,
+        phone: data.phone,
+        contract_status: 'None'
+      });
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur création client:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess(`Le site "${data.name}" a été ajouté avec succès !`);
       form.reset();
       onSuccess();
-    }, 1500);
+    }
   };
 
   return (

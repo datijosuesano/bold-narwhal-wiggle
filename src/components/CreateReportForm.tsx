@@ -24,7 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ReportSchema = z.object({
   type: z.enum(["Intervention", "Mission"], {
@@ -45,6 +47,7 @@ interface CreateReportFormProps {
 
 const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const { user } = useAuth();
 
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(ReportSchema),
@@ -58,14 +61,36 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     },
   });
 
-  const onSubmit = (data: ReportFormValues) => {
+  const onSubmit = async (data: ReportFormValues) => {
+    if (!user) {
+      showError("Utilisateur non authentifié.");
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await supabase
+      .from('reports')
+      .insert({
+        user_id: user.id,
+        title: data.title,
+        type: data.type,
+        client: data.client,
+        technician: data.technician,
+        content: data.content,
+        date: data.date,
+        status: 'Draft'
+      });
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur création rapport:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess(`Rapport pour ${data.client} enregistré !`);
       form.reset();
       onSuccess();
-    }, 1500);
+    }
   };
 
   return (

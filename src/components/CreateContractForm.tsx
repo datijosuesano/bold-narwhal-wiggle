@@ -18,7 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ContractSchema = z.object({
   name: z.string().min(5, "Le nom du contrat doit contenir au moins 5 caractères"),
@@ -45,6 +47,7 @@ interface CreateContractFormProps {
 
 const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const { user } = useAuth();
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(ContractSchema),
@@ -56,17 +59,37 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
     },
   });
 
-  const onSubmit = (data: ContractFormValues) => {
-    setIsLoading(true);
-    console.log("Nouveau contrat soumis:", data);
+  const onSubmit = async (data: ContractFormValues) => {
+    if (!user) {
+      showError("Utilisateur non authentifié.");
+      return;
+    }
 
-    // Simulation d'appel API
-    setTimeout(() => {
-      setIsLoading(false);
+    setIsLoading(true);
+    const { error } = await supabase
+      .from('contracts')
+      .insert({
+        user_id: user.id,
+        name: data.name,
+        provider: data.provider,
+        clinic: data.clinic,
+        start_date: format(data.startDate, 'yyyy-MM-dd'),
+        end_date: format(data.endDate, 'yyyy-MM-dd'),
+        annual_cost: data.annualCost,
+        description: data.description,
+        status: 'Active'
+      });
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur création contrat:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess(`Le contrat "${data.name}" a été créé avec succès !`);
       form.reset();
       onSuccess();
-    }, 1500);
+    }
   };
 
   return (
