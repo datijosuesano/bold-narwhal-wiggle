@@ -2,7 +2,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Save } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -18,35 +18,32 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Définition du schéma de validation (réutilisé)
 const AssetSchema = z.object({
-  name: z.string().min(3, {
-    message: "Le nom doit contenir au moins 3 caractères.",
-  }),
-  description: z.string().min(10, {
-    message: "La description est trop courte.",
-  }),
-  serialNumber: z.string().min(1, {
-    message: "Le numéro de série est requis.",
-  }),
-  model: z.string().min(1, {
-    message: "Le modèle est requis.",
-  }),
-  manufacturer: z.string().min(1, {
-    message: "Le fabricant est requis.",
-  }),
-  location: z.string().min(2, {
-    message: "La localisation est requise.",
-  }),
+  name: z.string().min(3, "Le nom doit contenir au moins 3 caractères."),
+  category: z.string().min(1, "La catégorie est requise."),
+  status: z.enum(['Opérationnel', 'Maintenance', 'En Panne']),
+  description: z.string().min(5, "La description est trop courte."),
+  serialNumber: z.string().min(1, "Le numéro de série est requis."),
+  model: z.string().min(1, "Le modèle est requis."),
+  manufacturer: z.string().min(1, "Le fabricant est requis."),
+  location: z.string().min(2, "La localisation est requise."),
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
   purchaseCost: z.preprocess(
     (a) => parseFloat(z.string().min(1).parse(a)),
-    z.number().positive({ message: "Le coût doit être positif." })
+    z.number().min(0, "Le coût doit être positif.")
   ),
 });
 
@@ -58,11 +55,12 @@ interface Asset {
   category: string;
   location: string;
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
-  serialNumber: string; // Rendu obligatoire
-  model: string; // Rendu obligatoire
-  manufacturer: string; // Rendu obligatoire
-  commissioningDate: Date; // Rendu obligatoire
-  purchaseCost: number; // Rendu obligatoire
+  serialNumber: string;
+  model: string;
+  manufacturer: string;
+  commissioningDate: Date;
+  purchaseCost: number;
+  description?: string;
 }
 
 interface EditAssetFormProps {
@@ -73,87 +71,86 @@ interface EditAssetFormProps {
 const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Préparation des valeurs par défaut pour le formulaire
-  // Nous utilisons les valeurs de l'actif directement, car elles sont maintenant garanties par le type Asset
-  const defaultValues: AssetFormValues = {
-    name: asset.name,
-    description: "Description détaillée de l'équipement " + asset.name, // Placeholder for missing data
-    serialNumber: asset.serialNumber,
-    model: asset.model,
-    manufacturer: asset.manufacturer,
-    location: asset.location,
-    commissioningDate: asset.commissioningDate,
-    purchaseCost: asset.purchaseCost,
-  };
-
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(AssetSchema),
-    defaultValues: defaultValues,
+    defaultValues: {
+      name: asset.name,
+      category: asset.category || "Non classé",
+      status: asset.status,
+      description: asset.description || "Équipement de maintenance.",
+      serialNumber: asset.serialNumber,
+      model: asset.model,
+      manufacturer: asset.manufacturer,
+      location: asset.location,
+      commissioningDate: asset.commissioningDate,
+      purchaseCost: asset.purchaseCost,
+    },
   });
 
-  // Assurez-vous que le coût est affiché correctement si c'est un nombre
-  React.useEffect(() => {
-    // Utiliser setValue pour s'assurer que le formulaire est synchronisé si l'actif change
-    form.reset(defaultValues);
-  }, [asset.id]);
-
-
-  const onSubmit = (data: AssetFormValues) => {
+  const onSubmit = async (data: AssetFormValues) => {
     setIsLoading(true);
-    console.log(`Modification de l'équipement ${asset.id} soumise:`, data);
 
-    // Simuler une requête API
-    setTimeout(() => {
-      setIsLoading(false);
-      showSuccess(`Équipement "${data.name}" mis à jour avec succès !`);
-      onSuccess(); // Ferme le modal
-    }, 1500);
+    const { error } = await supabase
+      .from('assets')
+      .update({
+        name: data.name,
+        category: data.category,
+        status: data.status,
+        description: data.description,
+        serial_number: data.serialNumber,
+        model: data.model,
+        manufacturer: data.manufacturer,
+        location: data.location,
+        commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
+        purchase_cost: data.purchaseCost,
+      })
+      .eq('id', asset.id);
+
+    setIsLoading(false);
+
+    if (error) {
+      console.error("Erreur lors de la mise à jour:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
+      showSuccess(`L'équipement "${data.name}" a été mis à jour.`);
+      onSuccess();
+    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
         
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nom de l'équipement</FormLabel>
-              <FormControl>
-                <Input placeholder="Ex: Pompe centrifuge P-101" {...field} className="rounded-xl" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Numéro de série */}
           <FormField
             control={form.control}
-            name="serialNumber"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numéro de série</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: SN-456789" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Nom</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Modèle */}
           <FormField
             control={form.control}
-            name="model"
+            name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Modèle</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: CentriMax 3000" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>État de l'actif</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Choisir le statut" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Opérationnel">Opérationnel</SelectItem>
+                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                    <SelectItem value="En Panne">En Panne</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -161,31 +158,49 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Fabricant */}
           <FormField
             control={form.control}
-            name="manufacturer"
+            name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Fabricant</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: TechCorp Industries" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Catégorie</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Localisation */}
           <FormField
             control={form.control}
             name="location"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Localisation</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: Atelier Nord, Zone 3" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="serialNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>N° de Série</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="model"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Modèle</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -197,21 +212,14 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description / Spécifications</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Spécifications techniques, notes importantes..."
-                  className="resize-none rounded-xl"
-                  {...field}
-                />
-              </FormControl>
+              <FormLabel>Description</FormLabel>
+              <FormControl><Textarea {...field} className="rounded-xl resize-none" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Date de mise en service */}
           <FormField
             control={form.control}
             name="commissioningDate"
@@ -221,61 +229,33 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal rounded-xl",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Choisir une date</span>}
+                      <Button variant="outline" className={cn("w-full pl-3 text-left font-normal rounded-xl", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP") : <span>Choisir</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Coût d'achat */}
           <FormField
             control={form.control}
             name="purchaseCost"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Coût d'achat (€)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    {...field} 
-                    onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value === 0 ? '' : field.value} // Afficher vide si 0 pour l'édition
-                    className="rounded-xl" 
-                  />
-                </FormControl>
+                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl shadow-md" disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            "Sauvegarder les Modifications"
-          )}
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4" disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Enregistrer les modifications
         </Button>
       </form>
     </Form>
