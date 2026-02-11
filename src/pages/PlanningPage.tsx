@@ -1,85 +1,62 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CalendarDays, Plus, Clock, ListTodo, CalendarPlus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CardDays, Plus } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
 import PlanningStats from "@/components/PlanningStats"; 
-import { showSuccess } from "@/utils/toast";
-import { Badge } from "@/components/ui/badge";
-import DraftsList from "@/components/DraftsList"; // Import du nouveau composant
-
-interface ScheduledEvent {
-  id: string;
-  title: string;
-  date: Date;
-  type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
-  priority: 'Low' | 'Medium' | 'High';
-  isCompleted: boolean;
-  completionDate?: Date;
-}
-
-const today = new Date();
-const initialMockEvents: ScheduledEvent[] = [
-  { id: 'E1', title: 'Remplacement filtre', date: today, type: 'Maintenance Préventive', priority: 'Medium', isCompleted: false },
-];
+import DraftsList from "@/components/DraftsList";
+import { supabase } from "@/integrations/supabase/client";
 
 const PlanningPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [events, setEvents] = useState(initialMockEvents);
-  const [draftToSchedule, setDraftToSchedule] = useState<{ title: string } | null>(null);
+  const [events, setEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleWorkOrderSuccess = () => {
-    setIsModalOpen(false);
-    setDraftToSchedule(null); // Réinitialiser si la création vient d'un brouillon
-    showSuccess("Action programmée !");
+  const fetchEvents = async () => {
+    setIsLoading(true);
+    const { data } = await supabase.from('work_orders').select('*');
+    if (data) {
+      setEvents(data.map(ot => ({
+        id: ot.id,
+        title: ot.title,
+        date: new Date(ot.due_date),
+        type: ot.maintenance_type === 'Preventive' ? 'Maintenance Préventive' : 'Maintenance Corrective',
+        priority: ot.priority,
+        isCompleted: ot.status === 'Completed'
+      })));
+    }
+    setIsLoading(false);
   };
-  
-  const handleScheduleDraft = (draft: { title: string }) => {
-    setDraftToSchedule(draft);
-    setIsModalOpen(true);
-  };
+
+  useEffect(() => { fetchEvents(); }, []);
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <CalendarDays className="h-10 w-10 text-primary" />
+          <div className="p-3 bg-blue-100 rounded-2xl"><Plus className="h-8 w-8 text-blue-600" /></div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Planification</h1>
-            <p className="text-lg text-muted-foreground">Gérez le calendrier et vos notes d'interventions.</p>
+            <p className="text-lg text-muted-foreground">Calendrier de maintenance temps réel.</p>
           </div>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <Plus className="mr-2 h-4 w-4" /> Programmer une Action
-            </Button>
+            <Button className="bg-blue-600 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Programmer</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] md:max-w-lg rounded-xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">
-                {draftToSchedule ? `Programmer: ${draftToSchedule.title}` : "Planifier une maintenance"}
-              </DialogTitle>
-            </DialogHeader>
-            {/* On pourrait pré-remplir le formulaire avec draftToSchedule si nécessaire */}
-            <CreateWorkOrderForm onSuccess={handleWorkOrderSuccess} />
+          <DialogContent className="sm:max-w-lg rounded-xl">
+            <CreateWorkOrderForm onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} />
           </DialogContent>
         </Dialog>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-4">
-        {/* Section Brouillons (Sidebar gauche de la planification) */}
-        <div className="lg:col-span-1 space-y-4">
-          <DraftsList onSchedule={handleScheduleDraft} />
-        </div>
-
-        {/* Vue Calendrier & Stats */}
+        <div className="lg:col-span-1"><DraftsList onSchedule={() => setIsModalOpen(true)} /></div>
         <div className="lg:col-span-3 space-y-8">
           <PlanningStats events={events} />
-          <CalendarView events={events} onCompleteEvent={() => {}} />
+          <CalendarView events={events} onCompleteEvent={() => fetchEvents()} />
         </div>
       </div>
     </div>
