@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Building2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -18,31 +18,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-// 1. Définition du schéma de validation mis à jour
 const AssetSchema = z.object({
-  name: z.string().min(3, {
-    message: "Le nom doit contenir au moins 3 caractères.",
-  }),
-  description: z.string().min(10, {
-    message: "La description est trop courte.",
-  }),
-  serialNumber: z.string().min(1, {
-    message: "Le numéro de série est requis.",
-  }),
-  model: z.string().min(1, {
-    message: "Le modèle est requis.",
-  }),
-  manufacturer: z.string().min(1, {
-    message: "Le fabricant est requis.",
-  }),
-  location: z.string().min(2, {
-    message: "La localisation est requise.",
-  }),
+  name: z.string().min(3, "Le nom est requis."),
+  description: z.string().min(5, "La description est trop courte."),
+  serialNumber: z.string().min(1, "Le numéro de série est requis."),
+  model: z.string().min(1, "Le modèle est requis."),
+  manufacturer: z.string().min(1, "Le fabricant est requis."),
+  location: z.string().min(1, "Veuillez sélectionner un site."),
+  category: z.string().min(1, "La catégorie est requise."),
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
@@ -58,8 +53,15 @@ interface CreateAssetFormProps {
   onSuccess: () => void;
 }
 
+interface Client {
+  id: string;
+  name: string;
+}
+
 const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isClientsLoading, setIsClientsLoading] = useState(true);
   const { user } = useAuth();
 
   const form = useForm<AssetFormValues>({
@@ -71,17 +73,28 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       model: "",
       manufacturer: "",
       location: "",
+      category: "Médical",
       commissioningDate: undefined,
       purchaseCost: 0,
     },
   });
 
+  useEffect(() => {
+    const fetchClients = async () => {
+      setIsClientsLoading(true);
+      const { data, error } = await supabase.from('clients').select('id, name');
+      if (error) {
+        showError("Impossible de charger les sites.");
+      } else {
+        setClients(data || []);
+      }
+      setIsClientsLoading(false);
+    };
+    fetchClients();
+  }, []);
+
   const onSubmit = async (data: AssetFormValues) => {
-    if (!user) {
-      showError("Vous devez être connecté pour créer un équipement.");
-      return;
-    }
-    
+    if (!user) return;
     setIsLoading(true);
 
     const { error } = await supabase
@@ -93,105 +106,94 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         serial_number: data.serialNumber,
         model: data.model,
         manufacturer: data.manufacturer,
-        location: data.location,
+        location: data.location, // On stocke le nom du site
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         purchase_cost: data.purchaseCost,
-        // status et category sont laissés par défaut ou non spécifiés ici, 
-        // car ils ne sont pas dans le formulaire actuel, mais requis par la table.
-        // Pour l'instant, nous allons les laisser de côté ou utiliser des valeurs par défaut si la DB le permet.
-        // La migration assets a des valeurs par défaut pour status et category n'est pas requise.
-        // Je vais ajouter une valeur par défaut pour category pour éviter une erreur d'insertion.
-        category: "Non classé", 
+        category: data.category,
+        status: 'Opérationnel'
       });
 
     setIsLoading(false);
 
     if (error) {
-      console.error("Erreur lors de la création de l'équipement:", error);
-      showError(`Erreur lors de l'enregistrement: ${error.message}`);
+      showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess("Équipement créé avec succès !");
+      showSuccess("Équipement ajouté !");
       form.reset();
-      onSuccess(); // Ferme le modal et déclenche le rafraîchissement
+      onSuccess();
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nom de l'équipement</FormLabel>
-              <FormControl>
-                <Input placeholder="Ex: Pompe centrifuge P-101" {...field} className="rounded-xl" />
-              </FormControl>
+              <FormControl><Input placeholder="Ex: IRM Siemens" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Numéro de série */}
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="serialNumber"
+            name="location"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numéro de série</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: SN-456789" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Site / Localisation</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir un site"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Modèle */}
           <FormField
             control={form.control}
-            name="model"
+            name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Modèle</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: CentriMax 3000" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Catégorie</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Fabricant */}
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="manufacturer"
+            name="serialNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Fabricant</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: TechCorp Industries" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>N° de Série</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Localisation */}
           <FormField
             control={form.control}
-            name="location"
+            name="model"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Localisation</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: Atelier Nord, Zone 3" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Modèle</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -203,21 +205,14 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description / Spécifications</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Spécifications techniques, notes importantes..."
-                  className="resize-none rounded-xl"
-                  {...field}
-                />
-              </FormControl>
+              <FormLabel>Description</FormLabel>
+              <FormControl><Textarea {...field} className="rounded-xl resize-none" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Champ Date de mise en service */}
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="commissioningDate"
@@ -227,60 +222,32 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal rounded-xl",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Choisir une date</span>}
+                      <Button variant="outline" className={cn("pl-3 text-left font-normal rounded-xl", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP") : <span>Choisir</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Champ Coût d'achat */}
           <FormField
             control={form.control}
             name="purchaseCost"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Coût d'achat (€)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    {...field} 
-                    onChange={(e) => field.onChange(e.target.value)}
-                    className="rounded-xl" 
-                  />
-                </FormControl>
+                <FormLabel>Coût d'achat</FormLabel>
+                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md" disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            "Ajouter l'Équipement"
-          )}
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl" disabled={isLoading || isClientsLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : "Ajouter l'Équipement"}
         </Button>
       </form>
     </Form>
