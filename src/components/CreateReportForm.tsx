@@ -29,13 +29,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ReportSchema = z.object({
-  type: z.enum(["Intervention", "Mission"], {
-    required_error: "Veuillez choisir un type de rapport",
-  }),
-  title: z.string().min(5, "Le titre est trop court"),
-  client: z.string().min(2, "Le nom du client/site est requis"),
+  type: z.enum(["Intervention", "Mission"]),
+  title: z.string().min(5, "Titre trop court"),
+  client: z.string().min(2, "Client requis"),
   technician: z.string().min(1, "Technicien requis"),
-  content: z.string().min(20, "Le contenu doit être détaillé (20 caractères min)"),
+  content: z.string().min(20, "Contenu requis"),
   date: z.string(),
 });
 
@@ -62,53 +60,37 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
   });
 
   const onSubmit = async (data: ReportFormValues) => {
-    if (!user) {
-      showError("Utilisateur non authentifié.");
-      return;
-    }
-
+    if (!user) return;
     setIsLoading(true);
-    const { error } = await supabase
-      .from('reports')
-      .insert({
-        user_id: user.id,
-        title: data.title,
-        type: data.type,
-        client: data.client,
-        technician: data.technician,
-        content: data.content,
-        date: data.date,
-        status: 'Draft'
-      });
-
+    const { error } = await supabase.from('reports').insert({
+      user_id: user.id,
+      title: data.title,
+      type: data.type,
+      client: data.client,
+      technician: data.technician,
+      content: data.content,
+      date: data.date,
+      status: 'Draft'
+    });
     setIsLoading(false);
-
-    if (error) {
-      console.error("Erreur création rapport:", error);
-      showError(`Erreur: ${error.message}`);
-    } else {
-      showSuccess(`Rapport pour ${data.client} enregistré !`);
-      form.reset();
+    if (!error) {
+      showSuccess("Rapport enregistré !");
       onSuccess();
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Type de Rapport</FormLabel>
+                <FormLabel>Type</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                  </FormControl>
+                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="Intervention">Intervention</SelectItem>
                     <SelectItem value="Mission">Mission</SelectItem>
@@ -130,64 +112,52 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
             )}
           />
         </div>
-
         <FormField
           control={form.control}
           name="client"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Client / Site d'intervention</FormLabel>
-              <FormControl><Input placeholder="Ex: Clinique du Parc, Hôpital Nord..." {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Client / Site</FormLabel>
+              <FormControl><Input placeholder="Site..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Objet du rapport</FormLabel>
-              <FormControl><Input placeholder="Ex: Panne IRM résolue" {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Objet</FormLabel>
+              <FormControl><Input placeholder="Objet..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="technician"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Technicien Responsable</FormLabel>
-              <FormControl><Input placeholder="Nom du technicien" {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Technicien</FormLabel>
+              <FormControl><Input placeholder="Nom..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Compte-rendu détaillé</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Décrivez les actions menées, les pièces remplacées, etc." 
-                  className="rounded-xl min-h-[120px]" 
-                  {...field} 
-                />
-              </FormControl>
+              <FormLabel>Compte-rendu</FormLabel>
+              <FormControl><Textarea className="rounded-xl min-h-[120px]" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <FileCheck className="mr-2" size={18} />}
-          Générer le Rapport
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : "Générer le Rapport"}
         </Button>
       </form>
     </Form>

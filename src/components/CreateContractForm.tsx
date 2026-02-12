@@ -23,19 +23,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ContractSchema = z.object({
-  name: z.string().min(5, "Le nom du contrat doit contenir au moins 5 caractères"),
-  provider: z.string().min(2, "Le nom du prestataire est requis"),
-  clinic: z.string().min(2, "Le nom de la clinique est requis"),
-  startDate: z.date({
-    required_error: "La date de début est requise",
-  }),
-  endDate: z.date({
-    required_error: "La date de fin est requise",
-  }),
-  annualCost: z.preprocess(
-    (a) => (a === "" ? undefined : parseFloat(z.string().parse(a))),
-    z.number().positive("Le coût doit être un nombre positif")
-  ),
+  name: z.string().min(5, "Le nom du contrat est requis"),
+  provider: z.string().min(2, "Le prestataire est requis"),
+  clinic: z.string().min(2, "La clinique est requise"),
+  startDate: z.date(),
+  endDate: z.date(),
+  annualCost: z.preprocess((a) => (a === "" ? 0 : parseFloat(z.string().parse(a))), z.number().positive()),
   description: z.string().optional(),
 });
 
@@ -51,74 +44,52 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(ContractSchema),
-    defaultValues: {
-      name: "",
-      provider: "",
-      clinic: "",
-      description: "",
-    },
+    defaultValues: { name: "", provider: "", clinic: "", description: "" },
   });
 
   const onSubmit = async (data: ContractFormValues) => {
-    if (!user) {
-      showError("Utilisateur non authentifié.");
-      return;
-    }
-
+    if (!user) return;
     setIsLoading(true);
-    const { error } = await supabase
-      .from('contracts')
-      .insert({
-        user_id: user.id,
-        name: data.name,
-        provider: data.provider,
-        clinic: data.clinic,
-        start_date: format(data.startDate, 'yyyy-MM-dd'),
-        end_date: format(data.endDate, 'yyyy-MM-dd'),
-        annual_cost: data.annualCost,
-        description: data.description,
-        status: 'Active'
-      });
-
+    const { error } = await supabase.from('contracts').insert({
+      user_id: user.id,
+      name: data.name,
+      provider: data.provider,
+      clinic: data.clinic,
+      start_date: format(data.startDate, 'yyyy-MM-dd'),
+      end_date: format(data.endDate, 'yyyy-MM-dd'),
+      annual_cost: data.annualCost,
+      description: data.description,
+      status: 'Active'
+    });
     setIsLoading(false);
-
-    if (error) {
-      console.error("Erreur création contrat:", error);
-      showError(`Erreur: ${error.message}`);
-    } else {
-      showSuccess(`Le contrat "${data.name}" a été créé avec succès !`);
-      form.reset();
+    if (!error) {
+      showSuccess("Contrat créé !");
       onSuccess();
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nom du Contrat</FormLabel>
-              <FormControl>
-                <Input placeholder="Ex: Maintenance IRM Bloc A" {...field} className="rounded-xl" />
-              </FormControl>
+              <FormControl><Input placeholder="Nom..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="provider"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Prestataire / Fournisseur</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: GE Healthcare" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Prestataire</FormLabel>
+                <FormControl><Input placeholder="Prestataire" {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -128,48 +99,26 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
             name="clinic"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Clinique concernée</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: Clinique de l'Espoir" {...field} className="rounded-xl" />
-                </FormControl>
+                <FormLabel>Clinique</FormLabel>
+                <FormControl><Input placeholder="Clinique" {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="startDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Date de début</FormLabel>
+                <FormLabel>Début</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full pl-3 text-left font-normal rounded-xl",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? format(field.value, "PPP") : <span>Choisir une date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
+                    <FormControl><Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "PPP") : "Choisir"}</Button></FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
@@ -178,76 +127,41 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
             name="endDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Date de fin / Échéance</FormLabel>
+                <FormLabel>Fin</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full pl-3 text-left font-normal rounded-xl",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? format(field.value, "PPP") : <span>Choisir une date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
+                    <FormControl><Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "PPP") : "Choisir"}</Button></FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < form.getValues("startDate")}
-                      initialFocus
-                    />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
         <FormField
           control={form.control}
           name="annualCost"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Coût Annuel (€)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="0.00" {...field} className="rounded-xl" />
-              </FormControl>
+              <FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes additionnelles (Optionnel)</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Détails sur les clauses, contact d'urgence..."
-                  className="resize-none rounded-xl"
-                  {...field}
-                />
-              </FormControl>
+              <FormLabel>Notes</FormLabel>
+              <FormControl><Textarea className="rounded-xl" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md" disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            "Créer le Contrat"
-          )}
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : "Créer le Contrat"}
         </Button>
       </form>
     </Form>
