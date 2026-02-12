@@ -16,6 +16,7 @@ const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [selectedDisplayNumber, setSelectedDisplayNumber] = useState<number | undefined>(undefined);
   
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -67,7 +68,11 @@ const ContractsPage: React.FC = () => {
       <ContractsTable 
         contracts={contracts} 
         isLoading={isLoading}
-        onView={(c) => { setSelectedContract(c); setIsDetailOpen(true); }} 
+        onView={(c, num) => { 
+          setSelectedContract(c); 
+          setSelectedDisplayNumber(num);
+          setIsDetailOpen(true); 
+        }} 
         onEdit={(c) => { setSelectedContract(c); setIsEditOpen(true); }} 
         onDelete={(c) => { setSelectedContract(c); setIsDeleteOpen(true); }}
       />
@@ -84,6 +89,7 @@ const ContractsPage: React.FC = () => {
                 status: selectedContract.status as any,
                 annualCost: selectedContract.annual_cost
               }} 
+              displayNumber={selectedDisplayNumber}
             />
           )}
         </DialogContent>

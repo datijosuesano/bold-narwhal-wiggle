@@ -29,7 +29,7 @@ export interface Contract {
 interface ContractsTableProps {
   contracts: Contract[];
   isLoading: boolean;
-  onView: (contract: Contract) => void;
+  onView: (contract: Contract, index: number) => void;
   onEdit: (contract: Contract) => void;
   onDelete: (contract: Contract) => void;
 }
@@ -56,6 +56,7 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow>
+            <TableHead className="w-12 text-center font-semibold">N°</TableHead>
             <TableHead className="font-semibold">Contrat / Prestataire</TableHead>
             <TableHead className="font-semibold">Clinique</TableHead>
             <TableHead className="font-semibold">Période</TableHead>
@@ -67,14 +68,17 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600 mb-2" />
                 Chargement des contrats...
               </TableCell>
             </TableRow>
           ) : contracts.length > 0 ? (
-            contracts.map((contract) => (
+            contracts.map((contract, index) => (
               <TableRow key={contract.id} className="hover:bg-accent/50 transition-colors">
+                <TableCell className="text-center font-bold text-blue-600 bg-blue-50/30">
+                  {index + 1}
+                </TableCell>
                 <TableCell>
                   <div className="font-medium text-foreground">{contract.name}</div>
                   <div className="text-xs text-muted-foreground">{contract.provider}</div>
@@ -94,7 +98,7 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onView(contract)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onView(contract, index + 1)}>
                       <Eye size={16} />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent" onClick={() => onEdit(contract)}>
@@ -109,7 +113,7 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                 Aucun contrat enregistré.
               </TableCell>
             </TableRow>

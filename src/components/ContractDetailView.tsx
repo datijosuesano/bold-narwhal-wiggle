@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Calendar, Building2, DollarSign, FileText, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Calendar, Building2, DollarSign, FileText, AlertTriangle, Hash } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ interface Contract {
 
 interface ContractDetailViewProps {
   contract: Contract;
+  displayNumber?: number; // Nouveau prop pour le numéro séquentiel
 }
 
 const formatCurrency = (amount: number) => {
@@ -29,7 +30,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount).replace('XOF', 'FCFA');
 };
 
-const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => {
+const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract, displayNumber }) => {
   const daysLeft = differenceInDays(contract.endDate, new Date());
   
   const getStatusInfo = () => {
@@ -39,18 +40,17 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => 
   };
 
   const status = getStatusInfo();
-  
-  // On ne garde que les 8 premiers caractères de l'ID pour la simplicité
-  const shortId = contract.id.slice(0, 8).toUpperCase();
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center p-4 bg-muted/50 rounded-xl border">
         <div className="flex items-center space-x-4">
-          <ShieldCheck className="h-8 w-8 text-blue-600" />
+          <div className="h-12 w-12 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-lg">
+            {displayNumber || "#"}
+          </div>
           <div>
             <h3 className="text-xl font-bold">{contract.name}</h3>
-            <p className="text-sm text-muted-foreground font-mono">ID: {shortId} | Prestataire: {contract.provider}</p>
+            <p className="text-sm text-muted-foreground font-medium">Prestataire: {contract.provider}</p>
           </div>
         </div>
         <div className={cn("flex items-center space-x-2 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm", status.color)}>
