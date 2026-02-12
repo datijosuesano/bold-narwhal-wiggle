@@ -66,7 +66,6 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
     },
   });
 
-  // Récupération de la liste des clients
   useEffect(() => {
     const fetchClients = async () => {
       setIsClientsLoading(true);
@@ -149,15 +148,11 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.length > 0 ? (
-                      clients.map((client) => (
-                        <SelectItem key={client.id} value={client.name}>
-                          {client.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-muted-foreground">Aucun site trouvé</div>
-                    )}
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.name}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -220,8 +215,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
           name="annualCost"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Coût Annuel (€)</FormLabel>
-              <FormControl><Input type="number" placeholder="0.00" {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Coût Annuel (FCFA)</FormLabel>
+              <FormControl><Input type="number" placeholder="Ex: 500000" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}

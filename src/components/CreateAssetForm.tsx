@@ -113,7 +113,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess("Équipement ajouté avec sa photo !");
+      showSuccess("Équipement ajouté !");
       onSuccess();
     }
   };
@@ -233,7 +233,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             name="purchaseCost"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Coût (€)</FormLabel>
+                <FormLabel>Coût (FCFA)</FormLabel>
                 <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>

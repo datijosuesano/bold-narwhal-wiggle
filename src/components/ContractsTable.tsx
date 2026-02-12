@@ -40,6 +40,14 @@ const getStatusBadge = (contract: Contract) => {
   return <Badge className="bg-green-600 hover:bg-green-700 text-white rounded-full">Actif</Badge>;
 };
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('fr-FR', { 
+    style: 'currency', 
+    currency: 'XOF',
+    currencyDisplay: 'symbol'
+  }).format(amount).replace('XOF', 'FCFA');
+};
+
 const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, onView, onEdit }) => {
   return (
     <div className="overflow-x-auto rounded-xl border shadow-md bg-card">
@@ -80,7 +88,7 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
                 </TableCell>
                 <TableCell>{getStatusBadge(contract)}</TableCell>
                 <TableCell className="text-right font-semibold">
-                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(contract.annual_cost)}
+                  {formatCurrency(contract.annual_cost)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">

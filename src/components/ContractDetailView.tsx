@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Calendar, Building2, User, DollarSign, FileText, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Calendar, Building2, DollarSign, FileText, AlertTriangle } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,14 @@ interface Contract {
 interface ContractDetailViewProps {
   contract: Contract;
 }
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('fr-FR', { 
+    style: 'currency', 
+    currency: 'XOF',
+    currencyDisplay: 'symbol'
+  }).format(amount).replace('XOF', 'FCFA');
+};
 
 const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => {
   const daysLeft = differenceInDays(contract.endDate, new Date());
@@ -68,7 +76,7 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => 
           </CardHeader>
           <CardContent>
             <p className="text-lg font-semibold">
-              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(contract.annualCost)}
+              {formatCurrency(contract.annualCost)}
             </p>
           </CardContent>
         </Card>
@@ -107,7 +115,7 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => 
         </CardHeader>
         <CardContent>
           <p className="text-sm leading-relaxed text-foreground/80">
-            {contract.description || "Aucune description détaillée n'a été fournie pour ce contrat. Ce contrat couvre la maintenance préventive et curative des équipements spécifiés, incluant les pièces et la main d'œuvre selon les conditions générales de vente du prestataire."}
+            {contract.description || "Aucune description détaillée n'a été fournie pour ce contrat."}
           </p>
         </CardContent>
       </Card>
