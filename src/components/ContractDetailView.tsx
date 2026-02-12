@@ -39,6 +39,9 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => 
   };
 
   const status = getStatusInfo();
+  
+  // On ne garde que les 8 premiers caractères de l'ID pour la simplicité
+  const shortId = contract.id.slice(0, 8).toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -47,7 +50,7 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract }) => 
           <ShieldCheck className="h-8 w-8 text-blue-600" />
           <div>
             <h3 className="text-xl font-bold">{contract.name}</h3>
-            <p className="text-sm text-muted-foreground">ID: {contract.id} | Prestataire: {contract.provider}</p>
+            <p className="text-sm text-muted-foreground font-mono">ID: {shortId} | Prestataire: {contract.provider}</p>
           </div>
         </div>
         <div className={cn("flex items-center space-x-2 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm", status.color)}>
