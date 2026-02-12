@@ -1,32 +1,42 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Building2, ShieldCheck, AlertCircle, FileText } from 'lucide-react';
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import ContractsTable from '@/components/ContractsTable';
+import { Plus, ShieldCheck, FileText, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import ContractsTable, { Contract } from '@/components/ContractsTable';
 import ContractDetailView from '@/components/ContractDetailView';
 import EditContractForm from '@/components/EditContractForm';
 import CreateContractForm from '@/components/CreateContractForm';
 import ContractTemplateEditor from '@/components/ContractTemplateEditor';
-
-interface Contract {
-  id: string;
-  name: string;
-  provider: string;
-  clinic: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'Active' | 'ExpiringSoon' | 'Expired';
-  annualCost: number;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
 
 const ContractsPage: React.FC = () => {
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+
+  const fetchContracts = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .order('end_date', { ascending: true });
+
+    if (error) {
+      showError("Erreur lors du chargement des contrats.");
+    } else {
+      setContracts(data || []);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => { fetchContracts(); }, []);
 
   return (
     <div className="space-y-8">
@@ -61,19 +71,28 @@ const ContractsPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="shadow-lg border-l-4 border-blue-500">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium uppercase text-muted-foreground">Contrats Actifs</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold">12</div></CardContent>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : contracts.length}
+            </div>
+          </CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-amber-500">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium uppercase text-muted-foreground">Échéances 30j</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold">3</div></CardContent>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-600">
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : "0"} 
+            </div>
+          </CardContent>
         </Card>
       </div>
 
-      <Card className="shadow-lg">
-        <CardContent className="p-0">
-          <ContractsTable onView={(c) => { setSelectedContract(c); setIsDetailOpen(true); }} onEdit={(c) => { setSelectedContract(c); setIsEditOpen(true); }} />
-        </CardContent>
-      </Card>
+      <ContractsTable 
+        contracts={contracts} 
+        isLoading={isLoading}
+        onView={(c) => { setSelectedContract(c); setIsDetailOpen(true); }} 
+        onEdit={(c) => { setSelectedContract(c); setIsEditOpen(true); }} 
+      />
 
       {/* Modale de l'Editeur de Modèle */}
       <Dialog open={isTemplateOpen} onOpenChange={setIsTemplateOpen}>
@@ -86,8 +105,15 @@ const ContractsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Autres modales existantes... */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}><DialogContent><CreateContractForm onSuccess={() => setIsCreateOpen(false)} /></DialogContent></Dialog>
+      {/* Modale de création */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Nouveau Contrat de Maintenance</DialogTitle>
+          </DialogHeader>
+          <CreateContractForm onSuccess={() => { setIsCreateOpen(false); fetchContracts(); }} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
