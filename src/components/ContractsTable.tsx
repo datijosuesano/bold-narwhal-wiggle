@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, Calendar, Loader2 } from 'lucide-react';
+import { Eye, Edit2, Trash2, Calendar, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -23,6 +23,7 @@ export interface Contract {
   end_date: string;
   status: string;
   annual_cost: number;
+  description?: string;
 }
 
 interface ContractsTableProps {
@@ -30,6 +31,7 @@ interface ContractsTableProps {
   isLoading: boolean;
   onView: (contract: Contract) => void;
   onEdit: (contract: Contract) => void;
+  onDelete: (contract: Contract) => void;
 }
 
 const getStatusBadge = (contract: Contract) => {
@@ -48,7 +50,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount).replace('XOF', 'FCFA');
 };
 
-const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, onView, onEdit }) => {
+const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, onView, onEdit, onDelete }) => {
   return (
     <div className="overflow-x-auto rounded-xl border shadow-md bg-card">
       <Table>
@@ -92,11 +94,14 @@ const ContractsTable: React.FC<ContractsTableProps> = ({ contracts, isLoading, o
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600" onClick={() => onView(contract)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => onView(contract)}>
                       <Eye size={16} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => onEdit(contract)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent" onClick={() => onEdit(contract)}>
                       <Edit2 size={16} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50" onClick={() => onDelete(contract)}>
+                      <Trash2 size={16} />
                     </Button>
                   </div>
                 </TableCell>

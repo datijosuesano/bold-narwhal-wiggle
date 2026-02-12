@@ -47,9 +47,10 @@ type ContractFormValues = z.infer<typeof ContractSchema>;
 
 interface CreateContractFormProps {
   onSuccess: () => void;
+  existingContracts: string[]; // Liste des cliniques ayant déjà un contrat
 }
 
-const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) => {
+const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, existingContracts }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
@@ -69,14 +70,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
   useEffect(() => {
     const fetchClients = async () => {
       setIsClientsLoading(true);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name')
-        .order('name');
-      
-      if (!error) {
-        setClients(data || []);
-      }
+      const { data } = await supabase.from('clients').select('id, name').order('name');
+      setClients(data || []);
       setIsClientsLoading(false);
     };
     fetchClients();
@@ -84,8 +79,14 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
 
   const onSubmit = async (data: ContractFormValues) => {
     if (!user) return;
+
+    // Vérification de l'unicité du contrat par clinique
+    if (existingContracts.includes(data.clinic)) {
+      showError(`Un contrat existe déjà pour la clinique "${data.clinic}".`);
+      return;
+    }
+
     setIsLoading(true);
-    
     const { error } = await supabase.from('contracts').insert({
       user_id: user.id,
       name: data.name,
@@ -148,11 +149,14 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.name}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
+                    {clients.map((client) => {
+                      const hasContract = existingContracts.includes(client.name);
+                      return (
+                        <SelectItem key={client.id} value={client.name} disabled={hasContract}>
+                          {client.name} {hasContract ? "(Déjà sous contrat)" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -177,11 +181,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
@@ -200,11 +201,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
-                  </PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
-                <FormMessage />
               </FormItem>
             )}
           />
@@ -216,27 +214,14 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess }) =>
           render={({ field }) => (
             <FormItem>
               <FormLabel>Coût Annuel (FCFA)</FormLabel>
-              <FormControl><Input type="number" placeholder="Ex: 500000" {...field} className="rounded-xl" /></FormControl>
+              <FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes additionnelles</FormLabel>
-              <FormControl><Textarea placeholder="Détails du contrat..." className="rounded-xl resize-none" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4" disabled={isLoading || isClientsLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
-          {isLoading ? "Création en cours..." : "Créer le Contrat"}
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading || isClientsLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : "Créer le Contrat"}
         </Button>
       </form>
     </Form>
