@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import ImageUpload from "./ImageUpload";
 
 const AssetSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -38,6 +39,7 @@ const AssetSchema = z.object({
   manufacturer: z.string().min(1, "Le fabricant est requis."),
   location: z.string().min(1, "Veuillez sélectionner un site."),
   category: z.string().min(1, "La catégorie est requise."),
+  imageUrl: z.string().optional(),
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
@@ -53,14 +55,9 @@ interface CreateAssetFormProps {
   onSuccess: () => void;
 }
 
-interface Client {
-  id: string;
-  name: string;
-}
-
 const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
   const { user } = useAuth();
 
@@ -74,6 +71,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       manufacturer: "",
       location: "",
       category: "Médical",
+      imageUrl: "",
       commissioningDate: undefined,
       purchaseCost: 0,
     },
@@ -82,12 +80,8 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   useEffect(() => {
     const fetchClients = async () => {
       setIsClientsLoading(true);
-      const { data, error } = await supabase.from('clients').select('id, name');
-      if (error) {
-        showError("Impossible de charger les sites.");
-      } else {
-        setClients(data || []);
-      }
+      const { data } = await supabase.from('clients').select('id, name');
+      setClients(data || []);
       setIsClientsLoading(false);
     };
     fetchClients();
@@ -106,10 +100,11 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         serial_number: data.serialNumber,
         model: data.model,
         manufacturer: data.manufacturer,
-        location: data.location, // On stocke le nom du site
+        location: data.location,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         purchase_cost: data.purchaseCost,
         category: data.category,
+        image_url: data.imageUrl,
         status: 'Opérationnel'
       });
 
@@ -118,8 +113,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess("Équipement ajouté !");
-      form.reset();
+      showSuccess("Équipement ajouté avec sa photo !");
       onSuccess();
     }
   };
@@ -127,6 +121,12 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+        
+        <FormItem>
+          <FormLabel>Photo de l'équipement</FormLabel>
+          <ImageUpload onUpload={(url) => form.setValue("imageUrl", url)} />
+        </FormItem>
+
         <FormField
           control={form.control}
           name="name"
@@ -145,17 +145,15 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             name="location"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Site / Localisation</FormLabel>
+                <FormLabel>Site</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir un site"} />
+                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
-                    ))}
+                    {clients.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -181,7 +179,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             name="serialNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>N° de Série</FormLabel>
+                <FormLabel>N° Série</FormLabel>
                 <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -212,23 +210,20 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 pb-4">
           <FormField
             control={form.control}
             name="commissioningDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Date de mise en service</FormLabel>
+                <FormLabel>Mise en service</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button variant="outline" className={cn("pl-3 text-left font-normal rounded-xl", !field.value && "text-muted-foreground")}>
-                        {field.value ? format(field.value, "PPP") : <span>Choisir</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
+                      <Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}</Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
               </FormItem>
             )}
@@ -238,7 +233,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             name="purchaseCost"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Coût d'achat</FormLabel>
+                <FormLabel>Coût (€)</FormLabel>
                 <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -246,7 +241,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl" disabled={isLoading || isClientsLoading}>
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin" /> : "Ajouter l'Équipement"}
         </Button>
       </form>
