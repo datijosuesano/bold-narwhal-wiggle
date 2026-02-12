@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Save } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,16 +17,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ContractSchema = z.object({
   name: z.string().min(5, "Le nom du contrat est trop court"),
   provider: z.string().min(2, "Le prestataire est requis"),
-  clinic: z.string().min(2, "La clinique est requise"),
+  clinic: z.string().min(1, "La clinique est requise"),
   startDate: z.date(),
   endDate: z.date(),
-  annualCost: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().positive()),
+  annualCost: z.preprocess((a) => (a === "" ? 0 : parseFloat(z.string().parse(a))), z.number().positive("Le coût doit être positif")),
   description: z.string().optional(),
 });
 
@@ -41,6 +49,7 @@ interface Contract {
   endDate: Date;
   status: 'Active' | 'ExpiringSoon' | 'Expired';
   annualCost: number;
+  description?: string;
 }
 
 interface EditContractFormProps {
@@ -49,7 +58,9 @@ interface EditContractFormProps {
 }
 
 const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
+  const [isClientsLoading, setIsClientsLoading] = useState(true);
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(ContractSchema),
@@ -60,17 +71,45 @@ const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess
       startDate: contract.startDate,
       endDate: contract.endDate,
       annualCost: contract.annualCost,
-      description: "",
+      description: contract.description || "",
     },
   });
 
-  const onSubmit = (data: ContractFormValues) => {
+  // Récupération des clients pour la liaison
+  useEffect(() => {
+    const fetchClients = async () => {
+      setIsClientsLoading(true);
+      const { data } = await supabase.from('clients').select('id, name').order('name');
+      setClients(data || []);
+      setIsClientsLoading(false);
+    };
+    fetchClients();
+  }, []);
+
+  const onSubmit = async (data: ContractFormValues) => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    
+    const { error } = await supabase
+      .from('contracts')
+      .update({
+        name: data.name,
+        provider: data.provider,
+        clinic: data.clinic,
+        start_date: format(data.startDate, 'yyyy-MM-dd'),
+        end_date: format(data.endDate, 'yyyy-MM-dd'),
+        annual_cost: data.annualCost,
+        description: data.description,
+      })
+      .eq('id', contract.id);
+
+    setIsLoading(false);
+
+    if (error) {
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess("Contrat mis à jour avec succès !");
       onSuccess();
-    }, 1500);
+    }
   };
 
   return (
@@ -105,8 +144,21 @@ const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess
             name="clinic"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Clinique</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+                <FormLabel>Clinique / Site</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir un site"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.name}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -124,7 +176,7 @@ const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button variant="outline" className={cn("pl-3 text-left font-normal rounded-xl", !field.value && "text-muted-foreground")}>
-                        {field.value ? format(field.value, "PPP") : <span>Choisir</span>}
+                        {field.value ? format(field.value, "dd/MM/yyyy") : <span>Choisir</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
@@ -144,7 +196,7 @@ const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button variant="outline" className={cn("pl-3 text-left font-normal rounded-xl", !field.value && "text-muted-foreground")}>
-                        {field.value ? format(field.value, "PPP") : <span>Choisir</span>}
+                        {field.value ? format(field.value, "dd/MM/yyyy") : <span>Choisir</span>}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
@@ -161,15 +213,28 @@ const EditContractForm: React.FC<EditContractFormProps> = ({ contract, onSuccess
           name="annualCost"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Coût Annuel (€)</FormLabel>
+              <FormLabel>Coût Annuel (FCFA)</FormLabel>
               <FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Sauvegarder les modifications"}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes additionnelles</FormLabel>
+              <FormControl><Textarea className="rounded-xl resize-none" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4" disabled={isLoading || isClientsLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
+          Sauvegarder les modifications
         </Button>
       </form>
     </Form>
