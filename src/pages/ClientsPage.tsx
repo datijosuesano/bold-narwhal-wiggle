@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Search, Loader2, Edit2, Trash2, MapPin, User, Phone } from 'lucide-react';
+import { Building2, Plus, Search, Loader2, Edit2, Trash2, MapPin, User, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -20,8 +20,14 @@ interface Client {
   contract_status: string;
 }
 
+interface Contract {
+  clinic: string;
+  status: string;
+}
+
 const ClientsPage: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
+  const [activeContractClinics, setActiveContractClinics] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -30,18 +36,33 @@ const ClientsPage: React.FC = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const fetchClients = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('clients').select('*').order('name');
-    if (error) {
-      showError("Erreur lors du chargement des sites.");
+    
+    // 1. Récupérer les clients
+    const { data: clientsData, error: clientsError } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name');
+
+    // 2. Récupérer les noms des cliniques ayant un contrat actif
+    const { data: contractsData, error: contractsError } = await supabase
+      .from('contracts')
+      .select('clinic')
+      .eq('status', 'Active');
+
+    if (clientsError || contractsError) {
+      showError("Erreur lors du chargement des données.");
     } else {
-      setClients(data || []);
+      setClients(clientsData || []);
+      // On crée une liste unique des noms de cliniques sous contrat
+      const uniqueClinics = Array.from(new Set((contractsData || []).map(c => c.clinic)));
+      setActiveContractClinics(uniqueClinics);
     }
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchClients(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleDelete = async () => {
     if (!selectedClient) return;
@@ -55,7 +76,7 @@ const ClientsPage: React.FC = () => {
       showError(`Erreur lors de la suppression: ${error.message}`);
     } else {
       showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
-      fetchClients();
+      fetchData();
     }
     setIsDeleteOpen(false);
   };
@@ -89,7 +110,7 @@ const ClientsPage: React.FC = () => {
               <DialogTitle className="text-2xl font-bold">Ajouter un Site Client</DialogTitle>
               <DialogDescription>Créez une nouvelle fiche établissement dans votre base.</DialogDescription>
             </DialogHeader>
-            <CreateClientForm onSuccess={() => { setIsCreateOpen(false); fetchClients(); }} />
+            <CreateClientForm onSuccess={() => { setIsCreateOpen(false); fetchData(); }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -110,51 +131,65 @@ const ClientsPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredClients.map(client => (
-            <div key={client.id} className="group p-6 bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4 border-l-blue-500">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-xl text-foreground line-clamp-1">{client.name}</h3>
-                  <div className="flex items-center text-sm text-muted-foreground mt-1">
-                    <MapPin size={14} className="mr-1" /> {client.city}
+          {filteredClients.map(client => {
+            // Logique de détection : Est-ce que le nom du client est dans la liste des contrats actifs ?
+            const isUnderContract = activeContractClinics.includes(client.name);
+
+            return (
+              <div key={client.id} className={cn(
+                "group p-6 bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4",
+                isUnderContract ? "border-l-green-500" : "border-l-gray-300"
+              )}>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-xl text-foreground line-clamp-1">{client.name}</h3>
+                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                      <MapPin size={14} className="mr-1" /> {client.city}
+                    </div>
+                  </div>
+                  <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
+                      onClick={() => { setSelectedClient(client); setIsEditOpen(true); }}
+                    >
+                      <Edit2 size={16} />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
+                      onClick={() => { setSelectedClient(client); setIsDeleteOpen(true); }}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
-                    onClick={() => { setSelectedClient(client); setIsEditOpen(true); }}
-                  >
-                    <Edit2 size={16} />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
-                    onClick={() => { setSelectedClient(client); setIsDeleteOpen(true); }}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                
+                <div className="space-y-2 mt-4 text-sm">
+                  <div className="flex items-center text-muted-foreground">
+                    <User size={14} className="mr-2 text-blue-500" /> {client.contact_name}
+                  </div>
+                  <div className="flex items-center text-muted-foreground">
+                    <Phone size={14} className="mr-2 text-blue-500" /> {client.phone}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2 mt-4 text-sm">
-                <div className="flex items-center text-muted-foreground">
-                  <User size={14} className="mr-2 text-blue-500" /> {client.contact_name}
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Phone size={14} className="mr-2 text-blue-500" /> {client.phone}
-                </div>
-              </div>
 
-              <div className="mt-6">
-                <Badge variant="outline" className="rounded-full bg-blue-50 text-blue-700 border-blue-200">
-                  {client.contract_status === 'Active' ? 'Sous Contrat' : 'Sans Contrat'}
-                </Badge>
+                <div className="mt-6 flex items-center justify-between">
+                  {isUnderContract ? (
+                    <Badge className="rounded-full bg-green-100 text-green-700 border-green-200 flex items-center">
+                      <ShieldCheck size={12} className="mr-1" /> Sous Contrat
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="rounded-full bg-gray-50 text-gray-500 border-gray-200">
+                      Sans Contrat
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {filteredClients.length === 0 && (
             <div className="col-span-full text-center py-20 text-muted-foreground bg-muted/20 rounded-2xl border-2 border-dashed">
@@ -175,7 +210,7 @@ const ClientsPage: React.FC = () => {
           {selectedClient && (
             <EditClientForm 
               client={selectedClient} 
-              onSuccess={() => { setIsEditOpen(false); fetchClients(); }} 
+              onSuccess={() => { setIsEditOpen(false); fetchData(); }} 
             />
           )}
         </DialogContent>
