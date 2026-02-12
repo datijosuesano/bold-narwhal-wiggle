@@ -13,11 +13,12 @@ import TechniciansPage from "./pages/TechniciansPage";
 import ReportsPage from "./pages/ReportsPage";
 import ClientsPage from "./pages/ClientsPage";
 import InventoryPage from "./pages/InventoryPage";
+import ToolsPage from "./pages/ToolsPage"; // Import tools page
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
-import ReagentsPage from "./pages/ReagentsPage"; // Import the new page
+import ReagentsPage from "./pages/ReagentsPage";
 
 const queryClient = new QueryClient();
 
@@ -29,10 +30,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Public Route */}
             <Route path="/login" element={<LoginPage />} />
-
-            {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
@@ -44,10 +42,10 @@ const App = () => (
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
-                <Route path="/reagents" element={<ReagentsPage />} /> {/* Use the new page */}
+                <Route path="/reagents" element={<ReagentsPage />} />
+                <Route path="/tools" element={<ToolsPage />} /> {/* New tools route */}
               </Route>
             </Route>
-            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

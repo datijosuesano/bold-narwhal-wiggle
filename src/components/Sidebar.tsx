@@ -1,11 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NavItemProps {
   to: string;
@@ -40,7 +40,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile, 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { user, signOut } = useAuth(); // Use auth context
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord" },
@@ -50,8 +50,9 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & CRM" },
     { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange" },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo" },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail" },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats" },
-    { to: "/technicians", icon: <Users size={20} />, label: "Utilisateurs" },
+    { to: "/technicians", icon: <Users size={20} />, label: "Techniciens" },
     { to: "/reports", icon: <ClipboardList size={20} />, label: "Rapports" },
   ];
   
@@ -60,7 +61,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
       <div className="text-2xl font-extrabold text-sidebar-primary-foreground mb-6 text-center">
         GMAO Dyad
       </div>
-      <nav className="space-y-2 flex-1">
+      <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => (
             <NavItem
               key={item.to}
@@ -75,9 +76,12 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
       </nav>
       <div className="pt-4 border-t border-sidebar-border space-y-2">
         {user && (
-          <p className="text-sm text-sidebar-foreground/90 text-center font-medium truncate" title={user.email || ''}>
-            Connecté: {user.email}
-          </p>
+          <div className="px-2 mb-2">
+            <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 font-bold">Session active</p>
+            <p className="text-sm text-sidebar-foreground font-medium truncate" title={user.email || ''}>
+              {user.email}
+            </p>
+          </div>
         )}
         <Button 
           onClick={signOut} 

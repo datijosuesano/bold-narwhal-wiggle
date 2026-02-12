@@ -51,7 +51,7 @@ const TechniciansPage: React.FC = () => {
 
   const confirmDelete = () => {
     if (selectedTech) {
-      showSuccess(`Technicien ${selectedTech.name} supprimé avec succès.`);
+      showSuccess(`Technicien ${selectedTech.name} supprimé.`);
       setIsDeleteOpen(false);
       setSelectedTech(null);
     }
@@ -65,21 +65,21 @@ const TechniciansPage: React.FC = () => {
             <Users className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Gestion des Utilisateurs</h1>
-            <p className="text-lg text-muted-foreground">Créez et gérez les comptes utilisateurs.</p>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Nos Techniciens</h1>
+            <p className="text-lg text-muted-foreground">Équipe technique et gestion des accès.</p>
           </div>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <UserPlus className="mr-2 h-4 w-4" /> Créer Utilisateur
+              <UserPlus className="mr-2 h-4 w-4" /> Nouveau Technicien
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Nouveau Compte Utilisateur</DialogTitle>
-              <DialogDescription>Créez un nouveau compte utilisateur pour l'application.</DialogDescription>
+              <DialogTitle className="text-2xl font-bold">Nouveau Compte Technicien</DialogTitle>
+              <DialogDescription>Enregistrez un nouvel intervenant dans l'équipe.</DialogDescription>
             </DialogHeader>
             <CreateTechnicianForm onSuccess={() => setIsCreateOpen(false)} />
           </DialogContent>
@@ -89,21 +89,21 @@ const TechniciansPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="shadow-lg border-l-4 border-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Effectif Total</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Effectif Technique</CardTitle>
             <Users className="h-5 w-5 text-blue-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{initialTechnicians.length} Utilisateurs</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{initialTechnicians.length} Intervenants</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-green-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Techniciens Disponibles</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Disponibles</CardTitle>
             <CheckCircle2 className="h-5 w-5 text-green-500" />
           </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{initialTechnicians.filter(t => t.status === 'Available').length} Disponibles</div></CardContent>
+          <CardContent><div className="text-3xl font-bold">{initialTechnicians.filter(t => t.status === 'Available').length} Actifs</div></CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Charge Moyenne</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Charge de Travail</CardTitle>
             <HardHat className="h-5 w-5 text-amber-500" />
           </CardHeader>
           <CardContent>
@@ -118,13 +118,13 @@ const TechniciansPage: React.FC = () => {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Liste des Utilisateurs</CardTitle>
-              <CardDescription>Suivi des disponibilités et des interventions en cours.</CardDescription>
+              <CardTitle>Registre de l'Équipe</CardTitle>
+              <CardDescription>Liste exhaustive des techniciens par spécialité.</CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input 
-                placeholder="Rechercher par nom, spécialité..." 
+                placeholder="Chercher un technicien..." 
                 className="pl-10 rounded-xl" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -142,12 +142,10 @@ const TechniciansPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Modale de Modification */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Modifier le Technicien</DialogTitle>
-            <DialogDescription>Mettez à jour les informations de {selectedTech?.name}.</DialogDescription>
+            <DialogTitle className="text-2xl font-bold">Modifier le Profil</DialogTitle>
           </DialogHeader>
           {selectedTech && (
             <EditTechnicianForm 
@@ -158,25 +156,19 @@ const TechniciansPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Alerte de Suppression */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. Cela supprimera définitivement le profil de {selectedTech?.name} de la base de données.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Supprimer le technicien ?</AlertDialogTitle>
+            <AlertDialogDescription>Cela retirera {selectedTech?.name} de l'équipe technique.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">
-              Supprimer définitivement
-            </AlertDialogAction>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600">Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Modale des Tâches Assignées */}
       <TechnicianTasksDialog 
         technician={selectedTech} 
         isOpen={isTasksOpen} 
