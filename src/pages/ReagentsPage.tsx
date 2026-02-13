@@ -52,6 +52,14 @@ const ReagentsPage: React.FC = () => {
     fetchReagents();
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', { 
+      style: 'currency', 
+      currency: 'XOF',
+      currencyDisplay: 'symbol'
+    }).format(amount).replace('XOF', 'FCFA');
+  };
+
   const sortedReagents = useMemo(() => {
     let sortableItems = [...reagents];
     if (sortConfig !== null) {
@@ -224,7 +232,7 @@ const ReagentsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-sm font-medium">{reagent.supplier || 'N/A'}</td>
                       <td className="px-6 py-4 text-right font-semibold">
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(reagent.purchase_cost)}
+                        {formatCurrency(reagent.purchase_cost)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button variant="ghost" size="sm" className="rounded-xl text-blue-600"><ArrowUpDown size={14} className="mr-1"/> Mouvement</Button>

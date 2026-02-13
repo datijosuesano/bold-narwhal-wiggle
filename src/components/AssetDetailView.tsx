@@ -26,6 +26,14 @@ interface AssetDetailViewProps {
   asset: Asset;
 }
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('fr-FR', { 
+    style: 'currency', 
+    currency: 'XOF',
+    currencyDisplay: 'symbol'
+  }).format(amount).replace('XOF', 'FCFA');
+};
+
 const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
   const [activeTab, setActiveTab] = useState('details');
   
@@ -86,7 +94,7 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
               <div className="flex items-center space-x-3"><Factory size={16} className="text-muted-foreground" /> <p><span className="font-medium">Fabricant:</span> {asset.manufacturer}</p></div>
               <div className="flex items-center space-x-3"><MapPin size={16} className="text-muted-foreground" /> <p><span className="font-medium">Localisation:</span> {asset.location}</p></div>
               <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p></div>
-              <div className="flex items-center space-x-3"><DollarSign size={16} className="text-muted-foreground" /> <p><span className="font-medium">Coût:</span> {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(asset.purchaseCost)}</p></div>
+              <div className="flex items-center space-x-3"><DollarSign size={16} className="text-muted-foreground" /> <p><span className="font-medium">Coût:</span> {formatCurrency(asset.purchaseCost)}</p></div>
             </CardContent>
           </Card>
         </TabsContent>
