@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer, ShieldAlert, Image as ImageIcon } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer, ShieldAlert, Image as ImageIcon, PlusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import AssetLifeSheet from './AssetLifeSheet';
+import AddPastInterventionForm from './AddPastInterventionForm';
 
 interface Asset {
   id: string;
@@ -39,6 +41,8 @@ const formatCurrency = (amount: number) => {
 
 const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
   const [activeTab, setActiveTab] = useState('details');
+  const [isActionOpen, setIsActionOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const getStatusStyle = (status: Asset['status']) => {
     switch (status) {
@@ -47,6 +51,11 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
       case 'En Panne': return 'bg-red-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
+  };
+
+  const handleActionSuccess = () => {
+    setIsActionOpen(false);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -71,20 +80,37 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <TabsList className="bg-muted p-1 rounded-xl">
             <TabsTrigger value="details" className="rounded-lg px-4">Détails</TabsTrigger>
             <TabsTrigger value="life-sheet" className="rounded-lg px-4">Fiche de Vie</TabsTrigger>
           </TabsList>
           
-          <Button onClick={() => window.print()} className="bg-blue-600 rounded-xl shadow-md print:hidden">
-            <Printer size={16} className="mr-2" /> Imprimer
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 rounded-xl shadow-md text-white">
+                  <PlusCircle size={16} className="mr-2" /> Enregistrer une action
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-xl">
+                <DialogHeader>
+                  <DialogTitle>Enregistrer une action passée</DialogTitle>
+                  <DialogDescription>Ajoutez une intervention déjà réalisée à l'historique de cet équipement.</DialogDescription>
+                </DialogHeader>
+                <AddPastInterventionForm assetId={asset.id} onSuccess={handleActionSuccess} />
+              </DialogContent>
+            </Dialog>
+            
+            <Button onClick={() => window.print()} variant="outline" className="flex-1 sm:flex-none rounded-xl border-blue-200 text-blue-600 print:hidden">
+              <Printer size={16} className="mr-2" /> Imprimer
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="details" className="space-y-6">
           {asset.image_url && (
-            <Card className="overflow-hidden shadow-lg">
+            <Card className="overflow-hidden shadow-lg border-none">
               <img src={asset.image_url} alt={asset.name} className="w-full max-h-[300px] object-contain bg-muted/20" />
             </Card>
           )}
@@ -92,31 +118,18 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
           <Card className="shadow-lg">
             <CardHeader><CardTitle className="text-lg">Spécifications Techniques</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center space-x-3"><Hash size={16} className="text-muted-foreground" /> <p><span className="font-medium">N° Série:</span> {asset.serialNumber}</p></div>
-              <div className="flex items-center space-x-3"><Tag size={16} className="text-muted-foreground" /> <p><span className="font-medium">Marque / Modèle:</span> {asset.brand} - {asset.model}</p></div>
-              <div className="flex items-center space-x-3"><Factory size={16} className="text-muted-foreground" /> <p><span className="font-medium">Fabricant:</span> {asset.manufacturer}</p></div>
-              <div className="flex items-center space-x-3"><MapPin size={16} className="text-muted-foreground" /> <p><span className="font-medium">Localisation:</span> {asset.location}</p></div>
-              
-              <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> 
-                <p><span className="font-medium">Fabrication:</span> {asset.manufacturingDate ? format(asset.manufacturingDate, 'dd MMMM yyyy', { locale: fr }) : 'Non renseignée'}</p>
-              </div>
-              <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> 
-                <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p>
-              </div>
-              
-              {asset.expiryDate && (
-                <div className="flex items-center space-x-3 text-red-600"><ShieldAlert size={16} /> 
-                  <p><span className="font-bold">Péremption:</span> {format(asset.expiryDate, 'dd MMMM yyyy', { locale: fr })}</p>
-                </div>
-              )}
-              
-              <div className="flex items-center space-x-3"><DollarSign size={16} className="text-muted-foreground" /> <p><span className="font-medium">Coût:</span> {formatCurrency(asset.purchaseCost)}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><Hash size={16} /> <p><span className="font-bold text-foreground">N° Série:</span> {asset.serialNumber}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><Tag size={16} /> <p><span className="font-bold text-foreground">Marque / Modèle:</span> {asset.brand} - {asset.model}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><Factory size={16} /> <p><span className="font-bold text-foreground">Fabricant:</span> {asset.manufacturer}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><MapPin size={16} /> <p><span className="font-bold text-foreground">Localisation:</span> {asset.location}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><Calendar size={16} /> <p><span className="font-bold text-foreground">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><DollarSign size={16} /> <p><span className="font-bold text-foreground">Coût d'achat:</span> {formatCurrency(asset.purchaseCost)}</p></div>
             </CardContent>
           </Card>
         </TabsContent>
         
         <TabsContent value="life-sheet">
-          <AssetLifeSheet asset={asset} />
+          <AssetLifeSheet asset={asset} refreshTrigger={refreshTrigger} />
         </TabsContent>
       </Tabs>
     </div>
