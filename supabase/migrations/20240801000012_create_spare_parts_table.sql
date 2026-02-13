@@ -1,7 +1,9 @@
--- Création de la table des pièces de rechange
-CREATE TABLE IF NOT EXISTS public.spare_parts (
+-- 1. Suppression et re-création propre de la table sans contrainte stricte sur user_id
+DROP TABLE IF EXISTS public.spare_parts CASCADE;
+
+CREATE TABLE public.spare_parts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID, -- On retire la référence forcée à auth.users pour le mode démo
   name TEXT NOT NULL,
   reference TEXT NOT NULL,
   current_stock INT DEFAULT 0,
@@ -11,11 +13,13 @@ CREATE TABLE IF NOT EXISTS public.spare_parts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Activation de la sécurité
+-- 2. Activation du RLS
 ALTER TABLE public.spare_parts ENABLE ROW LEVEL SECURITY;
 
--- Politiques
-CREATE POLICY "Acces lecture authentifié" ON public.spare_parts FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Acces insertion authentifié" ON public.spare_parts FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Acces mise à jour authentifié" ON public.spare_parts FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Acces suppression authentifié" ON public.spare_parts FOR DELETE TO authenticated USING (true);
+-- 3. Politiques permissives pour le développement
+DROP POLICY IF EXISTS "Permettre tout aux connectés" ON public.spare_parts;
+CREATE POLICY "Permettre tout aux connectés" 
+ON public.spare_parts FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
