@@ -30,10 +30,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const ReportSchema = z.object({
   type: z.enum(["Intervention", "Mission"]),
-  title: z.string().min(5, "Titre trop court"),
+  title: z.string().min(5, "Titre trop court (5 car. min)"),
   client: z.string().min(2, "Client requis"),
   technician: z.string().min(1, "Technicien requis"),
-  content: z.string().min(20, "Contenu requis"),
+  content: z.string().min(10, "Contenu requis"),
   date: z.string(),
 });
 
@@ -74,21 +74,23 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     });
     setIsLoading(false);
     if (!error) {
-      showSuccess("Rapport enregistré !");
+      showSuccess("Rapport enregistré avec succès !");
       onSuccess();
+    } else {
+      showError("Erreur lors de l'enregistrement du rapport");
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Type</FormLabel>
+                <FormLabel>Type de Document</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -117,8 +119,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="client"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Client / Site</FormLabel>
-              <FormControl><Input placeholder="Site..." {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Client / Site concerné</FormLabel>
+              <FormControl><Input placeholder="Nom de l'établissement..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -128,8 +130,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Objet</FormLabel>
-              <FormControl><Input placeholder="Objet..." {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Objet de la mission</FormLabel>
+              <FormControl><Input placeholder="Ex: Maintenance annuelle scanner..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -139,8 +141,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="technician"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Technicien</FormLabel>
-              <FormControl><Input placeholder="Nom..." {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Intervenant</FormLabel>
+              <FormControl><Input placeholder="Nom du technicien..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -150,15 +152,17 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Compte-rendu</FormLabel>
-              <FormControl><Textarea className="rounded-xl min-h-[120px]" {...field} /></FormControl>
+              <FormLabel>Compte-rendu détaillé</FormLabel>
+              <FormControl><Textarea placeholder="Actions réalisées, constatations..." className="rounded-xl min-h-[150px] resize-none" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Générer le Rapport"}
-        </Button>
+        <div className="sticky bottom-0 bg-background pt-2 pb-1">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Générer le Rapport</>}
+          </Button>
+        </div>
       </form>
     </Form>
   );

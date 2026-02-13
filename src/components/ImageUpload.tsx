@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Camera, Loader2, X, UploadCloud } from "lucide-react";
+import { Camera, Loader2, X, UploadCloud, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
@@ -25,22 +25,33 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
 
       const file = event.target.files[0];
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const filePath = `assets/${fileName}`;
 
-      // Upload de l'image (assurez-vous d'avoir un bucket 'asset-images' public)
+      // Tentative d'upload
       const { error: uploadError } = await supabase.storage
         .from("asset-images")
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage error:", uploadError);
+        if (uploadError.message.includes("Bucket not found")) {
+          throw new Error("Erreur : Le bucket 'asset-images' n'existe pas dans Supabase. Veuillez le créer dans votre console Supabase.");
+        }
+        throw uploadError;
+      }
 
       const { data } = supabase.storage.from("asset-images").getPublicUrl(filePath);
       
-      setPreview(data.publicUrl);
-      onUpload(data.publicUrl);
+      if (data?.publicUrl) {
+        setPreview(data.publicUrl);
+        onUpload(data.publicUrl);
+      }
     } catch (error: any) {
-      showError(error.message);
+      showError(error.message || "Erreur lors de l'envoi de l'image");
     } finally {
       setUploading(false);
     }
@@ -54,12 +65,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
   return (
     <div className="flex flex-col items-center justify-center w-full">
       {preview ? (
-        <div className="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-dashed border-muted flex items-center justify-center bg-muted/30">
+        <div className="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-dashed border-muted flex items-center justify-center bg-muted/30 group">
           <img src={preview} alt="Prévisualisation" className="w-full h-full object-contain" />
           <Button 
             variant="destructive" 
             size="icon" 
-            className="absolute top-2 right-2 rounded-full h-8 w-8"
+            className="absolute top-2 right-2 rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={removeImage}
           >
             <X size={16} />
@@ -67,16 +78,16 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
         </div>
       ) : (
         <label className="flex flex-col items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-muted hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all">
-          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+          <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
             {uploading ? (
               <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-2" />
             ) : (
               <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
             )}
             <p className="mb-2 text-sm text-muted-foreground font-semibold">
-              {uploading ? "Envoi en cours..." : "Cliquez pour uploader la photo"}
+              {uploading ? "Envoi en cours..." : "Cliquez pour uploader une photo"}
             </p>
-            <p className="text-xs text-muted-foreground">PNG, JPG (Max 5MB)</p>
+            <p className="text-xs text-muted-foreground">PNG, JPG ou JPEG (Max 5Mo)</p>
           </div>
           <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={uploading} />
         </label>

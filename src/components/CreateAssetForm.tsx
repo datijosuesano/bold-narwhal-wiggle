@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Building2 } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -49,8 +49,8 @@ const AssetSchema = z.object({
   }),
   expiryDate: z.date().optional().nullable(),
   purchaseCost: z.preprocess(
-    (a) => parseFloat(z.string().min(1).parse(a)),
-    z.number().positive({ message: "Le coût doit être positif." })
+    (a) => (a === "" ? 0 : parseFloat(z.string().parse(a))),
+    z.number().min(0, { message: "Le coût doit être positif." })
   ),
 });
 
@@ -88,7 +88,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   useEffect(() => {
     const fetchClients = async () => {
       setIsClientsLoading(true);
-      const { data } = await supabase.from('clients').select('id, name');
+      const { data } = await supabase.from('clients').select('id, name').order('name');
       setClients(data || []);
       setIsClientsLoading(false);
     };
@@ -131,8 +131,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-        
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
         <FormItem>
           <FormLabel>Photo de l'équipement</FormLabel>
           <ImageUpload onUpload={(url) => form.setValue("imageUrl", url)} />
@@ -150,7 +149,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="brand"
@@ -175,7 +174,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="location"
@@ -209,7 +208,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="serialNumber"
@@ -240,13 +239,13 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
-              <FormControl><Textarea {...field} className="rounded-xl resize-none" /></FormControl>
+              <FormControl><Textarea {...field} className="rounded-xl resize-none h-24" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="manufacturingDate"
@@ -262,7 +261,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
                 <FormMessage />
               </FormItem>
@@ -283,7 +282,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
                 <FormMessage />
               </FormItem>
@@ -291,7 +290,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
           <FormField
             control={form.control}
             name="expiryDate"
@@ -307,7 +306,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
                 <FormMessage />
               </FormItem>
@@ -326,9 +325,11 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Ajouter l'Équipement"}
-        </Button>
+        <div className="sticky bottom-0 bg-background pt-2 pb-1">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : "Ajouter l'Équipement"}
+          </Button>
+        </div>
       </form>
     </Form>
   );

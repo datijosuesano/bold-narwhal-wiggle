@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -26,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,7 +82,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
   useEffect(() => {
     const fetchAssets = async () => {
       setIsAssetsLoading(true);
-      const { data, error } = await supabase.from('assets').select('id, name');
+      const { data, error } = await supabase.from('assets').select('id, name').order('name');
       if (!error) setAssets(data as Asset[]);
       setIsAssetsLoading(false);
     };
@@ -108,12 +106,14 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
     if (!error) {
       showSuccess("OT créé !");
       onSuccess();
+    } else {
+      showError("Erreur lors de la création de l'OT");
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
         <FormField
           control={form.control}
           name="title"
@@ -131,12 +131,12 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
-              <FormControl><Textarea placeholder="Détails..." className="resize-none rounded-xl" {...field} /></FormControl>
+              <FormControl><Textarea placeholder="Détails de l'intervention..." className="resize-none rounded-xl h-24" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="maintenanceType"
@@ -148,6 +148,8 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
                   <SelectContent>
                     <SelectItem value="Preventive">Préventive</SelectItem>
                     <SelectItem value="Corrective">Corrective</SelectItem>
+                    <SelectItem value="Palliative">Palliative</SelectItem>
+                    <SelectItem value="Ameliorative">Améliorative</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -180,7 +182,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             <FormItem>
               <FormLabel>Équipement</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir" /></SelectTrigger></FormControl>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder={isAssetsLoading ? "Chargement..." : "Choisir un équipement"} /></SelectTrigger></FormControl>
                 <SelectContent>
                   {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
@@ -197,17 +199,24 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
               <FormLabel>Date d'échéance</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
-                  <FormControl><Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "PPP") : "Choisir"}</Button></FormControl>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir une date"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Créer l'Ordre de Travail"}
-        </Button>
+        <div className="sticky bottom-0 bg-background pt-2 pb-1">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : "Créer l'Ordre de Travail"}
+          </Button>
+        </div>
       </form>
     </Form>
   );
