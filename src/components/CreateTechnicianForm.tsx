@@ -68,13 +68,10 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
   const onSubmit = async (data: TechnicianFormValues) => {
     setIsLoading(true);
     
-    // Note: Pour une création d'utilisateur complète (Auth), il faudrait utiliser une Edge Function
-    // car Supabase ne permet pas de créer d'autres utilisateurs via le client anonyme.
-    // Ici, nous créons une entrée dans profiles pour simuler l'enregistrement technique.
     const { error } = await supabase
-      .from('profiles')
+      .from('profil')
       .insert({
-        id: crypto.randomUUID(), // Temporaire: normallement lié à un auth.user
+        id: crypto.randomUUID(),
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
@@ -89,7 +86,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Technicien ${data.first_name} ${data.last_name} enregistré avec succès.`);
+      showSuccess(`Technicien ${data.first_name} ${data.last_name} enregistré.`);
       form.reset();
       onSuccess();
     }
@@ -180,7 +177,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Sélectionner une spécialité" />
+                    <SelectValue placeholder="Sélectionner" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

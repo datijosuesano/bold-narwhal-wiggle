@@ -28,8 +28,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Technician } from "./TechniciansTable";
 
 const TechnicianSchema = z.object({
-  first_name: z.string().min(2, "Le prénom doit contenir au moins 2 caractères"),
-  last_name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  first_name: z.string().min(2, "Le prénom est requis"),
+  last_name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Email invalide"),
   phone: z.string().min(10, "Numéro de téléphone invalide"),
   specialty: z.string().min(1, "Veuillez sélectionner une spécialité"),
@@ -45,7 +45,6 @@ interface EditTechnicianFormProps {
 const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Séparation du nom complet pour le formulaire
   const nameParts = technician.name.split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
@@ -65,7 +64,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
     setIsLoading(true);
     
     const { error } = await supabase
-      .from('profiles')
+      .from('profil')
       .update({
         first_name: data.first_name,
         last_name: data.last_name,
@@ -80,7 +79,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Profil de ${data.first_name} mis à jour.`);
+      showSuccess(`Profil mis à jour.`);
       onSuccess();
     }
   };

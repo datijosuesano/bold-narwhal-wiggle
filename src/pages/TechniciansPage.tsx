@@ -24,23 +24,20 @@ const TechniciansPage: React.FC = () => {
 
   const fetchTechnicians = async () => {
     setIsLoading(true);
-    // On récupère les profils qui ont des informations de technicien
-    // Note: Dans une vraie app, on filtrerait par rôle. Ici on prend les profils.
     const { data, error } = await supabase
-      .from('profiles')
+      .from('profil')
       .select('*')
       .order('last_name', { ascending: true });
 
     if (error) {
       showError("Erreur lors du chargement des techniciens.");
     } else {
-      // Mapping des données de la table profiles vers l'interface Technician
       const mapped: Technician[] = (data || []).map(p => ({
         id: p.id,
         name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sans nom',
-        specialty: p.specialty || 'Polyvalent', // Champ supposé existant ou à ajouter
+        specialty: p.specialty || 'Polyvalent',
         status: p.status || 'Available',
-        activeOrders: 0, // Idéalement calculé via une jointure ou count
+        activeOrders: 0,
         phone: p.phone || 'N/A',
         email: p.email || 'N/A'
       }));
@@ -79,7 +76,7 @@ const TechniciansPage: React.FC = () => {
   const confirmDelete = async () => {
     if (selectedTech) {
       const { error } = await supabase
-        .from('profiles')
+        .from('profil')
         .delete()
         .eq('id', selectedTech.id);
 

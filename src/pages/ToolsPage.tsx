@@ -35,7 +35,7 @@ const ToolsPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     const { data: toolsData } = await supabase.from('tools').select('*').order('name');
-    const { data: profilesData } = await supabase.from('profiles').select('id, first_name, last_name');
+    const { data: profilesData } = await supabase.from('profil').select('id, first_name, last_name');
     
     setTools(toolsData || []);
     setTechs(profilesData || []);
