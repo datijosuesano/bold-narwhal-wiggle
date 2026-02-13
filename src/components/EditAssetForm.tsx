@@ -29,11 +29,12 @@ import { cn } from "@/lib/utils";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Validateur corrigé pour accepter string ou number
 const AssetSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
   category: z.string().min(1, "La catégorie est requise."),
   status: z.enum(['Opérationnel', 'Maintenance', 'En Panne']),
-  description: z.string().min(5, "La description est trop courte."),
+  description: z.string().optional(),
   serialNumber: z.string().min(1, "Le numéro de série est requis."),
   model: z.string().min(1, "Le modèle est requis."),
   manufacturer: z.string().min(1, "Le fabricant est requis."),
@@ -41,10 +42,10 @@ const AssetSchema = z.object({
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
-  purchaseCost: z.preprocess(
-    (a) => parseFloat(z.string().min(1).parse(a)),
-    z.number().min(0, "Le coût doit être positif.")
-  ),
+  purchaseCost: z.union([z.string(), z.number()]).transform((val) => {
+    if (typeof val === 'number') return val;
+    return parseFloat(val) || 0;
+  }),
 });
 
 type AssetFormValues = z.infer<typeof AssetSchema>;
@@ -121,6 +122,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
     setIsLoading(false);
 
     if (error) {
+      console.error("Update error:", error);
       showError(`Erreur: ${error.message}`);
     } else {
       showSuccess("Mise à jour réussie !");
@@ -248,7 +250,10 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "PPP") : "Choisir"}</Button>
+                      <Button variant="outline" className="rounded-xl flex justify-between">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
@@ -261,7 +266,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
             name="purchaseCost"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Coût (€)</FormLabel>
+                <FormLabel>Coût</FormLabel>
                 <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -269,8 +274,9 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading || isClientsLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />} Enregistrer
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading || isClientsLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
+          Enregistrer les modifications
         </Button>
       </form>
     </Form>
