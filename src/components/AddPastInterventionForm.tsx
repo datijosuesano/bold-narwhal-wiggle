@@ -70,7 +70,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       description: data.description,
       maintenance_type: data.maintenanceType,
       due_date: data.date,
-      status: 'Completed', // Marqué comme terminé directement
+      status: 'Completed',
       parts_replaced: data.partsReplaced,
       priority: 'Medium'
     });
@@ -129,7 +129,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                 <FormMessage />
               </FormItem>
             )}
-          </div>
+          />
         </div>
 
         <FormField
@@ -155,7 +155,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         </div>
 
         <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl mt-4" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" size={18} />}
+          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <CheckCircle2 className="mr-2" size={18} />}
           Enregistrer dans l'historique
         </Button>
       </form>
