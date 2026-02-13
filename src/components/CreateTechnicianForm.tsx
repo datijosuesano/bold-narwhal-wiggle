@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Liste des rôles disponibles pour la création (maintenant juste pour l'affichage)
 const CREATABLE_ROLES: { value: string, label: string }[] = [
   { value: 'technician', label: 'Technicien' },
   { value: 'stock_manager', label: 'Gestionnaire de Stock' },
@@ -37,7 +37,6 @@ const TechnicianSchema = z.object({
   first_name: z.string().min(2, "Le prénom est requis"),
   last_name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
   phone: z.string().min(10, "Numéro de téléphone invalide"),
   specialty: z.string().min(1, "Veuillez sélectionner une spécialité"),
   role: z.enum(['technician', 'stock_manager', 'secretary', 'user'], {
@@ -60,7 +59,6 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
       first_name: "",
       last_name: "",
       email: "",
-      password: "",
       phone: "",
       specialty: "",
       role: 'technician',
@@ -69,22 +67,37 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
 
   const onSubmit = async (data: TechnicianFormValues) => {
     setIsLoading(true);
-    const fullName = `${data.first_name} ${data.last_name}`;
     
-    // Simulation de la création d'utilisateur
-    console.log("Création d'utilisateur simulée:", data);
+    // Note: Pour une création d'utilisateur complète (Auth), il faudrait utiliser une Edge Function
+    // car Supabase ne permet pas de créer d'autres utilisateurs via le client anonyme.
+    // Ici, nous créons une entrée dans profiles pour simuler l'enregistrement technique.
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        id: crypto.randomUUID(), // Temporaire: normallement lié à un auth.user
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        phone: data.phone,
+        specialty: data.specialty,
+        role: data.role,
+        status: 'Available'
+      });
 
-    setTimeout(() => {
-        setIsLoading(false);
-        showSuccess(`Utilisateur ${fullName} créé avec succès avec le rôle ${data.role}.`);
-        form.reset();
-        onSuccess();
-    }, 1500);
+    setIsLoading(false);
+
+    if (error) {
+      showError(`Erreur: ${error.message}`);
+    } else {
+      showSuccess(`Technicien ${data.first_name} ${data.last_name} enregistré avec succès.`);
+      form.reset();
+      onSuccess();
+    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -122,18 +135,6 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           )}
         />
         
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mot de Passe Initial</FormLabel>
-              <FormControl><Input type="password" placeholder="Minimum 6 caractères" {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -175,7 +176,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           name="specialty"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Spécialité (pour les techniciens)</FormLabel>
+              <FormLabel>Spécialité</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="rounded-xl">
@@ -195,10 +196,12 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           )}
         />
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <UserPlus className="mr-2" size={18} />}
-          Créer l'Utilisateur
-        </Button>
+        <div className="sticky bottom-0 bg-background pt-2 pb-1">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <UserPlus className="mr-2" size={18} />}
+            Créer le Technicien
+          </Button>
+        </div>
       </form>
     </Form>
   );
