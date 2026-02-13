@@ -90,34 +90,61 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem>
+              <FormLabel>Désignation</FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
           <FormField control={form.control} name="reference" render={({ field }) => (
-            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem>
+              <FormLabel>Référence</FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
         
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="category" render={({ field }) => (
-            <FormItem><FormLabel>Catégorie</FormLabel><FormControl><Input {...field} /></FormItem>
+            <FormItem>
+              <FormLabel>Catégorie</FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
           <FormField control={form.control} name="location" render={({ field }) => (
-            <FormItem><FormLabel>Emplacement / Casier</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            <FormItem>
+              <FormLabel>Emplacement / Casier</FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="quantity" render={({ field }) => (
-            <FormItem><FormLabel>Stock Actuel</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem>
+              <FormLabel>Stock Actuel</FormLabel>
+              <FormControl><Input type="number" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
           <FormField control={form.control} name="minQuantity" render={({ field }) => (
-            <FormItem><FormLabel>Seuil Alerte</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem>
+              <FormLabel>Seuil Alerte</FormLabel>
+              <FormControl><Input type="number" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
-          Sauvegarder les modifications
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
+          {isLoading ? (
+            <><Loader2 className="animate-spin mr-2" /> Mise à jour...</>
+          ) : (
+            <><Save className="mr-2" size={18} /> Sauvegarder les modifications</>
+          )}
         </Button>
       </form>
     </Form>
