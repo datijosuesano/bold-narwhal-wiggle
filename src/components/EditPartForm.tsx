@@ -4,7 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Box } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
 const PartSchema = z.object({
   name: z.string().min(3, "Le nom est requis"),
@@ -31,47 +30,57 @@ const PartSchema = z.object({
 
 type PartFormValues = z.infer<typeof PartSchema>;
 
-interface CreatePartFormProps {
+interface Part {
+  id: string;
+  name: string;
+  reference: string;
+  current_stock: number;
+  min_stock: number;
+  location: string;
+  category: string;
+}
+
+interface EditPartFormProps {
+  part: Part;
   onSuccess: () => void;
 }
 
-const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
+const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
-  const { user } = useAuth();
 
   const form = useForm<PartFormValues>({
     resolver: zodResolver(PartSchema),
     defaultValues: { 
-      name: "", 
-      reference: "", 
-      quantity: 0, 
-      minQuantity: 1, 
-      location: "Magasin Central", 
-      category: "Mécanique" 
+      name: part.name, 
+      reference: part.reference, 
+      quantity: part.current_stock, 
+      minQuantity: part.min_stock, 
+      location: part.location || "", 
+      category: part.category || "" 
     },
   });
 
   const onSubmit = async (data: PartFormValues) => {
-    if (!user) return;
     setIsLoading(true);
 
-    const { error } = await supabase.from('spare_parts').insert({
-      user_id: user.id.includes('fake') ? null : user.id,
-      name: data.name,
-      reference: data.reference,
-      current_stock: data.quantity,
-      min_stock: data.minQuantity,
-      location: data.location,
-      category: data.category
-    });
+    const { error } = await supabase
+      .from('spare_parts')
+      .update({
+        name: data.name,
+        reference: data.reference,
+        current_stock: data.quantity,
+        min_stock: data.minQuantity,
+        location: data.location,
+        category: data.category
+      })
+      .eq('id', part.id);
 
     setIsLoading(false);
 
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Pièce "${data.name}" ajoutée.`);
-      form.reset();
+      showSuccess(`Pièce mise à jour.`);
       onSuccess();
     }
   };
@@ -81,19 +90,19 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input placeholder="Ex: Filtre" {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="reference" render={({ field }) => (
-            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input placeholder="Ex: REF-001" {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
-
+        
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="category" render={({ field }) => (
-            <FormItem><FormLabel>Catégorie</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Catégorie</FormLabel><FormControl><Input {...field} /></FormItem>
           )} />
           <FormField control={form.control} name="location" render={({ field }) => (
-            <FormItem><FormLabel>Localisation</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Emplacement / Casier</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
         </div>
 
@@ -106,13 +115,13 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
           )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : <Box className="mr-2" size={18} />}
-          Enregistrer la pièce
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
+          Sauvegarder les modifications
         </Button>
       </form>
     </Form>
   );
 };
 
-export default CreatePartForm;
+export default EditPartForm;
