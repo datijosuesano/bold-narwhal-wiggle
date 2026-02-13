@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import CreatePartForm from '@/components/CreatePartForm';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -53,7 +53,12 @@ const InventoryPage: React.FC = () => {
             <Button className="bg-blue-600 rounded-xl shadow-md"><Plus className="mr-2 h-4 w-4" /> Ajouter Pièce</Button>
           </DialogTrigger>
           <DialogContent className="rounded-xl">
-            <DialogHeader><DialogTitle>Enregistrer une nouvelle pièce</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Enregistrer une nouvelle pièce</DialogTitle>
+              <DialogDescription>
+                Remplissez les informations ci-dessous pour ajouter une référence au stock.
+              </DialogDescription>
+            </DialogHeader>
             <CreatePartForm onSuccess={fetchParts} />
           </DialogContent>
         </Dialog>
