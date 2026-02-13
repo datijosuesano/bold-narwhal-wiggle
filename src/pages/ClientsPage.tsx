@@ -9,6 +9,7 @@ import CreateClientForm from '@/components/CreateClientForm';
 import EditClientForm from '@/components/EditClientForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { cn } from '@/lib/utils';
 
 interface Client {
   id: string;
@@ -18,11 +19,6 @@ interface Client {
   contact_name: string;
   phone: string;
   contract_status: string;
-}
-
-interface Contract {
-  clinic: string;
-  status: string;
 }
 
 const ClientsPage: React.FC = () => {
