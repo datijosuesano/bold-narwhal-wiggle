@@ -22,6 +22,7 @@ interface Asset {
   manufacturer: string;
   commissioning_date: string;
   purchase_cost: number;
+  description?: string;
   image_url?: string;
 }
 
@@ -145,6 +146,7 @@ const AssetsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Détails de l'équipement */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
           {selectedAsset && (
@@ -155,6 +157,27 @@ const AssetsPage: React.FC = () => {
                 commissioningDate: new Date(selectedAsset.commissioning_date),
                 purchaseCost: selectedAsset.purchase_cost,
               }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modification de l'équipement */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-lg rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle>
+          </DialogHeader>
+          {selectedAsset && (
+            <EditAssetForm 
+              asset={{
+                ...selectedAsset,
+                serialNumber: selectedAsset.serial_number,
+                commissioningDate: new Date(selectedAsset.commissioning_date),
+                purchaseCost: selectedAsset.purchase_cost,
+                description: selectedAsset.description || "",
+              }} 
+              onSuccess={() => { setIsEditModalOpen(false); fetchAssets(); }} 
             />
           )}
         </DialogContent>
