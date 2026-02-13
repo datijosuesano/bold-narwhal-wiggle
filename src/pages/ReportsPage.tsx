@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download } from 'lucide-react';
+import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import CreateReportForm from '@/components/CreateReportForm';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Report {
   id: string;
@@ -22,36 +23,60 @@ interface Report {
   status: 'Draft' | 'Finalized';
 }
 
-const initialMockReports: Report[] = [
-  { id: 'REP-001', title: 'Maintenance Préventive Climatisation', type: 'Intervention', client: 'Clinique du Parc', technician: 'Jean Dupont', date: new Date(), status: 'Finalized' },
-  { id: 'REP-002', title: 'Mission de Formation Bloc Nord', type: 'Mission', client: 'Hôpital Privé Nord', technician: 'Sophie Laurent', date: new Date(Date.now() - 86400000), status: 'Finalized' },
-  { id: 'REP-003', title: 'Réparation Fuite Hydraulique', type: 'Intervention', client: 'Centre Médical Sud', technician: 'Ahmed Bensaid', date: new Date(Date.now() - 172800000), status: 'Draft' },
-];
-
 const ReportsPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [reports, setReports] = useState(initialMockReports);
-  const [searchTerm, setSearchTerm] = useState(''); // Nouvel état pour la recherche
+  const [reports, setReports] = useState<Report[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchReports = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('reports')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      showError("Erreur lors du chargement des rapports.");
+    } else {
+      const mappedReports: Report[] = (data || []).map(r => ({
+        ...r,
+        date: new Date(r.date)
+      }));
+      setReports(mappedReports);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
   const handleViewPDF = (report: Report) => {
     setSelectedReport(report);
     setIsPreviewOpen(true);
   };
 
-  const handleValidate = (reportId: string) => {
-    setReports(prev => prev.map(r => 
-      r.id === reportId ? { ...r, status: 'Finalized' } : r
-    ));
-    showSuccess("Rapport validé avec succès. Le document est maintenant verrouillé.");
+  const handleValidate = async (reportId: string) => {
+    const { error } = await supabase
+      .from('reports')
+      .update({ status: 'Finalized' })
+      .eq('id', reportId);
+
+    if (error) {
+      showError("Erreur lors de la validation.");
+    } else {
+      showSuccess("Rapport validé avec succès.");
+      fetchReports();
+    }
   };
 
   const handleDownload = () => {
     showSuccess("Téléchargement du PDF lancé...");
   };
   
-  // Logique de filtrage
   const filteredReports = useMemo(() => {
     if (!searchTerm) return reports;
     const lowerCaseSearch = searchTerm.toLowerCase();
@@ -86,7 +111,7 @@ const ReportsPage: React.FC = () => {
               <DialogTitle className="text-2xl font-bold">Créer un Rapport</DialogTitle>
               <DialogDescription>Saisissez les détails de l'intervention multi-sites.</DialogDescription>
             </DialogHeader>
-            <CreateReportForm onSuccess={() => setIsCreateOpen(false)} />
+            <CreateReportForm onSuccess={() => { setIsCreateOpen(false); fetchReports(); }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -122,7 +147,7 @@ const ReportsPage: React.FC = () => {
                   placeholder="Rechercher (Client, Objet...)" 
                   className="pl-10 rounded-xl" 
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)} // Ajout de l'onChange
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Button variant="outline" className="rounded-xl"><Filter size={18} /></Button>
@@ -131,7 +156,9 @@ const ReportsPage: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {filteredReports.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-blue-600 h-10 w-10" /></div>
+            ) : filteredReports.length > 0 ? (
               filteredReports.map((report) => (
                 <div key={report.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
                   <div className="flex items-center space-x-4">
@@ -181,19 +208,19 @@ const ReportsPage: React.FC = () => {
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Aucun rapport trouvé correspondant à votre recherche.
+              <div className="text-center py-20 text-muted-foreground bg-muted/10">
+                <ClipboardList className="mx-auto h-12 w-12 opacity-20 mb-2" />
+                <p>Aucun rapport trouvé. Commencez par en créer un.</p>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Modale d'Aperçu PDF */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm">
-            <DialogTitle className="text-lg font-bold">Aperçu du Rapport de Maintenance</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Aperçu du Rapport</DialogTitle>
             <Button onClick={handleDownload} className="bg-blue-600 rounded-xl">
               <Download size={18} className="mr-2" /> Télécharger PDF
             </Button>
