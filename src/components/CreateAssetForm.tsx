@@ -36,13 +36,18 @@ const AssetSchema = z.object({
   description: z.string().min(5, "La description est trop courte."),
   serialNumber: z.string().min(1, "Le numéro de série est requis."),
   model: z.string().min(1, "Le modèle est requis."),
+  brand: z.string().min(1, "La marque est requise."),
   manufacturer: z.string().min(1, "Le fabricant est requis."),
   location: z.string().min(1, "Veuillez sélectionner un site."),
   category: z.string().min(1, "La catégorie est requise."),
   imageUrl: z.string().optional(),
+  manufacturingDate: z.date({
+    required_error: "La date de fabrication est requise.",
+  }),
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
+  expiryDate: z.date().optional().nullable(),
   purchaseCost: z.preprocess(
     (a) => parseFloat(z.string().min(1).parse(a)),
     z.number().positive({ message: "Le coût doit être positif." })
@@ -68,11 +73,14 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       description: "",
       serialNumber: "",
       model: "",
+      brand: "",
       manufacturer: "",
       location: "",
       category: "Médical",
       imageUrl: "",
+      manufacturingDate: undefined,
       commissioningDate: undefined,
+      expiryDate: null,
       purchaseCost: 0,
     },
   });
@@ -99,9 +107,12 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         description: data.description,
         serial_number: data.serialNumber,
         model: data.model,
+        brand: data.brand,
         manufacturer: data.manufacturer,
         location: data.location,
+        manufacturing_date: format(data.manufacturingDate, 'yyyy-MM-dd'),
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
+        expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
         purchase_cost: data.purchaseCost,
         category: data.category,
         image_url: data.imageUrl,
@@ -138,6 +149,31 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="brand"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Marque</FormLabel>
+                <FormControl><Input placeholder="Ex: Siemens" {...field} className="rounded-xl" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="manufacturer"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fabricant</FormLabel>
+                <FormControl><Input placeholder="Ex: Siemens Healthineers" {...field} className="rounded-xl" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -210,7 +246,28 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4 pb-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="manufacturingDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date de fabrication</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="commissioningDate"
@@ -220,11 +277,39 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button variant="outline" className="rounded-xl">{field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}</Button>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 pb-4">
+          <FormField
+            control={form.control}
+            name="expiryDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date de péremption (Optionnel)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Aucune"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent>
+                </Popover>
+                <FormMessage />
               </FormItem>
             )}
           />

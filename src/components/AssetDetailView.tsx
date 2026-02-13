@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer, Image as ImageIcon } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer, ShieldAlert, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,11 @@ interface Asset {
   status: 'Opérationnel' | 'Maintenance' | 'En Panne';
   serialNumber: string;
   model: string;
+  brand?: string;
   manufacturer: string;
+  manufacturingDate?: Date;
   commissioningDate: Date;
+  expiryDate?: Date | null;
   purchaseCost: number;
   image_url?: string;
 }
@@ -90,10 +93,23 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
             <CardHeader><CardTitle className="text-lg">Spécifications Techniques</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="flex items-center space-x-3"><Hash size={16} className="text-muted-foreground" /> <p><span className="font-medium">N° Série:</span> {asset.serialNumber}</p></div>
-              <div className="flex items-center space-x-3"><Tag size={16} className="text-muted-foreground" /> <p><span className="font-medium">Modèle:</span> {asset.model}</p></div>
+              <div className="flex items-center space-x-3"><Tag size={16} className="text-muted-foreground" /> <p><span className="font-medium">Marque / Modèle:</span> {asset.brand} - {asset.model}</p></div>
               <div className="flex items-center space-x-3"><Factory size={16} className="text-muted-foreground" /> <p><span className="font-medium">Fabricant:</span> {asset.manufacturer}</p></div>
               <div className="flex items-center space-x-3"><MapPin size={16} className="text-muted-foreground" /> <p><span className="font-medium">Localisation:</span> {asset.location}</p></div>
-              <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p></div>
+              
+              <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> 
+                <p><span className="font-medium">Fabrication:</span> {asset.manufacturingDate ? format(asset.manufacturingDate, 'dd MMMM yyyy', { locale: fr }) : 'Non renseignée'}</p>
+              </div>
+              <div className="flex items-center space-x-3"><Calendar size={16} className="text-muted-foreground" /> 
+                <p><span className="font-medium">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p>
+              </div>
+              
+              {asset.expiryDate && (
+                <div className="flex items-center space-x-3 text-red-600"><ShieldAlert size={16} /> 
+                  <p><span className="font-bold">Péremption:</span> {format(asset.expiryDate, 'dd MMMM yyyy', { locale: fr })}</p>
+                </div>
+              )}
+              
               <div className="flex items-center space-x-3"><DollarSign size={16} className="text-muted-foreground" /> <p><span className="font-medium">Coût:</span> {formatCurrency(asset.purchaseCost)}</p></div>
             </CardContent>
           </Card>
