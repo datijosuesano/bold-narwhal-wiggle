@@ -43,7 +43,7 @@ type InterventionFormValues = z.infer<typeof InterventionSchema>;
 
 interface AddPastInterventionFormProps {
   assetId?: string;
-  initialData?: any; // Pour l'édition
+  initialData?: any;
   onSuccess: () => void;
 }
 
@@ -78,11 +78,18 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   });
 
   const onSubmit = async (data: InterventionFormValues) => {
-    if (!user) return;
+    if (!user) {
+      showError("Vous devez être connecté.");
+      return;
+    }
+    
     setIsLoading(true);
 
+    // Si on est en mode démo (fake-user), on n'envoie pas le user_id car RLS le bloquerait
+    const userId = user.id.includes('fake') ? null : user.id;
+
     const payload = {
-      user_id: user.id.includes('fake') ? null : user.id,
+      user_id: userId,
       asset_id: data.assetId,
       title: data.title,
       description: data.description,
@@ -93,33 +100,33 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       priority: initialData?.priority || 'Medium'
     };
 
-    let error;
-    if (initialData?.id) {
-      const { error: updateError } = await supabase.from('work_orders').update(payload).eq('id', initialData.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase.from('work_orders').insert(payload);
-      error = insertError;
-    }
-
-    if (error) {
-      showError(`Erreur: ${error.message}`);
-      setIsLoading(false);
-      return;
-    }
-
-    // Gestion du stock uniquement pour les nouvelles interventions pour éviter les doublons sur l'édition
-    if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
-      const selectedPart = spareParts.find(p => p.id === data.partId);
-      if (selectedPart) {
-        const newStock = Math.max(0, selectedPart.current_stock - data.partQuantity);
-        await supabase.from('spare_parts').update({ current_stock: newStock }).eq('id', data.partId);
+    try {
+      let result;
+      if (initialData?.id) {
+        result = await supabase.from('work_orders').update(payload).eq('id', initialData.id);
+      } else {
+        result = await supabase.from('work_orders').insert(payload);
       }
-    }
 
-    setIsLoading(false);
-    showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
-    onSuccess();
+      if (result.error) throw result.error;
+
+      // Gestion du stock
+      if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
+        const selectedPart = spareParts.find(p => p.id === data.partId);
+        if (selectedPart) {
+          const newStock = Math.max(0, selectedPart.current_stock - data.partQuantity);
+          await supabase.from('spare_parts').update({ current_stock: newStock }).eq('id', data.partId);
+        }
+      }
+
+      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
+      onSuccess();
+    } catch (err: any) {
+      console.error("Erreur d'enregistrement:", err);
+      showError(`Échec: ${err.message || "Erreur inconnue"}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -151,7 +158,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
         {!initialData && (
           <div className="p-4 bg-blue-50/50 border rounded-xl space-y-4">
-            <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Utilisation de pièce de rechange</div>
+            <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Pièce de rechange utilisée</div>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="partId" render={({ field }) => (
                 <FormItem>
@@ -168,7 +175,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
               )} />
               <FormField control={form.control} name="partQuantity" render={({ field }) => (
                 <FormItem>
-                  <FormControl><Input type="number" placeholder="Quantité" {...field} className="rounded-xl" /></FormControl>
+                  <FormControl><Input type="number" placeholder="Qté" {...field} className="rounded-xl" /></FormControl>
                 </FormItem>
               )} />
             </div>
@@ -176,12 +183,12 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         )}
 
         <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem><FormLabel>Détails des travaux</FormLabel><FormControl><Textarea placeholder="Décrivez les actions menées..." {...field} className="rounded-xl h-24" /></FormControl><FormMessage /></FormItem>
+          <FormItem><FormLabel>Détails des travaux</FormLabel><FormControl><Textarea placeholder="Actions menées..." {...field} className="rounded-xl h-24" /></FormControl><FormMessage /></FormItem>
         )} />
 
         <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : initialData ? <Save className="mr-2" /> : <CheckCircle2 className="mr-2" />} 
-          {initialData ? "Sauvegarder les modifications" : "Enregistrer l'Intervention"}
+          {initialData ? "Sauvegarder" : "Enregistrer"}
         </Button>
       </form>
     </Form>
