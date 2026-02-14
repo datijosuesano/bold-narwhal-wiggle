@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Wrench, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Wrench, Clock, AlertTriangle, CheckCircle2, Hammer, Factory } from 'lucide-react';
 import { Technician } from './TechniciansTable';
+import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Task {
   id: string;
@@ -12,85 +14,96 @@ interface Task {
   status: 'InProgress' | 'Pending';
 }
 
+interface Equipment {
+  id: string;
+  name: string;
+  type: 'Asset' | 'Tool';
+}
+
 interface TechnicianTasksDialogProps {
   technician: Technician | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Mock des tâches pour la démonstration
-const mockTasks: Record<string, Task[]> = {
-  'TECH-01': [
-    { id: 'OT-102', title: 'Calibration IRM', asset: 'IRM Siemens', priority: 'High', status: 'InProgress' },
-    { id: 'OT-105', title: 'Maintenance Respirateur', asset: 'Dräger V500', priority: 'Medium', status: 'Pending' },
-    { id: 'OT-110', title: 'Réparation Pompe', asset: 'Pompe P-101', priority: 'High', status: 'InProgress' },
-  ],
-  'TECH-03': [
-    { id: 'OT-201', title: 'Vérification Climatisation', asset: 'Bloc Opératoire 1', priority: 'Medium', status: 'InProgress' },
-  ],
-};
-
 const TechnicianTasksDialog: React.FC<TechnicianTasksDialogProps> = ({ technician, isOpen, onClose }) => {
-  if (!technician) return null;
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const tasks = mockTasks[technician.id] || [];
+  useEffect(() => {
+    const fetchEquipment = async () => {
+      if (!technician) return;
+      setIsLoading(true);
+      
+      const { data: assets } = await supabase.from('assets').select('id, name').eq('assigned_to', technician.id);
+      const { data: tools } = await supabase.from('tools').select('id, name').eq('assigned_to', technician.id);
+      
+      const combined: Equipment[] = [
+        ...(assets?.map(a => ({ id: a.id, name: a.name, type: 'Asset' as const })) || []),
+        ...(tools?.map(t => ({ id: t.id, name: t.name, type: 'Tool' as const })) || [])
+      ];
+      
+      setEquipment(combined);
+      setIsLoading(false);
+    };
+
+    if (isOpen) fetchEquipment();
+  }, [technician, isOpen]);
+
+  if (!technician) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] rounded-xl">
+      <DialogContent className="sm:max-w-[550px] rounded-xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center">
-            <Wrench className="mr-2 text-blue-600" />
-            Tâches de {technician.name}
-          </DialogTitle>
-          <DialogDescription>
-            {tasks.length} intervention(s) en cours ou planifiée(s).
-          </DialogDescription>
+          <DialogTitle className="text-2xl font-bold">Fiche de {technician.name}</DialogTitle>
+          <DialogDescription>Suivi des activités et du matériel détenu.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
-          {tasks.length > 0 ? (
-            tasks.map((task) => (
-              <div key={task.id} className="p-4 rounded-xl border bg-card hover:bg-accent/50 transition-colors space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs font-mono text-muted-foreground">{task.id}</span>
-                    <h4 className="font-bold text-foreground">{task.title}</h4>
-                    <p className="text-sm text-muted-foreground">{task.asset}</p>
+        <Tabs defaultValue="tasks" className="mt-4">
+          <TabsList className="w-full bg-muted">
+            <TabsTrigger value="tasks" className="flex-1">Missions (OT)</TabsTrigger>
+            <TabsTrigger value="equipment" className="flex-1">Matériel Détendu ({equipment.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tasks" className="space-y-4 mt-4">
+             <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">
+                <Clock className="mx-auto mb-2 opacity-20" />
+                Les ordres de travail en cours s'afficheront ici.
+             </div>
+          </TabsContent>
+
+          <TabsContent value="equipment" className="space-y-3 mt-4">
+            {isLoading ? (
+              <div className="py-10 text-center text-muted-foreground animate-pulse">Chargement de l'inventaire...</div>
+            ) : equipment.length > 0 ? (
+              equipment.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 border rounded-xl bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg", item.type === 'Asset' ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600")}>
+                      {item.type === 'Asset' ? <Factory size={18} /> : <Hammer size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.type === 'Asset' ? 'Équipement médical' : 'Outillage'}</p>
+                    </div>
                   </div>
-                  <Badge className={cn(
-                    "rounded-full",
-                    task.priority === 'High' ? "bg-red-500" : task.priority === 'Medium' ? "bg-amber-500" : "bg-blue-500"
-                  )}>
-                    {task.priority === 'High' ? 'Urgent' : task.priority === 'Medium' ? 'Moyen' : 'Normal'}
-                  </Badge>
+                  <Badge variant="outline" className="text-[10px] font-mono">{item.id.substring(0, 8)}</Badge>
                 </div>
-                <div className="flex items-center text-xs font-medium pt-2 border-t">
-                  {task.status === 'InProgress' ? (
-                    <span className="flex items-center text-amber-600">
-                      <Clock size={14} className="mr-1 animate-pulse" /> En cours
-                    </span>
-                  ) : (
-                    <span className="flex items-center text-blue-600">
-                      <AlertTriangle size={14} className="mr-1" /> En attente
-                    </span>
-                  )}
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-10 bg-muted/30 rounded-xl border border-dashed">
+                <Hammer className="mx-auto h-12 w-12 opacity-10 mb-2" />
+                <p className="text-sm text-muted-foreground">Aucun matériel assigné à ce technicien.</p>
               </div>
-            ))
-          ) : (
-            <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-xl border-2 border-dashed">
-              <CheckCircle2 className="mx-auto h-12 w-12 opacity-20 mb-2" />
-              Aucune tâche assignée pour le moment.
-            </div>
-          )}
-        </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 };
 
-// Helper function locally since we can't import cn from here easily if it's not exported
 const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default TechnicianTasksDialog;
