@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, CheckCircle2, Package, Factory } from "lucide-react";
+import { Loader2, CheckCircle2, Package, Save } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -42,11 +42,12 @@ const InterventionSchema = z.object({
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
 
 interface AddPastInterventionFormProps {
-  assetId?: string; // Optionnel maintenant
+  assetId?: string;
+  initialData?: any; // Pour l'édition
   onSuccess: () => void;
 }
 
-const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ assetId, onSuccess }) => {
+const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ assetId, initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [spareParts, setSpareParts] = useState<{id: string, name: string, current_stock: number}[]>([]);
   const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
@@ -54,7 +55,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock').gt('current_stock', 0);
+      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock');
       setSpareParts(parts || []);
       
       const { data: assetList } = await supabase.from('assets').select('id, name').order('name');
@@ -66,11 +67,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      maintenanceType: "Corrective",
-      assetId: assetId || "",
-      date: format(new Date(), "yyyy-MM-dd"),
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      maintenanceType: (initialData?.maintenance_type as any) || "Corrective",
+      assetId: initialData?.asset_id || assetId || "",
+      date: initialData?.due_date || format(new Date(), "yyyy-MM-dd"),
       partId: "none",
       partQuantity: 0,
     },
@@ -80,7 +81,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     if (!user) return;
     setIsLoading(true);
 
-    const { error: otError } = await supabase.from('work_orders').insert({
+    const payload = {
       user_id: user.id.includes('fake') ? null : user.id,
       asset_id: data.assetId,
       title: data.title,
@@ -89,16 +90,26 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       due_date: data.date,
       status: 'Completed',
       parts_replaced: data.partId !== "none" && data.partQuantity > 0,
-      priority: 'Medium'
-    });
+      priority: initialData?.priority || 'Medium'
+    };
 
-    if (otError) {
-      showError(`Erreur: ${otError.message}`);
+    let error;
+    if (initialData?.id) {
+      const { error: updateError } = await supabase.from('work_orders').update(payload).eq('id', initialData.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from('work_orders').insert(payload);
+      error = insertError;
+    }
+
+    if (error) {
+      showError(`Erreur: ${error.message}`);
       setIsLoading(false);
       return;
     }
 
-    if (data.partId && data.partId !== "none" && data.partQuantity > 0) {
+    // Gestion du stock uniquement pour les nouvelles interventions pour éviter les doublons sur l'édition
+    if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
       const selectedPart = spareParts.find(p => p.id === data.partId);
       if (selectedPart) {
         const newStock = Math.max(0, selectedPart.current_stock - data.partQuantity);
@@ -107,25 +118,23 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     }
 
     setIsLoading(false);
-    showSuccess("Intervention et stock mis à jour !");
+    showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
     onSuccess();
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {!assetId && (
-          <FormField control={form.control} name="assetId" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Équipement concerné</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un équipement" /></SelectTrigger></FormControl>
-                <SelectContent>{assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-        )}
+        <FormField control={form.control} name="assetId" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Équipement concerné</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!initialData}>
+              <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un équipement" /></SelectTrigger></FormControl>
+              <SelectContent>{assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
 
         <FormField control={form.control} name="title" render={({ field }) => (
           <FormItem><FormLabel>Objet de l'intervention</FormLabel><FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
@@ -140,36 +149,39 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
           )} />
         </div>
 
-        <div className="p-4 bg-blue-50/50 border rounded-xl space-y-4">
-          <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Utilisation de pièce de rechange</div>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField control={form.control} name="partId" render={({ field }) => (
-              <FormItem>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Pièce utilisée" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">-- Aucune pièce --</SelectItem>
-                    {spareParts.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.current_stock})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="partQuantity" render={({ field }) => (
-              <FormItem>
-                <FormControl><Input type="number" placeholder="Quantité" {...field} className="rounded-xl" /></FormControl>
-              </FormItem>
-            )} />
+        {!initialData && (
+          <div className="p-4 bg-blue-50/50 border rounded-xl space-y-4">
+            <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Utilisation de pièce de rechange</div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="partId" render={({ field }) => (
+                <FormItem>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Pièce utilisée" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">-- Aucune pièce --</SelectItem>
+                      {spareParts.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {p.current_stock})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="partQuantity" render={({ field }) => (
+                <FormItem>
+                  <FormControl><Input type="number" placeholder="Quantité" {...field} className="rounded-xl" /></FormControl>
+                </FormItem>
+              )} />
+            </div>
           </div>
-        </div>
+        )}
 
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem><FormLabel>Détails des travaux</FormLabel><FormControl><Textarea placeholder="Décrivez les actions menées..." {...field} className="rounded-xl h-24" /></FormControl><FormMessage /></FormItem>
         )} />
 
         <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />} Enregistrer l'Intervention
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : initialData ? <Save className="mr-2" /> : <CheckCircle2 className="mr-2" />} 
+          {initialData ? "Sauvegarder les modifications" : "Enregistrer l'Intervention"}
         </Button>
       </form>
     </Form>

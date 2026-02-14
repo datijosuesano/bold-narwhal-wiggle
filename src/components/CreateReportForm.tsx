@@ -41,9 +41,10 @@ type ReportFormValues = z.infer<typeof ReportSchema>;
 
 interface CreateReportFormProps {
   onSuccess: () => void;
+  initialData?: any; // Pour lier à une intervention
 }
 
-const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
+const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
@@ -53,30 +54,21 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     resolver: zodResolver(ReportSchema),
     defaultValues: {
       type: "Intervention",
-      title: "",
-      client: "",
-      technician: "",
-      content: "",
-      date: new Date().toISOString().split('T')[0],
+      title: initialData?.title || "",
+      client: initialData?.assets?.location || "",
+      technician: initialData?.technician_name || "",
+      content: initialData?.description || "",
+      date: initialData?.due_date || new Date().toISOString().split('T')[0],
     },
   });
 
   useEffect(() => {
     const fetchClients = async () => {
       setIsClientsLoading(true);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name')
-        .order('name');
-      
-      if (error) {
-        console.error("Error fetching clients:", error);
-      } else {
-        setClients(data || []);
-      }
+      const { data } = await supabase.from('clients').select('id, name').order('name');
+      setClients(data || []);
       setIsClientsLoading(false);
     };
-
     fetchClients();
   }, []);
 
@@ -95,10 +87,10 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     });
     setIsLoading(false);
     if (!error) {
-      showSuccess("Rapport enregistré avec succès !");
+      showSuccess("Rapport généré avec succès ! Retrouvez-le dans l'onglet Rapports.");
       onSuccess();
     } else {
-      showError("Erreur lors de l'enregistrement du rapport");
+      showError("Erreur lors de la génération du rapport");
     }
   };
 
@@ -145,18 +137,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder={isClientsLoading ? "Chargement des clients..." : "Sélectionner un client"} />
+                    <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Sélectionner un client"} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
+                    <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
                   ))}
-                  {clients.length === 0 && !isClientsLoading && (
-                    <SelectItem value="none" disabled>Aucun client trouvé</SelectItem>
-                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -169,8 +156,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Objet de la mission</FormLabel>
-              <FormControl><Input placeholder="Ex: Maintenance annuelle scanner..." {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Objet du rapport</FormLabel>
+              <FormControl><Input placeholder="Ex: Maintenance annuelle..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -180,7 +167,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="technician"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Intervenant</FormLabel>
+              <FormLabel>Intervenant (Signature)</FormLabel>
               <FormControl><Input placeholder="Nom du technicien..." {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
@@ -191,15 +178,15 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Compte-rendu détaillé</FormLabel>
-              <FormControl><Textarea placeholder="Actions réalisées, constatations..." className="rounded-xl min-h-[150px] resize-none" {...field} /></FormControl>
+              <FormLabel>Corps du rapport</FormLabel>
+              <FormControl><Textarea placeholder="Actions réalisées..." className="rounded-xl min-h-[150px] resize-none" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading || isClientsLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Générer le Rapport</>}
+            {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Finaliser le Rapport</>}
           </Button>
         </div>
       </form>
