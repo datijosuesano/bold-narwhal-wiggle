@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Save } from "lucide-react";
+import { CalendarIcon, Loader2, Save, User } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ const AssetSchema = z.object({
   brand: z.string().min(1, "La marque est requise."),
   manufacturer: z.string().min(1, "Le fabricant est requis."),
   location: z.string().min(1, "Le site est requis."),
+  assignedTo: z.string().optional().nullable(),
   manufacturingDate: z.date({
     required_error: "La date de fabrication est requise.",
   }),
@@ -69,6 +70,7 @@ interface Asset {
   expiryDate?: Date | null;
   purchaseCost: number;
   description?: string;
+  assigned_to?: string | null;
 }
 
 interface EditAssetFormProps {
@@ -79,7 +81,7 @@ interface EditAssetFormProps {
 const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
-  const [isClientsLoading, setIsClientsLoading] = useState(true);
+  const [techs, setTechs] = useState<{id: string, name: string}[]>([]);
 
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(AssetSchema),
@@ -93,7 +95,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
       brand: asset.brand || "",
       manufacturer: asset.manufacturer,
       location: asset.location,
-      manufacturingDate: asset.manufacturingDate,
+      assignedTo: asset.assigned_to || "none",
+      manufacturingDate: asset.manufacturingDate || new Date(),
       commissioningDate: asset.commissioningDate,
       expiryDate: asset.expiryDate,
       purchaseCost: asset.purchaseCost,
@@ -101,13 +104,14 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   });
 
   useEffect(() => {
-    const fetchClients = async () => {
-      setIsClientsLoading(true);
-      const { data } = await supabase.from('clients').select('id, name');
-      setClients(data || []);
-      setIsClientsLoading(false);
+    const fetchData = async () => {
+      const { data: clientData } = await supabase.from('clients').select('id, name');
+      setClients(clientData || []);
+      
+      const { data: techData } = await supabase.from('profil').select('id, first_name, last_name');
+      setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
     };
-    fetchClients();
+    fetchData();
   }, []);
 
   const onSubmit = async (data: AssetFormValues) => {
@@ -125,6 +129,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         brand: data.brand,
         manufacturer: data.manufacturer,
         location: data.location,
+        assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
         manufacturing_date: format(data.manufacturingDate, 'yyyy-MM-dd'),
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
@@ -183,29 +188,25 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="brand"
+            name="assignedTo"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Marque</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+                <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable Actuel</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Non assigné" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">-- Aucun --</SelectItem>
+                    {techs.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="manufacturer"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fabricant</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="location"
@@ -215,7 +216,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir un site"} />
+                      <SelectValue placeholder="Choisir un site" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -224,6 +225,20 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                     ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="brand"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Marque</FormLabel>
+                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -278,28 +293,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="manufacturingDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date de fabrication</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
-                        <CalendarIcon size={16} className="opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid grid-cols-2 gap-4 pb-4">
           <FormField
             control={form.control}
             name="commissioningDate"
@@ -321,30 +315,6 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
               </FormItem>
             )}
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 pb-4">
-          <FormField
-            control={form.control}
-            name="expiryDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date de péremption (Optionnel)</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                        {field.value ? format(field.value, "dd/MM/yyyy") : "Aucune"}
-                        <CalendarIcon size={16} className="opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name="purchaseCost"
@@ -358,7 +328,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading || isClientsLoading}>
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
           Enregistrer les modifications
         </Button>

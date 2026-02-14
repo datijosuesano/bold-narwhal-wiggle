@@ -67,6 +67,25 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   const [techs, setTechs] = useState<{id: string, name: string}[]>([]);
   const { user } = useAuth();
 
+  const form = useForm<AssetFormValues>({
+    resolver: zodResolver(AssetSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      serialNumber: "",
+      model: "",
+      brand: "",
+      manufacturer: "",
+      location: "",
+      category: "",
+      assignedTo: "none",
+      imageUrl: "",
+      manufacturingDate: new Date(),
+      commissioningDate: new Date(),
+      purchaseCost: 0,
+    },
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: clientData } = await supabase.from('clients').select('id, name').order('name');
@@ -85,7 +104,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     const { error } = await supabase
       .from('assets')
       .insert({
-        user_id: user.id,
+        user_id: user.id.includes('fake') ? null : user.id,
         name: data.name,
         description: data.description,
         serial_number: data.serialNumber,
@@ -104,8 +123,10 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       });
 
     setIsLoading(false);
-    if (error) showError(`Erreur: ${error.message}`);
-    else {
+    if (error) {
+      console.error("Insert error:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess("Équipement ajouté !");
       onSuccess();
     }
