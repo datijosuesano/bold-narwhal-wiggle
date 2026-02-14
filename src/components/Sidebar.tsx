@@ -44,7 +44,8 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord" },
-    { to: "/work-orders", icon: <Wrench size={20} />, label: "Ordres de Travail" },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail" },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions" },
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements" },
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification" },
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & CRM" },
@@ -53,7 +54,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail" },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats" },
     { to: "/technicians", icon: <Users size={20} />, label: "Techniciens" },
-    { to: "/reports", icon: <ClipboardList size={20} />, label: "Rapports" },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports" },
   ];
   
   return (
@@ -124,5 +125,7 @@ const Sidebar: React.FC = () => {
     </aside>
   );
 };
+
+const FileText = ({ size }: { size: number }) => <ClipboardList size={size} />;
 
 export default Sidebar;

@@ -13,7 +13,8 @@ import TechniciansPage from "./pages/TechniciansPage";
 import ReportsPage from "./pages/ReportsPage";
 import ClientsPage from "./pages/ClientsPage";
 import InventoryPage from "./pages/InventoryPage";
-import ToolsPage from "./pages/ToolsPage"; // Import tools page
+import ToolsPage from "./pages/ToolsPage";
+import InterventionsPage from "./pages/InterventionsPage"; // New import
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -36,6 +37,7 @@ const App = () => (
                 <Route index element={<DashboardPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />
+                <Route path="/interventions" element={<InterventionsPage />} /> {/* New route */}
                 <Route path="/planning" element={<PlanningPage />} />
                 <Route path="/contracts" element={<ContractsPage />} />
                 <Route path="/technicians" element={<TechniciansPage />} />
@@ -43,7 +45,7 @@ const App = () => (
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/reagents" element={<ReagentsPage />} />
-                <Route path="/tools" element={<ToolsPage />} /> {/* New tools route */}
+                <Route path="/tools" element={<ToolsPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
