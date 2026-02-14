@@ -2,7 +2,6 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import { showError, showSuccess } from '@/utils/toast';
 
 type UserRole = 'admin' | 'technician' | 'stock_manager' | 'secretary' | 'user';
 
@@ -28,7 +27,7 @@ const FAKE_USER: User = {
   phone: '',
   last_sign_in_at: new Date().toISOString(),
   app_metadata: { provider: 'email', providers: ['email'] },
-  user_metadata: {},
+  user_metadata: { first_name: 'Utilisateur', last_name: 'Démo' },
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -40,6 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserRole = async (userId: string) => {
+    // Si c'est l'utilisateur de démo, on force admin
+    if (userId === FAKE_USER.id) {
+      setRole('admin');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('profil')
@@ -50,8 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data && !error) {
         setRole(data.role as UserRole);
       } else {
-        // Fallback for demo/new users
-        setRole('admin'); 
+        setRole('user'); 
       }
     } catch (e) {
       setRole('user');
@@ -60,33 +64,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initializeAuth = async () => {
+      // 1. Vérifier si une session réelle existe
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       
       if (initialSession) {
         setSession(initialSession);
         setUser(initialSession.user);
         await fetchUserRole(initialSession.user.id);
+        setIsLoading(false);
       } else {
+        // 2. Sinon vérifier si on est en mode démo
         const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
         if (fakeToken) {
           setSession({ access_token: fakeToken, user: FAKE_USER } as any);
           setUser(FAKE_USER);
-          setRole('admin'); // Démo est admin par défaut
+          setRole('admin');
         }
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserRole(session.user.id);
+    // Écouter les changements d'état réels de Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await fetchUserRole(currentSession.user.id);
+        setIsLoading(false);
+      } else {
+        // Si Supabase dit "pas de session", on revérifie le localStorage avant de déconnecter
+        const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
+        if (!fakeToken) {
+          setSession(null);
+          setUser(null);
+          setRole('user');
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
-      if (_event === 'SIGNED_OUT') localStorage.removeItem(FAKE_AUTH_KEY);
     });
 
     return () => subscription.unsubscribe();
@@ -95,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     localStorage.removeItem(FAKE_AUTH_KEY);
     await supabase.auth.signOut();
+    window.location.href = '/login';
   };
 
   const hasRole = (roles: UserRole[]) => {
