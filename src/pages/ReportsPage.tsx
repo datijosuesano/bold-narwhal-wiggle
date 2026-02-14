@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2 } from 'lucide-react';
+import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2, Trash2 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import CreateReportForm from '@/components/CreateReportForm';
 import ReportPDFPreview from '@/components/ReportPDFPreview';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +22,13 @@ interface Report {
   technician: string;
   date: Date;
   status: 'Draft' | 'Finalized';
+  content: string; // Ajout du champ contenu
 }
 
 const ReportsPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,6 +60,28 @@ const ReportsPage: React.FC = () => {
   const handleViewPDF = (report: Report) => {
     setSelectedReport(report);
     setIsPreviewOpen(true);
+  };
+
+  const handleOpenDelete = (report: Report) => {
+    setSelectedReport(report);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedReport) return;
+    
+    const { error } = await supabase
+      .from('reports')
+      .delete()
+      .eq('id', selectedReport.id);
+
+    if (error) {
+      showError("Erreur lors de la suppression.");
+    } else {
+      showSuccess("Rapport supprimé avec succès.");
+      fetchReports();
+    }
+    setIsDeleteOpen(false);
   };
 
   const handleValidate = async (reportId: string) => {
@@ -114,23 +139,6 @@ const ReportsPage: React.FC = () => {
             <CreateReportForm onSuccess={() => { setIsCreateOpen(false); fetchReports(); }} />
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-lg border-l-4 border-blue-500 bg-blue-50/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase">Total Interventions</CardTitle>
-            <FileText className="h-5 w-5 text-blue-500" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{reports.filter(r => r.type === 'Intervention').length} Rapports</div></CardContent>
-        </Card>
-        <Card className="shadow-lg border-l-4 border-purple-500 bg-purple-50/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase">Missions Externes</CardTitle>
-            <Map className="h-5 w-5 text-purple-500" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{reports.filter(r => r.type === 'Mission').length} Missions</div></CardContent>
-        </Card>
       </div>
 
       <Card className="shadow-lg">
@@ -203,6 +211,15 @@ const ReportsPage: React.FC = () => {
                       >
                         <Eye size={18} />
                       </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 text-red-500 hover:bg-red-50" 
+                        onClick={() => handleOpenDelete(report)}
+                        title="Supprimer"
+                      >
+                        <Trash2 size={18} />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -217,6 +234,7 @@ const ReportsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Aperçu PDF */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm">
@@ -230,6 +248,20 @@ const ReportsPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Suppression */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce rapport ?</AlertDialogTitle>
+            <AlertDialogDescription>Cette action est irréversible. Le rapport sera définitivement retiré de la base.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">Confirmer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

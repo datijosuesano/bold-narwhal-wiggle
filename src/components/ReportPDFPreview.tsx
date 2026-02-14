@@ -11,6 +11,7 @@ interface Report {
   technician: string;
   date: Date;
   status: 'Draft' | 'Finalized';
+  content: string; // Ajout du contenu
 }
 
 interface ReportPDFPreviewProps {
@@ -28,7 +29,7 @@ const ReportPDFPreview: React.FC<ReportPDFPreviewProps> = ({ report }) => {
         </div>
         <div className="text-right">
           <h2 className="text-lg font-bold">RAPPORT D'{report.type.toUpperCase()}</h2>
-          <p className="text-sm font-mono text-gray-600">REF: {report.id}</p>
+          <p className="text-sm font-mono text-gray-600">REF: {report.id.substring(0, 8)}</p>
         </div>
       </div>
 
@@ -79,17 +80,8 @@ const ReportPDFPreview: React.FC<ReportPDFPreviewProps> = ({ report }) => {
       {/* Corps du rapport */}
       <div className="flex-1 space-y-4">
         <h3 className="text-sm font-bold border-b pb-2 text-blue-700 uppercase">Description des travaux</h3>
-        <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
-          {/* Simulation de contenu détaillé si le mock est vide */}
-          L'intervention a débuté par un diagnostic complet du système. Les tests de performance ont révélé des anomalies au niveau des capteurs thermiques.
-          
-          Actions menées :
-          1. Démontage du panneau d'accès principal.
-          2. Nettoyage des circuits de refroidissement.
-          3. Remplacement des sondes défectueuses par des pièces neuves certifiées.
-          4. Mise à jour du firmware de contrôle.
-          
-          Conclusion : Le système est de nouveau opérationnel et répond aux normes de sécurité en vigueur. Aucun défaut résiduel n'a été détecté lors des tests finaux.
+        <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap min-h-[200px]">
+          {report.content || "Aucun contenu détaillé n'a été saisi pour ce rapport."}
         </p>
       </div>
 
