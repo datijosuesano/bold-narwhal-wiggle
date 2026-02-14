@@ -1,17 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FlaskConical, Plus, Search, AlertTriangle, ArrowUpDown, Loader2, Calendar, Hash, History } from 'lucide-react';
+import { FlaskConical, Plus, Search, AlertTriangle, Loader2, Calendar, Hash, History } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateReagentForm from '@/components/CreateReagentForm';
 import ReagentStockAdjustment from '@/components/ReagentStockAdjustment';
+import ReagentHistoryDialog from '@/components/ReagentHistoryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { format, differenceInDays, isBefore } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 interface Reagent {
   id: string;
@@ -20,8 +20,7 @@ interface Reagent {
   current_stock: number;
   min_stock: number;
   unit: string;
-  supplier: string | null;
-  purchase_cost: number;
+  packaging: string | null;
   lot_number: string | null;
   expiry_date: string | null;
 }
@@ -31,11 +30,13 @@ const ReagentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Reagent, direction: 'ascending' | 'descending' } | null>(null);
+  
+  // États pour l'historique
+  const [historyReagent, setHistoryReagent] = useState<{id: string, name: string} | null>(null);
 
   const fetchReagents = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('lab_reagents').select('*');
+    const { data, error } = await supabase.from('lab_reagents').select('*').order('name');
     if (error) showError("Erreur lors du chargement des réactifs.");
     else setReagents(data as Reagent[]);
     setIsLoading(false);
@@ -47,16 +48,15 @@ const ReagentsPage: React.FC = () => {
     if (!expiryDate) return null;
     const date = new Date(expiryDate);
     const daysLeft = differenceInDays(date, new Date());
-    
     if (isBefore(date, new Date())) return { label: "EXPIRÉ", class: "bg-red-600", icon: <AlertTriangle size={10} /> };
     if (daysLeft <= 30) return { label: `Expire dans ${daysLeft}j`, class: "bg-amber-500", icon: <Calendar size={10} /> };
     return null;
   };
 
   const filteredReagents = useMemo(() => {
-    return reagents.filter(part =>
-      part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      part.reference.toLowerCase().includes(searchTerm.toLowerCase())
+    return reagents.filter(r =>
+      r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.reference.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [reagents, searchTerm]);
 
@@ -81,29 +81,6 @@ const ReagentsPage: React.FC = () => {
         </Dialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="shadow-lg border-l-4 border-red-500">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Alertes Expiration</CardTitle>
-            <Calendar className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {reagents.filter(r => r.expiry_date && isBefore(new Date(r.expiry_date), new Date())).length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg border-l-4 border-amber-500">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Ruptures proches</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{reagents.filter(r => r.current_stock <= r.min_stock).length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="shadow-lg overflow-hidden">
         <CardHeader className="border-b bg-muted/10">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -121,8 +98,8 @@ const ReagentsPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">Produit & Traçabilité</th>
                   <th className="px-6 py-4">Date Expiration</th>
-                  <th className="px-6 py-4">Niveau de Stock</th>
-                  <th className="px-6 py-4">Ajustement</th>
+                  <th className="px-6 py-4">Stock</th>
+                  <th className="px-6 py-4">Mouvement</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -136,10 +113,10 @@ const ReagentsPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="font-bold text-foreground">{reagent.name}</div>
                         <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-[9px] font-mono flex items-center bg-white">
-                            <Hash size={8} className="mr-1" /> LOT: {reagent.lot_number || '---'}
+                          <Badge variant="outline" className="text-[9px] font-mono flex items-center bg-white shadow-sm">
+                            <Hash size={8} className="mr-1" /> {reagent.lot_number || 'SANS LOT'}
                           </Badge>
-                          <Badge variant="outline" className="text-[9px] bg-white">REF: {reagent.reference}</Badge>
+                          <Badge variant="outline" className="text-[9px] bg-white shadow-sm">{reagent.packaging || 'Conditionnement inconnu'}</Badge>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -148,7 +125,7 @@ const ReagentsPage: React.FC = () => {
                         </div>
                         {expiry && (
                           <Badge className={cn("mt-1 rounded-full text-[9px] text-white", expiry.class)}>
-                            {expiry.icon} <span className="ml-1">{expiry.label}</span>
+                            <span className="ml-1">{expiry.label}</span>
                           </Badge>
                         )}
                       </td>
@@ -162,7 +139,6 @@ const ReagentsPage: React.FC = () => {
                           </span>
                           <span className="text-xs text-muted-foreground uppercase">{reagent.unit}</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">Seuil min: {reagent.min_stock}</div>
                       </td>
                       <td className="px-6 py-4">
                         <ReagentStockAdjustment 
@@ -173,8 +149,14 @@ const ReagentsPage: React.FC = () => {
                         />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50" title="Historique">
-                          <History size={16} />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl text-blue-600 hover:bg-blue-50" 
+                          title="Voir l'historique"
+                          onClick={() => setHistoryReagent({ id: reagent.id, name: reagent.name })}
+                        >
+                          <History size={18} />
                         </Button>
                       </td>
                     </tr>
@@ -185,6 +167,14 @@ const ReagentsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modale d'historique dynamique */}
+      <ReagentHistoryDialog 
+        reagentId={historyReagent?.id || null} 
+        reagentName={historyReagent?.name || null}
+        isOpen={!!historyReagent}
+        onClose={() => setHistoryReagent(null)}
+      />
     </div>
   );
 };
