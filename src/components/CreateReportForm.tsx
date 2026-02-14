@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,7 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const ReportSchema = z.object({
   type: z.enum(["Intervention", "Mission"]),
   title: z.string().min(5, "Titre trop court (5 car. min)"),
-  client: z.string().min(2, "Client requis"),
+  client: z.string().min(1, "Veuillez sélectionner un client"),
   technician: z.string().min(1, "Technicien requis"),
   content: z.string().min(10, "Contenu requis"),
   date: z.string(),
@@ -44,7 +44,9 @@ interface CreateReportFormProps {
 }
 
 const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
+  const [isClientsLoading, setIsClientsLoading] = useState(true);
   const { user } = useAuth();
 
   const form = useForm<ReportFormValues>({
@@ -59,11 +61,30 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
     },
   });
 
+  useEffect(() => {
+    const fetchClients = async () => {
+      setIsClientsLoading(true);
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name');
+      
+      if (error) {
+        console.error("Error fetching clients:", error);
+      } else {
+        setClients(data || []);
+      }
+      setIsClientsLoading(false);
+    };
+
+    fetchClients();
+  }, []);
+
   const onSubmit = async (data: ReportFormValues) => {
     if (!user) return;
     setIsLoading(true);
     const { error } = await supabase.from('reports').insert({
-      user_id: user.id,
+      user_id: user.id.includes('fake') ? null : user.id,
       title: data.title,
       type: data.type,
       client: data.client,
@@ -114,17 +135,35 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
             )}
           />
         </div>
+
         <FormField
           control={form.control}
           name="client"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Client / Site concerné</FormLabel>
-              <FormControl><Input placeholder="Nom de l'établissement..." {...field} className="rounded-xl" /></FormControl>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder={isClientsLoading ? "Chargement des clients..." : "Sélectionner un client"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                  {clients.length === 0 && !isClientsLoading && (
+                    <SelectItem value="none" disabled>Aucun client trouvé</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="title"
@@ -159,7 +198,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess }) => {
           )}
         />
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading || isClientsLoading}>
             {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Générer le Rapport</>}
           </Button>
         </div>
