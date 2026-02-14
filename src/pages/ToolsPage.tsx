@@ -48,13 +48,20 @@ const ToolsPage: React.FC = () => {
     const status = techId === "null" ? 'Disponible' : 'Attribué';
     const assignedValue = techId === "null" ? null : techId;
 
+    console.log(`[ToolsPage] Tentative d'attribution de l'outil ${toolId} au technicien ${assignedValue}`);
+
     const { error } = await supabase
       .from('tools')
-      .update({ assigned_to: assignedValue, status: status })
+      .update({ 
+        assigned_to: assignedValue, 
+        status: status 
+      })
       .eq('id', toolId);
 
-    if (error) showError("Erreur lors de l'attribution.");
-    else {
+    if (error) {
+      console.error("[ToolsPage] Erreur Supabase détaillée:", error);
+      showError(`Erreur lors de l'attribution: ${error.message}`);
+    } else {
       showSuccess("Mise à jour effectuée.");
       fetchData();
     }
