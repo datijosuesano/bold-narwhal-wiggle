@@ -83,7 +83,7 @@ const AssetsPage: React.FC = () => {
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">Nouvel Équipement</DialogTitle>
             </DialogHeader>
-            <CreateAssetForm onSuccess={() => { setIsCreateModalOpen(false); fetchAssets(); }} />
+            <CreateAssetForm onSuccess={() => { setIsCreateOpen(false); fetchAssets(); }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -149,6 +149,9 @@ const AssetsPage: React.FC = () => {
       {/* Détails de l'équipement */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Fiche de l'équipement</DialogTitle>
+          </DialogHeader>
           {selectedAsset && (
             <AssetDetailView 
               asset={{
@@ -163,7 +166,7 @@ const AssetsPage: React.FC = () => {
       </Dialog>
 
       {/* Modification de l'équipement */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle>
@@ -177,7 +180,7 @@ const AssetsPage: React.FC = () => {
                 purchaseCost: selectedAsset.purchase_cost,
                 description: selectedAsset.description || "",
               }} 
-              onSuccess={() => { setIsEditModalOpen(false); fetchAssets(); }} 
+              onSuccess={() => { setIsEditOpen(false); fetchAssets(); }} 
             />
           )}
         </DialogContent>

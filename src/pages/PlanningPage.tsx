@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CardDays, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -47,6 +47,9 @@ const PlanningPage: React.FC = () => {
             <Button className="bg-blue-600 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Programmer</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg rounded-xl">
+            <DialogHeader>
+              <DialogTitle>Programmer un Ordre de Travail</DialogTitle>
+            </DialogHeader>
             <CreateWorkOrderForm onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} />
           </DialogContent>
         </Dialog>
