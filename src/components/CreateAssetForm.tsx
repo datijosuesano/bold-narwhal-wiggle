@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, User } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,6 @@ const AssetSchema = z.object({
   location: z.string().min(1, "Veuillez sélectionner un site."),
   category: z.string().min(1, "La catégorie est requise."),
   imageUrl: z.string().optional(),
-  assignedTo: z.string().optional(),
   manufacturingDate: z.date({
     required_error: "La date de fabrication est requise.",
   }),
@@ -64,8 +63,7 @@ interface CreateAssetFormProps {
 const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
-  const [techs, setTechs] = useState<{id: string, first_name: string, last_name: string}[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isClientsLoading, setIsClientsLoading] = useState(true);
   const { user } = useAuth();
 
   const form = useForm<AssetFormValues>({
@@ -80,21 +78,21 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       location: "",
       category: "Médical",
       imageUrl: "",
-      assignedTo: "none",
+      manufacturingDate: undefined,
+      commissioningDate: undefined,
+      expiryDate: null,
       purchaseCost: 0,
     },
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsDataLoading(true);
-      const { data: clientsData } = await supabase.from('clients').select('id, name').order('name');
-      const { data: techsData } = await supabase.from('profil').select('id, first_name, last_name').order('last_name');
-      setClients(clientsData || []);
-      setTechs(techsData || []);
-      setIsDataLoading(false);
+    const fetchClients = async () => {
+      setIsClientsLoading(true);
+      const { data } = await supabase.from('clients').select('id, name').order('name');
+      setClients(data || []);
+      setIsClientsLoading(false);
     };
-    fetchData();
+    fetchClients();
   }, []);
 
   const onSubmit = async (data: AssetFormValues) => {
@@ -118,7 +116,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         purchase_cost: data.purchaseCost,
         category: data.category,
         image_url: data.imageUrl,
-        assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
         status: 'Opérationnel'
       });
 
@@ -127,7 +124,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess("Équipement ajouté et assigné !");
+      showSuccess("Équipement ajouté !");
       onSuccess();
     }
   };
@@ -152,26 +149,25 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )}
         />
 
-        <div className="p-4 bg-muted/30 rounded-xl border-2 border-dashed">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="assignedTo"
+            name="brand"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="flex items-center"><User size={14} className="mr-2 text-blue-600" /> Affecter à un technicien</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Choisir un responsable" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">-- Aucun (Stock général) --</SelectItem>
-                    {techs.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Marque</FormLabel>
+                <FormControl><Input placeholder="Ex: Siemens" {...field} className="rounded-xl" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="manufacturer"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fabricant</FormLabel>
+                <FormControl><Input placeholder="Ex: Siemens Healthineers" {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -188,7 +184,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder={isDataLoading ? "Chargement..." : "Choisir"} />
+                      <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -215,10 +211,10 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="brand"
+            name="serialNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Marque</FormLabel>
+                <FormLabel>N° Série</FormLabel>
                 <FormControl><Input {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -288,6 +284,41 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                 </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+          <FormField
+            control={form.control}
+            name="expiryDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date de péremption (Optionnel)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Aucune"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} /></PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="purchaseCost"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Coût (FCFA)</FormLabel>
+                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}

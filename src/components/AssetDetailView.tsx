@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Printer, User, ShieldCheck, Image as ImageIcon, PlusCircle } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, Clock, Wrench, CheckCircle2, FileText, Printer, ShieldAlert, Image as ImageIcon, PlusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import AssetLifeSheet from './AssetLifeSheet';
 import AddPastInterventionForm from './AddPastInterventionForm';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Asset {
   id: string;
@@ -21,10 +20,11 @@ interface Asset {
   model: string;
   brand?: string;
   manufacturer: string;
+  manufacturingDate?: Date;
   commissioningDate: Date;
+  expiryDate?: Date | null;
   purchaseCost: number;
   image_url?: string;
-  assigned_to?: string;
 }
 
 interface AssetDetailViewProps {
@@ -43,20 +43,7 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
   const [activeTab, setActiveTab] = useState('details');
   const [isActionOpen, setIsActionOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [assignedName, setAssignedName] = useState<string | null>(null);
   
-  useEffect(() => {
-    const fetchTech = async () => {
-      if (asset.assigned_to) {
-        const { data } = await supabase.from('profil').select('first_name, last_name').eq('id', asset.assigned_to).single();
-        if (data) setAssignedName(`${data.first_name} ${data.last_name}`);
-      } else {
-        setAssignedName(null);
-      }
-    };
-    fetchTech();
-  }, [asset.assigned_to]);
-
   const getStatusStyle = (status: Asset['status']) => {
     switch (status) {
       case 'Opérationnel': return 'bg-green-500 text-white';
@@ -64,6 +51,11 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
       case 'En Panne': return 'bg-red-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
+  };
+
+  const handleActionSuccess = () => {
+    setIsActionOpen(false);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -87,16 +79,6 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
         </span>
       </div>
 
-      {assignedName && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-          <div className="flex items-center text-blue-700 font-bold">
-            <User size={18} className="mr-2" />
-            Matériel actuellement utilisé par : {assignedName}
-          </div>
-          <ShieldCheck size={20} className="text-blue-500" />
-        </div>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <TabsList className="bg-muted p-1 rounded-xl">
@@ -114,26 +96,34 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
               <DialogContent className="rounded-xl">
                 <DialogHeader>
                   <DialogTitle>Enregistrer une action passée</DialogTitle>
+                  <DialogDescription>Ajoutez une intervention déjà réalisée à l'historique de cet équipement.</DialogDescription>
                 </DialogHeader>
-                <AddPastInterventionForm assetId={asset.id} onSuccess={() => { setIsActionOpen(false); setRefreshTrigger(t => t+1); }} />
+                <AddPastInterventionForm assetId={asset.id} onSuccess={handleActionSuccess} />
               </DialogContent>
             </Dialog>
-            <Button onClick={() => window.print()} variant="outline" className="flex-1 sm:flex-none rounded-xl border-blue-200 text-blue-600">
+            
+            <Button onClick={() => window.print()} variant="outline" className="flex-1 sm:flex-none rounded-xl border-blue-200 text-blue-600 print:hidden">
               <Printer size={16} className="mr-2" /> Imprimer
             </Button>
           </div>
         </div>
 
         <TabsContent value="details" className="space-y-6">
+          {asset.image_url && (
+            <Card className="overflow-hidden shadow-lg border-none">
+              <img src={asset.image_url} alt={asset.name} className="w-full max-h-[300px] object-contain bg-muted/20" />
+            </Card>
+          )}
+
           <Card className="shadow-lg">
             <CardHeader><CardTitle className="text-lg">Spécifications Techniques</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="flex items-center space-x-3 text-muted-foreground"><Hash size={16} /> <p><span className="font-bold text-foreground">N° Série:</span> {asset.serialNumber}</p></div>
               <div className="flex items-center space-x-3 text-muted-foreground"><Tag size={16} /> <p><span className="font-bold text-foreground">Marque / Modèle:</span> {asset.brand} - {asset.model}</p></div>
+              <div className="flex items-center space-x-3 text-muted-foreground"><Factory size={16} /> <p><span className="font-bold text-foreground">Fabricant:</span> {asset.manufacturer}</p></div>
               <div className="flex items-center space-x-3 text-muted-foreground"><MapPin size={16} /> <p><span className="font-bold text-foreground">Localisation:</span> {asset.location}</p></div>
               <div className="flex items-center space-x-3 text-muted-foreground"><Calendar size={16} /> <p><span className="font-bold text-foreground">Mise en service:</span> {format(asset.commissioningDate, 'dd MMMM yyyy', { locale: fr })}</p></div>
               <div className="flex items-center space-x-3 text-muted-foreground"><DollarSign size={16} /> <p><span className="font-bold text-foreground">Coût d'achat:</span> {formatCurrency(asset.purchaseCost)}</p></div>
-              <div className="flex items-center space-x-3 text-muted-foreground"><User size={16} /> <p><span className="font-bold text-foreground">Responsable:</span> {assignedName || 'Non assigné'}</p></div>
             </CardContent>
           </Card>
         </TabsContent>
