@@ -1,105 +1,137 @@
-import React from 'react';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, LogIn } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { showSuccess, showError } from '@/utils/toast';
+"use client";
 
-const DEMO_EMAIL = "demo@dyad.sh";
-const DEMO_PASSWORD = "dyad-demo-123";
-const FAKE_AUTH_KEY = 'dyad_fake_auth_token'; // Importé du contexte
+import React, { useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, Building2, LogIn, Loader2, ShieldAlert } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 
 const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleDemoLogin = async () => {
-    // 1. Tenter la connexion Supabase normale
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
+      email,
+      password,
     });
 
     if (error) {
-      console.error("Demo login failed (Supabase error):", error);
-      showError(`Échec de la connexion Supabase: ${error.message}. Activation du mode Démo.`);
-      
-      // 2. Activer le mode de contournement (Fake Auth)
-      // Nous stockons un jeton factice pour que AuthProvider simule la connexion
-      localStorage.setItem(FAKE_AUTH_KEY, 'fake-jwt-token-for-dyad-demo');
-      
-      // Forcer un rafraîchissement pour que AuthProvider détecte le jeton factice
-      window.location.reload(); 
-
+      showError(`Erreur: ${error.message}`);
+      setIsSubmitting(false);
     } else {
-      showSuccess("Connexion de démonstration réussie !");
+      showSuccess("Connexion réussie !");
+      navigate("/");
     }
   };
 
-  if (isLoading) {
-    return null; // Wait for AuthProvider to finish loading
-  }
+  const handleDemoLogin = async () => {
+    setIsSubmitting(true);
+    // Simulation pour la démo Dyad
+    localStorage.setItem('dyad_fake_auth_token', 'fake-jwt-token-for-dyad-demo');
+    window.location.reload(); 
+  };
 
-  if (user) {
-    // If user is already logged in, redirect to dashboard
-    return <Navigate to="/" replace />;
-  }
+  if (isLoading) return null;
+  if (user) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md rounded-2xl shadow-2xl border-t-4 border-blue-600">
-        <CardHeader className="text-center space-y-2">
-          <Building2 className="h-10 w-10 text-blue-600 mx-auto" />
-          <CardTitle className="text-3xl font-extrabold text-primary">
-            Connexion GMAO
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-md rounded-2xl shadow-2xl border-none overflow-hidden">
+        <div className="h-2 bg-blue-600 w-full" />
+        <CardHeader className="text-center space-y-2 pb-8">
+          <div className="mx-auto bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mb-2">
+            <Building2 className="h-8 w-8 text-blue-600" />
+          </div>
+          <CardTitle className="text-3xl font-black text-slate-900 tracking-tight">
+            GMAO DYAD
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Connectez-vous pour accéder à la plateforme de gestion de maintenance.
-          </p>
+          <CardDescription>
+            Plateforme de gestion technique centralisée
+          </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            theme="light"
-            providers={[]}
-            redirectTo={window.location.origin}
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: 'Email',
-                  password_label: 'Mot de passe',
-                  email_input_placeholder: 'Votre email professionnel',
-                  password_input_placeholder: 'Votre mot de passe',
-                  button_label: 'Se connecter',
-                  social_provider_text: 'Se connecter avec {{provider}}',
-                  link_text: 'Déjà un compte ? Connectez-vous',
-                },
-                sign_up: {
-                  email_label: 'Email',
-                  password_label: 'Mot de passe',
-                  email_input_placeholder: 'Votre email professionnel',
-                  password_input_placeholder: 'Créer un mot de passe',
-                  button_label: 'Créer un compte',
-                  link_text: 'Pas encore de compte ? Inscrivez-vous',
-                },
-                forgotten_password: {
-                  link_text: 'Mot de passe oublié ?',
-                },
-              },
-            }}
-          />
-          
-          <div className="mt-6 pt-4 border-t">
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Professionnel</Label>
+              <Input 
+                id="email"
+                type="email" 
+                placeholder="nom@entreprise.com" 
+                required
+                className="rounded-xl h-11"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <div className="relative">
+                <Input 
+                  id="password"
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  required
+                  className="rounded-xl h-11 pr-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
             <Button 
-              onClick={handleDemoLogin} 
-              className="w-full bg-green-600 hover:bg-green-700 rounded-xl shadow-md"
+              type="submit" 
+              className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg font-bold"
+              disabled={isSubmitting}
             >
-              <LogIn className="mr-2 h-4 w-4" /> Connexion Démo (demo@dyad.sh)
+              {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <LogIn className="mr-2 h-4 w-4" />}
+              Se connecter
             </Button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-400 font-bold">Mode Démonstration</span>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleDemoLogin} 
+            variant="outline"
+            className="w-full h-11 rounded-xl border-dashed border-blue-200 text-blue-600 hover:bg-blue-50"
+          >
+            Utiliser le compte Démo
+          </Button>
+          
+          <div className="mt-6 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-amber-700 leading-tight">
+              L'accès est restreint au personnel autorisé. Toute tentative de connexion non autorisée est enregistrée.
+            </p>
           </div>
         </CardContent>
       </Card>
