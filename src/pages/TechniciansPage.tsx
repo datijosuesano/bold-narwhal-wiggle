@@ -25,7 +25,7 @@ const TechniciansPage: React.FC = () => {
   const fetchTechnicians = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
-      .from('profil')
+      .from('profiles')
       .select('*')
       .order('last_name', { ascending: true });
 
@@ -76,7 +76,7 @@ const TechniciansPage: React.FC = () => {
   const confirmDelete = async () => {
     if (selectedTech) {
       const { error } = await supabase
-        .from('profil')
+        .from('profiles')
         .delete()
         .eq('id', selectedTech.id);
 

@@ -39,7 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserRole = async (userId: string) => {
-    // Si c'est l'utilisateur de démo, on force admin
     if (userId === FAKE_USER.id) {
       setRole('admin');
       return;
@@ -47,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await supabase
-        .from('profil')
+        .from('profiles')
         .select('role')
         .eq('id', userId)
         .single();
@@ -64,7 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initializeAuth = async () => {
-      // 1. Vérifier si une session réelle existe
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       
       if (initialSession) {
@@ -73,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchUserRole(initialSession.user.id);
         setIsLoading(false);
       } else {
-        // 2. Sinon vérifier si on est en mode démo
         const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
         if (fakeToken) {
           setSession({ access_token: fakeToken, user: FAKE_USER } as any);
@@ -86,23 +83,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Écouter les changements d'état réels de Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user);
         await fetchUserRole(currentSession.user.id);
-        setIsLoading(false);
       } else {
-        // Si Supabase dit "pas de session", on revérifie le localStorage avant de déconnecter
         const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
         if (!fakeToken) {
           setSession(null);
           setUser(null);
           setRole('user');
-          setIsLoading(false);
         }
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
