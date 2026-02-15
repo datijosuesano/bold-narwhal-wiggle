@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { showError } from '@/utils/toast';
 
 type UserRole = 'admin' | 'technician' | 'stock_manager' | 'secretary' | 'user';
 
@@ -29,27 +30,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('role')
         .eq('id', userId)
         .single();
-      
+
       if (data && !error) {
         setRole(data.role as UserRole);
       } else {
-        setRole('user'); 
+        // Default to user role if no profile found
+        setRole('user');
       }
     } catch (e) {
+      console.error('Error fetching user role:', e);
       setRole('user');
     }
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      
-      if (initialSession) {
-        setSession(initialSession);
-        setUser(initialSession.user);
-        await fetchUserRole(initialSession.user.id);
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (initialSession) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+          await fetchUserRole(initialSession.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        showError('Authentication initialization failed');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
@@ -71,8 +80,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+    try {
+      await supabase.auth.signOut();
+      // Clear all auth state
+      setSession(null);
+      setUser(null);
+      setRole('user');
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error signing out:', error);
+      showError('Error during sign out');
+    }
   };
 
   const hasRole = (roles: UserRole[]) => {
