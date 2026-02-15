@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserRole = async (userId: string) => {
     try {
+      // Use RPC or secure function for sensitive operations
       const { data, error } = await supabase
         .from('profiles')
         .select('role')

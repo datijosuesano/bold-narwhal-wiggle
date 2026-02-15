@@ -10,6 +10,8 @@ import EditClientForm from '@/components/EditClientForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchUserData } from '@/utils/supabase-secure';
 
 interface Client {
   id: string;
@@ -22,59 +24,72 @@ interface Client {
 }
 
 const ClientsPage: React.FC = () => {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [activeContractClinics, setActiveContractClinics] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const fetchData = async () => {
-    setIsLoading(true);
+    if (!user) return;
     
-    // 1. Récupérer les clients
-    const { data: clientsData, error: clientsError } = await supabase
-      .from('clients')
-      .select('*')
-      .order('name');
+    setIsLoading(true);
+    try {
+      // 1. Récupérer les clients de l'utilisateur
+      const clientsData = await fetchUserData<Client>('clients', user.id);
+      
+      // 2. Récupérer les noms des cliniques ayant un contrat actif
+      const { data: contractsData, error: contractsError } = await supabase
+        .from('contracts')
+        .select('clinic')
+        .eq('status', 'Active');
 
-    // 2. Récupérer les noms des cliniques ayant un contrat actif
-    const { data: contractsData, error: contractsError } = await supabase
-      .from('contracts')
-      .select('clinic')
-      .eq('status', 'Active');
-
-    if (clientsError || contractsError) {
+      if (contractsError) {
+        showError("Erreur lors du chargement des contrats.");
+      } else {
+        setClients(clientsData || []);
+        // On crée une liste unique des noms de cliniques sous contrat
+        const uniqueClinics = Array.from(new Set((contractsData || []).map(c => c.clinic)));
+        setActiveContractClinics(uniqueClinics);
+      }
+    } catch (error) {
       showError("Erreur lors du chargement des données.");
-    } else {
-      setClients(clientsData || []);
-      // On crée une liste unique des noms de cliniques sous contrat
-      const uniqueClinics = Array.from(new Set((contractsData || []).map(c => c.clinic)));
-      setActiveContractClinics(uniqueClinics);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [user]);
 
   const handleDelete = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient || !user) return;
     
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', selectedClient.id);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', selectedClient.id)
+        .eq('user_id', user.id); // Vérification de propriété
 
-    if (error) {
-      showError(`Erreur lors de la suppression: ${error.message}`);
-    } else {
-      showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
-      fetchData();
+      if (error) {
+        showError(`Erreur lors de la suppression: ${error.message}`);
+      } else {
+        showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
+        fetchData();
+      }
+    } catch (error) {
+      showError("Erreur lors de la suppression.");
+      console.error(error);
+    } finally {
+      setIsDeleteOpen(false);
     }
-    setIsDeleteOpen(false);
   };
 
   const filteredClients = clients.filter(c => 
@@ -94,7 +109,6 @@ const ClientsPage: React.FC = () => {
             <p className="text-lg text-muted-foreground">Gestion de votre parc de sites clients.</p>
           </div>
         </div>
-        
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
@@ -106,11 +120,14 @@ const ClientsPage: React.FC = () => {
               <DialogTitle className="text-2xl font-bold">Ajouter un Site Client</DialogTitle>
               <DialogDescription>Créez une nouvelle fiche établissement dans votre base.</DialogDescription>
             </DialogHeader>
-            <CreateClientForm onSuccess={() => { setIsCreateOpen(false); fetchData(); }} />
+            <CreateClientForm onSuccess={() => {
+              setIsCreateOpen(false);
+              fetchData();
+            }} />
           </DialogContent>
         </Dialog>
       </div>
-
+      
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input 
@@ -120,7 +137,7 @@ const ClientsPage: React.FC = () => {
           onChange={e => setSearchTerm(e.target.value)} 
         />
       </div>
-
+      
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin h-10 w-10 text-blue-600" />
@@ -130,17 +147,21 @@ const ClientsPage: React.FC = () => {
           {filteredClients.map(client => {
             // Logique de détection : Est-ce que le nom du client est dans la liste des contrats actifs ?
             const isUnderContract = activeContractClinics.includes(client.name);
-
+            
             return (
-              <div key={client.id} className={cn(
-                "group p-6 bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4",
-                isUnderContract ? "border-l-green-500" : "border-l-gray-300"
-              )}>
+              <div 
+                key={client.id} 
+                className={cn(
+                  "group p-6 bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4",
+                  isUnderContract ? "border-l-green-500" : "border-l-gray-300"
+                )}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-bold text-xl text-foreground line-clamp-1">{client.name}</h3>
                     <div className="flex items-center text-sm text-muted-foreground mt-1">
-                      <MapPin size={14} className="mr-1" /> {client.city}
+                      <MapPin size={14} className="mr-1" />
+                      {client.city}
                     </div>
                   </div>
                   <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -148,7 +169,10 @@ const ClientsPage: React.FC = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
-                      onClick={() => { setSelectedClient(client); setIsEditOpen(true); }}
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setIsEditOpen(true);
+                      }}
                     >
                       <Edit2 size={16} />
                     </Button>
@@ -156,7 +180,10 @@ const ClientsPage: React.FC = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
-                      onClick={() => { setSelectedClient(client); setIsDeleteOpen(true); }}
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setIsDeleteOpen(true);
+                      }}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -165,17 +192,20 @@ const ClientsPage: React.FC = () => {
                 
                 <div className="space-y-2 mt-4 text-sm">
                   <div className="flex items-center text-muted-foreground">
-                    <User size={14} className="mr-2 text-blue-500" /> {client.contact_name}
+                    <User size={14} className="mr-2 text-blue-500" />
+                    {client.contact_name}
                   </div>
                   <div className="flex items-center text-muted-foreground">
-                    <Phone size={14} className="mr-2 text-blue-500" /> {client.phone}
+                    <Phone size={14} className="mr-2 text-blue-500" />
+                    {client.phone}
                   </div>
                 </div>
-
+                
                 <div className="mt-6 flex items-center justify-between">
                   {isUnderContract ? (
                     <Badge className="rounded-full bg-green-100 text-green-700 border-green-200 flex items-center">
-                      <ShieldCheck size={12} className="mr-1" /> Sous Contrat
+                      <ShieldCheck size={12} className="mr-1" />
+                      Sous Contrat
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="rounded-full bg-gray-50 text-gray-500 border-gray-200">
@@ -206,7 +236,10 @@ const ClientsPage: React.FC = () => {
           {selectedClient && (
             <EditClientForm 
               client={selectedClient} 
-              onSuccess={() => { setIsEditOpen(false); fetchData(); }} 
+              onSuccess={() => {
+                setIsEditOpen(false);
+                fetchData();
+              }} 
             />
           )}
         </DialogContent>
@@ -224,7 +257,10 @@ const ClientsPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              className="bg-red-600 hover:bg-red-700 rounded-xl"
+            >
               Confirmer la suppression
             </AlertDialogAction>
           </AlertDialogFooter>
