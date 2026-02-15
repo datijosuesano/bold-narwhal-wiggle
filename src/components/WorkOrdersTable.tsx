@@ -43,15 +43,10 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     setError(null);
     
     try {
+      // Tentative de récupération simple d'abord
       const { data, error: fetchError } = await supabase
         .from('work_orders')
-        .select(`
-          *,
-          assets (
-            name,
-            location
-          )
-        `)
+        .select('*, assets(name, location)')
         .order('due_date', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -67,11 +62,8 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
       }));
       setWorkOrders(mappedOrders);
     } catch (err: any) {
-      console.error("Erreur chargement OT:", err);
+      console.error("Erreur API Supabase:", err);
       setError(err.message);
-      if (err.message.includes('404') || err.message.includes('not find')) {
-        showError("La table 'work_orders' est manquante dans la base de données.");
-      }
     } finally {
       setIsLoading(false);
     }
@@ -96,9 +88,12 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     return (
       <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl">
         <AlertCircle className="mx-auto h-10 w-10 text-red-500 mb-2" />
-        <h3 className="text-lg font-bold text-red-800">Erreur de base de données</h3>
-        <p className="text-sm text-red-600 mb-4">La table 'work_orders' n'a pas été trouvée.</p>
-        <p className="text-xs text-red-500">Veuillez exécuter le script SQL fourni pour restaurer les tables.</p>
+        <h3 className="text-lg font-bold text-red-800">Erreur de connexion</h3>
+        <p className="text-sm text-red-600 mb-4">L'API ne parvient pas à lire la table 'work_orders'.</p>
+        <div className="text-xs text-left bg-white p-4 rounded border font-mono overflow-auto max-h-32">
+          Détail: {error}
+        </div>
+        <Button onClick={fetchWorkOrders} variant="outline" className="mt-4">Réessayer</Button>
       </div>
     );
   }
