@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wrench, Clock, TrendingUp, Zap, CalendarDays, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wrench, Clock, TrendingUp, Zap, CalendarDays, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFMDPerformance } from '@/hooks/use-fmd-performance';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 interface PerformanceDashboardProps {
-  assetId?: string; // Optionnel: pour filtrer par équipement
+  assetId?: string;
 }
 
 const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ assetId }) => {
@@ -67,8 +67,14 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ assetId }) 
   
   if (error) {
     return (
-      <Card className="shadow-lg p-6 text-center border-red-500 border-2">
-        <p className="text-red-600">Erreur de chargement des données: {error}</p>
+      <Card className="shadow-lg p-6 border-amber-200 bg-amber-50">
+        <div className="flex items-center gap-3 text-amber-800">
+          <AlertCircle className="h-5 w-5" />
+          <div>
+            <p className="font-bold">Indicateurs de performance indisponibles</p>
+            <p className="text-xs">La table 'breakdown_events' est manquante. Veuillez l'ajouter dans Supabase pour voir les stats.</p>
+          </div>
+        </div>
       </Card>
     );
   }
@@ -114,12 +120,6 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ assetId }) 
           </Card>
         ))}
       </div>
-      
-      {metrics.totalBreakdowns === 0 && (
-        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl">
-          Aucune panne enregistrée pour cette période. Les indicateurs sont à 0.
-        </div>
-      )}
     </div>
   );
 };

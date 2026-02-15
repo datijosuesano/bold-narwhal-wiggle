@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { showError } from '@/utils/toast';
 import { differenceInMilliseconds } from 'date-fns';
 
 interface BreakdownEvent {
@@ -33,27 +32,38 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
     setIsLoading(true);
     setError(null);
     
-    const startDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const startDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
 
-    let query = supabase
-      .from('breakdown_events')
-      .select('*')
-      .gte('breakdown_start', startDate)
-      .order('breakdown_start', { ascending: false });
+      let query = supabase
+        .from('breakdown_events')
+        .select('*')
+        .gte('breakdown_start', startDate)
+        .order('breakdown_start', { ascending: false });
 
-    if (assetId) {
-      query = query.eq('asset_id', assetId);
+      if (assetId) {
+        query = query.eq('asset_id', assetId);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        // Si la table n'existe pas, on ne bloque pas tout l'affichage
+        if (fetchError.message.includes('not find') || fetchError.code === 'PGRST116') {
+          console.warn("[useFMDPerformance] La table breakdown_events est manquante.");
+          setEvents([]);
+        } else {
+          throw fetchError;
+        }
+      } else {
+        setEvents(data as BreakdownEvent[]);
+      }
+    } catch (err: any) {
+      console.error("Error fetching performance data:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    const { data, error: fetchError } = await query;
-
-    if (fetchError) {
-      console.error("Supabase error:", fetchError);
-      setError(fetchError.message);
-    } else {
-      setEvents(data as BreakdownEvent[]);
-    }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -67,7 +77,6 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
       return { mttr: 0, mtbf: 0, availability: 100, totalBreakdowns: 0 };
     }
 
-    // Filtrer les pannes réelles terminées
     const actualBreakdowns = events.filter(e => 
       !e.is_planned_stop && e.breakdown_end && e.repair_start && e.repair_end
     );
