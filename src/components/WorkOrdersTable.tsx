@@ -43,7 +43,6 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     setError(null);
     
     try {
-      // On essaie de récupérer les OT. Si la jointure assets échoue, on récupère sans jointure.
       const { data, error: fetchError } = await supabase
         .from('work_orders')
         .select('*, assets(name, location)')
@@ -73,7 +72,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
           assetName: item.assets ? item.assets.name : 'Équipement inconnu',
           client_name: item.assets ? item.assets.location : 'Site inconnu',
           has_active_contract: item.assets ? activeClinics.includes(item.assets.location) : false
-        })));
+        }));
         setWorkOrders(mappedOrders);
       }
     } catch (err: any) {
