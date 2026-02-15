@@ -76,6 +76,9 @@ const ReagentsPage: React.FC = () => {
             <Button className="bg-blue-600 rounded-xl shadow-md"><Plus className="mr-2 h-4 w-4" /> Ajouter Réactif</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-xl">
+            <DialogHeader>
+              <DialogTitle>Ajouter un nouveau Réactif</DialogTitle>
+            </DialogHeader>
             <CreateReagentForm onSuccess={() => { setIsCreateOpen(false); fetchReagents(); }} />
           </DialogContent>
         </Dialog>

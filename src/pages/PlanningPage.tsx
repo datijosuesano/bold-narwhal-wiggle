@@ -47,6 +47,9 @@ const PlanningPage: React.FC = () => {
             <Button className="bg-blue-600 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Programmer</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg rounded-xl">
+            <DialogHeader>
+              <DialogTitle>Programmer une Intervention</DialogTitle>
+            </DialogHeader>
             <CreateWorkOrderForm onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} />
           </DialogContent>
         </Dialog>

@@ -149,6 +149,9 @@ const AssetsPage: React.FC = () => {
       {/* Détails de l'équipement */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Aperçu de l'Équipement</DialogTitle>
+          </DialogHeader>
           {selectedAsset && (
             <AssetDetailView 
               asset={{
