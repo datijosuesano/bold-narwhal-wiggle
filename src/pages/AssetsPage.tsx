@@ -24,6 +24,7 @@ interface Asset {
   purchase_cost: number;
   description?: string;
   image_url?: string;
+  assigned_to?: string | null;
 }
 
 const AssetsPage: React.FC = () => {
