@@ -92,7 +92,7 @@ export const useFMDPerformance = (assetId?: string, periodDays: number = 30) => 
 
     return {
       mttr: parseFloat(mttr.toFixed(2)),
-      mtbf: parseFloat(mtbfHours.toFixed(2)), // correction du nom de variable
+      mtbf: parseFloat(mtbf.toFixed(2)),
       availability: parseFloat(availability.toFixed(1)),
       totalBreakdowns: count,
     };

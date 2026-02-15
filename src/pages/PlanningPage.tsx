@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CardDays, Plus } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -35,7 +35,9 @@ const PlanningPage: React.FC = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <div className="p-3 bg-blue-100 rounded-2xl"><Plus className="h-8 w-8 text-blue-600" /></div>
+          <div className="p-3 bg-blue-100 rounded-2xl">
+            <CalendarDays className="h-8 w-8 text-blue-600" />
+          </div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Planification</h1>
             <p className="text-lg text-muted-foreground">Calendrier de maintenance temps réel.</p>
