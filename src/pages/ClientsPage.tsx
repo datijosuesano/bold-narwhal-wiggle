@@ -10,8 +10,6 @@ import EditClientForm from '@/components/EditClientForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
-import { fetchUserData } from '@/utils/supabase-secure';
 
 interface Client {
   id: string;
@@ -24,7 +22,6 @@ interface Client {
 }
 
 const ClientsPage: React.FC = () => {
-  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [activeContractClinics, setActiveContractClinics] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,30 +32,27 @@ const ClientsPage: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const fetchData = async () => {
-    if (!user) return;
-    
     setIsLoading(true);
     try {
-      // 1. Récupérer les clients de l'utilisateur
-      const clientsData = await fetchUserData<Client>('clients', user.id);
-      
-      // 2. Récupérer les noms des cliniques ayant un contrat actif
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('name');
+
       const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select('clinic')
         .eq('status', 'Active');
 
-      if (contractsError) {
-        showError("Erreur lors du chargement des contrats.");
+      if (clientsError || contractsError) {
+        showError("Erreur lors du chargement des données.");
       } else {
         setClients(clientsData || []);
-        // On crée une liste unique des noms de cliniques sous contrat
         const uniqueClinics = Array.from(new Set((contractsData || []).map(c => c.clinic)));
         setActiveContractClinics(uniqueClinics);
       }
     } catch (error) {
       showError("Erreur lors du chargement des données.");
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -66,30 +60,23 @@ const ClientsPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, []);
 
   const handleDelete = async () => {
-    if (!selectedClient || !user) return;
+    if (!selectedClient) return;
     
-    try {
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', selectedClient.id)
-        .eq('user_id', user.id); // Vérification de propriété
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', selectedClient.id);
 
-      if (error) {
-        showError(`Erreur lors de la suppression: ${error.message}`);
-      } else {
-        showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
-        fetchData();
-      }
-    } catch (error) {
-      showError("Erreur lors de la suppression.");
-      console.error(error);
-    } finally {
-      setIsDeleteOpen(false);
+    if (error) {
+      showError(`Erreur lors de la suppression: ${error.message}`);
+    } else {
+      showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
+      fetchData();
     }
+    setIsDeleteOpen(false);
   };
 
   const filteredClients = clients.filter(c => 
@@ -145,9 +132,7 @@ const ClientsPage: React.FC = () => {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map(client => {
-            // Logique de détection : Est-ce que le nom du client est dans la liste des contrats actifs ?
             const isUnderContract = activeContractClinics.includes(client.name);
-            
             return (
               <div 
                 key={client.id} 
@@ -216,22 +201,13 @@ const ClientsPage: React.FC = () => {
               </div>
             );
           })}
-          
-          {filteredClients.length === 0 && (
-            <div className="col-span-full text-center py-20 text-muted-foreground bg-muted/20 rounded-2xl border-2 border-dashed">
-              <Building2 className="mx-auto h-12 w-12 opacity-20 mb-2" />
-              <p>Aucun site trouvé correspondant à votre recherche.</p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Dialogue de modification */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Modifier le Site</DialogTitle>
-            <DialogDescription>Mettez à jour les informations du site {selectedClient?.name}.</DialogDescription>
           </DialogHeader>
           {selectedClient && (
             <EditClientForm 
@@ -245,14 +221,12 @@ const ClientsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Alerte de suppression */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce site ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le site <strong>{selectedClient?.name}</strong> ? 
-              Cette action est irréversible et pourrait affecter les équipements liés.
+              Êtes-vous sûr de vouloir supprimer le site <strong>{selectedClient?.name}</strong> ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -261,7 +235,7 @@ const ClientsPage: React.FC = () => {
               onClick={handleDelete} 
               className="bg-red-600 hover:bg-red-700 rounded-xl"
             >
-              Confirmer la suppression
+              Confirmer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

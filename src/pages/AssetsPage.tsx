@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Eye, Edit2, Filter, AlertCircle, CheckCircle2, Settings, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateAssetForm from "@/components/CreateAssetForm";
@@ -10,8 +10,6 @@ import AssetDetailView from "@/components/AssetDetailView";
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { useAuth } from '@/contexts/AuthContext';
-import { fetchUserData } from '@/utils/supabase-secure';
 
 interface Asset {
   id: string;
@@ -29,7 +27,6 @@ interface Asset {
 }
 
 const AssetsPage: React.FC = () => {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,23 +36,23 @@ const AssetsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchAssets = async () => {
-    if (!user) return;
-    
     setIsLoading(true);
-    try {
-      const data = await fetchUserData<Asset>('assets', user.id);
-      setEquipments(data);
-    } catch (error) {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .order('name');
+
+    if (error) {
       showError("Erreur lors du chargement des équipements.");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setEquipments(data || []);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchAssets();
-  }, [user]);
+  }, []);
 
   const filteredEquipments = useMemo(() => {
     if (!searchTerm) return equipments;
@@ -69,14 +66,10 @@ const AssetsPage: React.FC = () => {
 
   const getStatusStyle = (status: Asset['status']) => {
     switch (status) {
-      case 'Opérationnel':
-        return 'bg-green-100 text-green-700 border-green-200';
-      case 'Maintenance':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'En Panne':
-        return 'bg-red-100 text-red-700 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'Opérationnel': return 'bg-green-100 text-green-700 border-green-200';
+      case 'Maintenance': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'En Panne': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
@@ -195,7 +188,6 @@ const AssetsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Détails de l'équipement */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">
           <DialogHeader>
@@ -212,7 +204,6 @@ const AssetsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modification de l'équipement */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
           <DialogHeader>
