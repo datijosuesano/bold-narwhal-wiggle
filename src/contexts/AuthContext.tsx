@@ -16,22 +16,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const FAKE_AUTH_KEY = 'dyad_fake_auth_token';
-
-const FAKE_USER: User = {
-  id: 'fake-user-id-12345',
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'demo@dyad.sh',
-  email_confirmed_at: new Date().toISOString(),
-  phone: '',
-  last_sign_in_at: new Date().toISOString(),
-  app_metadata: { provider: 'email', providers: ['email'] },
-  user_metadata: { first_name: 'Utilisateur', last_name: 'Démo' },
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -39,11 +23,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserRole = async (userId: string) => {
-    if (userId === FAKE_USER.id) {
-      setRole('admin');
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -69,16 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(initialSession);
         setUser(initialSession.user);
         await fetchUserRole(initialSession.user.id);
-        setIsLoading(false);
-      } else {
-        const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
-        if (fakeToken) {
-          setSession({ access_token: fakeToken, user: FAKE_USER } as any);
-          setUser(FAKE_USER);
-          setRole('admin');
-        }
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
 
     initializeAuth();
@@ -89,12 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentSession.user);
         await fetchUserRole(currentSession.user.id);
       } else {
-        const fakeToken = localStorage.getItem(FAKE_AUTH_KEY);
-        if (!fakeToken) {
-          setSession(null);
-          setUser(null);
-          setRole('user');
-        }
+        setSession(null);
+        setUser(null);
+        setRole('user');
       }
       setIsLoading(false);
     });
@@ -103,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    localStorage.removeItem(FAKE_AUTH_KEY);
     await supabase.auth.signOut();
     window.location.href = '/login';
   };

@@ -38,13 +38,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setIsSubmitting(true);
-    // Simulation pour la démo Dyad
-    localStorage.setItem('dyad_fake_auth_token', 'fake-jwt-token-for-dyad-demo');
-    window.location.reload(); 
-  };
-
   if (isLoading) return null;
   if (user) return <Navigate to="/" replace />;
 
@@ -109,28 +102,11 @@ const LoginPage: React.FC = () => {
               Se connecter
             </Button>
           </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-400 font-bold">Mode Démonstration</span>
-            </div>
-          </div>
-
-          <Button 
-            onClick={handleDemoLogin} 
-            variant="outline"
-            className="w-full h-11 rounded-xl border-dashed border-blue-200 text-blue-600 hover:bg-blue-50"
-          >
-            Utiliser le compte Démo
-          </Button>
           
-          <div className="mt-6 p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
+          <div className="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
             <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-amber-700 leading-tight">
-              L'accès est restreint au personnel autorisé. Toute tentative de connexion non autorisée est enregistrée.
+            <p className="text-xs text-amber-700 leading-tight">
+              L'accès est restreint au personnel autorisé. Toute tentative de connexion non autorisée est enregistrée et les privilèges sont gérés côté serveur.
             </p>
           </div>
         </CardContent>
