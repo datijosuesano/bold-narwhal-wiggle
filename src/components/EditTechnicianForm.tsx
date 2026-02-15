@@ -64,7 +64,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
     setIsLoading(true);
     
     const { error } = await supabase
-      .from('profil')
+      .from('profiles')
       .update({
         first_name: data.first_name,
         last_name: data.last_name,

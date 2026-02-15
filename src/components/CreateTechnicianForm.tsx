@@ -69,9 +69,8 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
     setIsLoading(true);
     
     const { error } = await supabase
-      .from('profil')
+      .from('profiles')
       .insert({
-        id: crypto.randomUUID(),
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
