@@ -9,10 +9,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, CheckCircle2, Receipt, CreditCard, Loader2, Package } from 'lucide-react';
+import { Eye, CheckCircle2, Receipt, CreditCard, Loader2, Package, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -38,38 +36,45 @@ interface WorkOrdersTableProps {
 const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchWorkOrders = async () => {
     setIsLoading(true);
+    setError(null);
     
-    // Requête complexe pour récupérer l'OT, l'actif et le statut du contrat du client lié
-    const { data, error } = await supabase
-      .from('work_orders')
-      .select(`
-        *,
-        assets (
-          name,
-          location
-        )
-      `)
-      .order('due_date', { ascending: true });
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('work_orders')
+        .select(`
+          *,
+          assets (
+            name,
+            location
+          )
+        `)
+        .order('due_date', { ascending: true });
 
-    if (error) {
-      showError("Erreur lors du chargement des OT.");
-    } else {
-      // On récupère aussi les contrats pour vérifier le statut actif par clinique
+      if (fetchError) throw fetchError;
+
       const { data: contracts } = await supabase.from('contracts').select('clinic').eq('status', 'Active');
       const activeClinics = (contracts || []).map(c => c.clinic);
 
-      const mappedOrders: WorkOrder[] = data.map((item: any) => ({
+      const mappedOrders: WorkOrder[] = (data || []).map((item: any) => ({
         ...item,
-        assetName: item.assets ? item.assets.name : 'Inconnu',
-        client_name: item.assets ? item.assets.location : 'Inconnu',
+        assetName: item.assets ? item.assets.name : 'Équipement inconnu',
+        client_name: item.assets ? item.assets.location : 'Site inconnu',
         has_active_contract: item.assets ? activeClinics.includes(item.assets.location) : false
       }));
       setWorkOrders(mappedOrders);
+    } catch (err: any) {
+      console.error("Erreur chargement OT:", err);
+      setError(err.message);
+      if (err.message.includes('404') || err.message.includes('not find')) {
+        showError("La table 'work_orders' est manquante dans la base de données.");
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => { fetchWorkOrders(); }, [refreshTrigger]);
@@ -87,14 +92,16 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     }
   };
 
-  const toggleParts = async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from('work_orders')
-      .update({ parts_replaced: !current })
-      .eq('id', id);
-    
-    if (!error) fetchWorkOrders();
-  };
+  if (error) {
+    return (
+      <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl">
+        <AlertCircle className="mx-auto h-10 w-10 text-red-500 mb-2" />
+        <h3 className="text-lg font-bold text-red-800">Erreur de base de données</h3>
+        <p className="text-sm text-red-600 mb-4">La table 'work_orders' n'a pas été trouvée.</p>
+        <p className="text-xs text-red-500">Veuillez exécuter le script SQL fourni pour restaurer les tables.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-x-auto rounded-xl border shadow-lg bg-card">
@@ -111,10 +118,9 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
         <TableBody>
           {isLoading ? (
             <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-600" /></TableCell></TableRow>
+          ) : workOrders.length === 0 ? (
+            <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Aucun ordre de travail trouvé.</TableCell></TableRow>
           ) : workOrders.map((ot) => {
-            // Logique de facturation : 
-            // - Pas de contrat : facturation obligatoire.
-            // - Avec contrat : facturation uniquement si pièces remplacées.
             const needsInvoicing = !ot.has_active_contract || ot.parts_replaced;
             const isCompleted = ot.status === 'Completed';
 
@@ -127,18 +133,10 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
                 </TableCell>
                 <TableCell>
                   <div className="text-xs font-medium">{ot.maintenance_type}</div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => toggleParts(ot.id, ot.parts_replaced)}
-                    className={cn(
-                      "mt-1 h-7 rounded-lg text-[10px]",
-                      ot.parts_replaced ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-500"
-                    )}
-                  >
-                    <Package size={12} className="mr-1" />
+                  <Badge variant="outline" className={cn("mt-1 h-5 text-[9px]", ot.parts_replaced ? "bg-amber-50 text-amber-600" : "text-gray-400")}>
+                    <Package size={10} className="mr-1" />
                     {ot.parts_replaced ? "Pièces remplacées" : "Aucune pièce"}
-                  </Button>
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge className={cn(
