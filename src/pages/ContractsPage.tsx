@@ -80,9 +80,6 @@ const ContractsPage: React.FC = () => {
       {/* Détail */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-2xl rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Détails du Contrat</DialogTitle>
-          </DialogHeader>
           {selectedContract && (
             <ContractDetailView 
               contract={{
@@ -101,9 +98,6 @@ const ContractsPage: React.FC = () => {
       {/* Modification */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Modifier le Contrat</DialogTitle>
-          </DialogHeader>
           {selectedContract && (
             <EditContractForm 
               contract={{
@@ -132,12 +126,7 @@ const ContractsPage: React.FC = () => {
 
       {/* Modèle */}
       <Dialog open={isTemplateOpen} onOpenChange={setIsTemplateOpen}>
-        <DialogContent className="max-w-4xl rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Éditeur de Modèle de Contrat</DialogTitle>
-          </DialogHeader>
-          <ContractTemplateEditor />
-        </DialogContent>
+        <DialogContent className="max-w-4xl rounded-xl"><ContractTemplateEditor /></DialogContent>
       </Dialog>
 
       {/* Suppression */}
