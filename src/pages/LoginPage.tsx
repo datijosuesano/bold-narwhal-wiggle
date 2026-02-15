@@ -8,13 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Building2, LogIn, Loader2, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Building2, LogIn, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 
 const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,18 +22,23 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      showError(`Erreur: ${error.message}`);
+      if (error) {
+        showError(`Erreur: ${error.message}`);
+      } else {
+        showSuccess("Connexion réussie !");
+        navigate("/");
+      }
+    } catch (err) {
+      showError("Une erreur s'est produite lors de la connexion.");
+    } finally {
       setIsSubmitting(false);
-    } else {
-      showSuccess("Connexion réussie !");
-      navigate("/");
     }
   };
 
@@ -53,31 +57,30 @@ const LoginPage: React.FC = () => {
             GMAO DYAD
           </CardTitle>
           <CardDescription>
-            Plateforme de gestion technique centralisée
+            Connectez-vous pour accéder à votre espace de gestion
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email Professionnel</Label>
-              <Input 
+              <Label htmlFor="email">Email</Label>
+              <Input
                 id="email"
-                type="email" 
-                placeholder="nom@entreprise.com" 
+                type="email"
+                placeholder="votre@email.com"
                 required
                 className="rounded-xl h-11"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
               <div className="relative">
-                <Input 
+                <Input
                   id="password"
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="••••••••" 
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
                   required
                   className="rounded-xl h-11 pr-10"
                   value={password}
@@ -86,29 +89,25 @@ const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg font-bold"
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <LogIn className="mr-2 h-4 w-4" />}
+              {isSubmitting ? (
+                <Loader2 className="animate-spin mr-2" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
               Se connecter
             </Button>
           </form>
-          
-          <div className="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
-            <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 leading-tight">
-              L'accès est restreint au personnel autorisé. Toute tentative de connexion non autorisée est enregistrée et les privilèges sont gérés côté serveur.
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
