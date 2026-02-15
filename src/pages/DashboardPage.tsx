@@ -21,27 +21,34 @@ const DashboardPage: React.FC = () => {
     const fetchStats = async () => {
       setIsLoading(true);
       
-      const { count: openOrders } = await supabase
-        .from('work_orders')
-        .select('*', { count: 'exact', head: true })
-        .neq('status', 'Completed');
+      try {
+        // On récupère les données une par une pour isoler les erreurs
+        const { count: openOrders, error: err1 } = await supabase
+          .from('work_orders')
+          .select('*', { count: 'exact', head: true })
+          .neq('status', 'Completed');
 
-      const { count: brokenAssets } = await supabase
-        .from('assets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'En Panne');
+        const { count: brokenAssets, error: err2 } = await supabase
+          .from('assets')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'En Panne');
 
-      const { count: totalAssets } = await supabase
-        .from('assets')
-        .select('*', { count: 'exact', head: true });
+        const { count: totalAssets, error: err3 } = await supabase
+          .from('assets')
+          .select('*', { count: 'exact', head: true });
 
-      setStats({
-        openOrders: openOrders || 0,
-        brokenAssets: brokenAssets || 0,
-        totalAssets: totalAssets || 0,
-        availability: totalAssets && totalAssets > 0 ? ((totalAssets - (brokenAssets || 0)) / totalAssets) * 100 : 100
-      });
-      setIsLoading(false);
+        // Si une table manque (404), Supabase renvoie une erreur mais on peut continuer avec 0
+        setStats({
+          openOrders: openOrders || 0,
+          brokenAssets: brokenAssets || 0,
+          totalAssets: totalAssets || 0,
+          availability: totalAssets && totalAssets > 0 ? ((totalAssets - (brokenAssets || 0)) / totalAssets) * 100 : 100
+        });
+      } catch (error) {
+        console.error("Erreur lors de la récupération des stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchStats();
