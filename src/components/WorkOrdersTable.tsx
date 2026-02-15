@@ -43,26 +43,41 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     setError(null);
     
     try {
-      // Tentative de récupération simple d'abord
+      // On essaie de récupérer les OT. Si la jointure assets échoue, on récupère sans jointure.
       const { data, error: fetchError } = await supabase
         .from('work_orders')
         .select('*, assets(name, location)')
         .order('due_date', { ascending: true });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.warn("Échec de la jointure, tentative de récupération simple...");
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('work_orders')
+          .select('*')
+          .order('due_date', { ascending: true });
+        
+        if (simpleError) throw simpleError;
+        
+        setWorkOrders((simpleData || []).map(item => ({
+          ...item,
+          assetName: 'Équipement',
+          client_name: 'Site',
+          has_active_contract: false
+        })));
+      } else {
+        const { data: contracts } = await supabase.from('contracts').select('clinic').eq('status', 'Active');
+        const activeClinics = (contracts || []).map(c => c.clinic);
 
-      const { data: contracts } = await supabase.from('contracts').select('clinic').eq('status', 'Active');
-      const activeClinics = (contracts || []).map(c => c.clinic);
-
-      const mappedOrders: WorkOrder[] = (data || []).map((item: any) => ({
-        ...item,
-        assetName: item.assets ? item.assets.name : 'Équipement inconnu',
-        client_name: item.assets ? item.assets.location : 'Site inconnu',
-        has_active_contract: item.assets ? activeClinics.includes(item.assets.location) : false
-      }));
-      setWorkOrders(mappedOrders);
+        const mappedOrders: WorkOrder[] = (data || []).map((item: any) => ({
+          ...item,
+          assetName: item.assets ? item.assets.name : 'Équipement inconnu',
+          client_name: item.assets ? item.assets.location : 'Site inconnu',
+          has_active_contract: item.assets ? activeClinics.includes(item.assets.location) : false
+        })));
+        setWorkOrders(mappedOrders);
+      }
     } catch (err: any) {
-      console.error("Erreur API Supabase:", err);
+      console.error("Erreur critique API:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -89,7 +104,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
       <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl">
         <AlertCircle className="mx-auto h-10 w-10 text-red-500 mb-2" />
         <h3 className="text-lg font-bold text-red-800">Erreur de connexion</h3>
-        <p className="text-sm text-red-600 mb-4">L'API ne parvient pas à lire la table 'work_orders'.</p>
+        <p className="text-sm text-red-600 mb-4">L'API ne parvient pas à lire vos données.</p>
         <div className="text-xs text-left bg-white p-4 rounded border font-mono overflow-auto max-h-32">
           Détail: {error}
         </div>
