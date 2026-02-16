@@ -43,6 +43,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     setError(null);
     
     try {
+      // Tentative de récupération avec jointure sur les équipements
       const { data, error: fetchError } = await supabase
         .from('work_orders')
         .select('*, assets(name, location)')
@@ -50,6 +51,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
 
       if (fetchError) {
         console.warn("Échec de la jointure, tentative de récupération simple...");
+        // Fallback : récupération simple si la jointure échoue
         const { data: simpleData, error: simpleError } = await supabase
           .from('work_orders')
           .select('*')
@@ -64,6 +66,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
           has_active_contract: false
         })));
       } else {
+        // Récupération des contrats actifs pour marquer les OT
         const { data: contracts } = await supabase.from('contracts').select('clinic').eq('status', 'Active');
         const activeClinics = (contracts || []).map(c => c.clinic);
 
