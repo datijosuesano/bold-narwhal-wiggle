@@ -1,49 +1,52 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Building2, LogIn, Loader2 } from 'lucide-react';
+import { Building2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 
-const LoginPage: React.FC = () => {
-  const { user, isLoading } = useAuth();
+const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          }
+        }
       });
 
       if (error) {
         showError(`Erreur: ${error.message}`);
       } else {
-        showSuccess("Connexion réussie !");
-        navigate("/");
+        showSuccess("Inscription réussie ! Vérifiez vos emails ou connectez-vous.");
+        navigate("/login");
       }
     } catch (err) {
-      showError("Une erreur s'est produite lors de la connexion.");
+      showError("Une erreur s'est produite lors de l'inscription.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) return null;
-  if (user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -54,14 +57,38 @@ const LoginPage: React.FC = () => {
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
           <CardTitle className="text-3xl font-black text-slate-900 tracking-tight">
-            GMAO DYAD
+            CRÉER UN COMPTE
           </CardTitle>
           <CardDescription>
-            Connectez-vous pour accéder à votre espace de gestion
+            Rejoignez la plateforme GMAO Dyad
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Prénom</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Jean"
+                  required
+                  className="rounded-xl h-11"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Nom</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Dupont"
+                  required
+                  className="rounded-xl h-11"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -103,14 +130,14 @@ const LoginPage: React.FC = () => {
               {isSubmitting ? (
                 <Loader2 className="animate-spin mr-2" />
               ) : (
-                <LogIn className="mr-2 h-4 w-4" />
+                <UserPlus className="mr-2 h-4 w-4" />
               )}
-              Se connecter
+              S'inscrire
             </Button>
             <p className="text-center text-sm text-slate-600 mt-4">
-              Pas encore de compte ?{" "}
-              <Link to="/register" className="text-blue-600 font-bold hover:underline">
-                S'inscrire
+              Déjà un compte ?{" "}
+              <Link to="/login" className="text-blue-600 font-bold hover:underline">
+                Se connecter
               </Link>
             </p>
           </form>
@@ -120,4 +147,4 @@ const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage;
+export default RegisterPage;

@@ -14,9 +14,10 @@ import ReportsPage from "./pages/ReportsPage";
 import ClientsPage from "./pages/ClientsPage";
 import InventoryPage from "./pages/InventoryPage";
 import ToolsPage from "./pages/ToolsPage";
-import InterventionsPage from "./pages/InterventionsPage"; // New import
+import InterventionsPage from "./pages/InterventionsPage";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import ReagentsPage from "./pages/ReagentsPage";
@@ -32,12 +33,13 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />
-                <Route path="/interventions" element={<InterventionsPage />} /> {/* New route */}
+                <Route path="/interventions" element={<InterventionsPage />} />
                 <Route path="/planning" element={<PlanningPage />} />
                 <Route path="/contracts" element={<ContractsPage />} />
                 <Route path="/technicians" element={<TechniciansPage />} />

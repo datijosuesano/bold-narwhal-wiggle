@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Camera, Loader2, X, UploadCloud, AlertCircle } from "lucide-react";
+import { Loader2, X, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
@@ -20,28 +20,23 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
       setUploading(true);
 
       if (!event.target.files || event.target.files.length === 0) {
-        throw new Error("Vous devez sélectionner une image.");
+        return;
       }
 
       const file = event.target.files[0];
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       const filePath = `assets/${fileName}`;
 
-      // Tentative d'upload
+      // Tentative d'upload dans le bucket 'asset-images'
+      // Note: Assurez-vous que ce bucket existe dans votre console Supabase et est public
       const { error: uploadError } = await supabase.storage
         .from("asset-images")
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(filePath, file);
 
       if (uploadError) {
-        console.error("Storage error:", uploadError);
-        if (uploadError.message.includes("Bucket not found")) {
-          throw new Error("Erreur : Le bucket 'asset-images' n'existe pas dans Supabase. Veuillez le créer dans votre console Supabase.");
-        }
-        throw uploadError;
+        console.error("Erreur Storage:", uploadError);
+        throw new Error("Impossible d'envoyer l'image. Vérifiez que le bucket 'asset-images' existe.");
       }
 
       const { data } = supabase.storage.from("asset-images").getPublicUrl(filePath);
