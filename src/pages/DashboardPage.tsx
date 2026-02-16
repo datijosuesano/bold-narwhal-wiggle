@@ -7,8 +7,10 @@ import {
 } from 'recharts';
 import PerformanceDashboard from "@/components/PerformanceDashboard";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     openOrders: 0,
     brokenAssets: 0,
@@ -19,25 +21,27 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!user) return;
       setIsLoading(true);
       
       try {
-        // On récupère les données une par une pour isoler les erreurs
-        const { count: openOrders, error: err1 } = await supabase
+        const { count: openOrders } = await supabase
           .from('work_orders')
           .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
           .neq('status', 'Completed');
 
-        const { count: brokenAssets, error: err2 } = await supabase
+        const { count: brokenAssets } = await supabase
           .from('assets')
           .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
           .eq('status', 'En Panne');
 
-        const { count: totalAssets, error: err3 } = await supabase
+        const { count: totalAssets } = await supabase
           .from('assets')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
 
-        // Si une table manque (404), Supabase renvoie une erreur mais on peut continuer avec 0
         setStats({
           openOrders: openOrders || 0,
           brokenAssets: brokenAssets || 0,
@@ -52,7 +56,7 @@ const DashboardPage: React.FC = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-8">

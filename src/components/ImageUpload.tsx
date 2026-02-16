@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Loader2, X, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 
 interface ImageUploadProps {
   onUpload: (url: string) => void;
@@ -29,21 +29,25 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
       const filePath = `assets/${fileName}`;
 
       // Tentative d'upload dans le bucket 'asset-images'
-      // Note: Assurez-vous que ce bucket existe dans votre console Supabase et est public
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from("asset-images")
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
-        console.error("Erreur Storage:", uploadError);
-        throw new Error("Impossible d'envoyer l'image. Vérifiez que le bucket 'asset-images' existe.");
+        console.error("Erreur Storage détaillée:", uploadError);
+        throw new Error(`Erreur d'upload: ${uploadError.message}. Vérifiez que le bucket 'asset-images' est créé et public.`);
       }
 
+      // Récupération de l'URL publique
       const { data } = supabase.storage.from("asset-images").getPublicUrl(filePath);
       
       if (data?.publicUrl) {
         setPreview(data.publicUrl);
         onUpload(data.publicUrl);
+        showSuccess("Image téléchargée avec succès !");
       }
     } catch (error: any) {
       showError(error.message || "Erreur lors de l'envoi de l'image");
