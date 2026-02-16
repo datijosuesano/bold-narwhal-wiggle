@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, CheckCircle2, Receipt, CreditCard, Loader2, Package, AlertCircle } from 'lucide-react';
+import { Eye, CheckCircle2, Receipt, CreditCard, Loader2, Package, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -43,44 +43,42 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
     setError(null);
     
     try {
-      // Tentative de récupération avec jointure sur les équipements
+      // Tentative de récupération simple d'abord pour vérifier l'existence de la table
       const { data, error: fetchError } = await supabase
         .from('work_orders')
         .select('*, assets(name, location)')
-        .order('due_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (fetchError) {
-        console.warn("Échec de la jointure, tentative de récupération simple...");
-        // Fallback : récupération simple si la jointure échoue
-        const { data: simpleData, error: simpleError } = await supabase
+        // Si erreur de cache ou de jointure, on tente sans jointure
+        const { data: fallbackData, error: fallbackError } = await supabase
           .from('work_orders')
           .select('*')
-          .order('due_date', { ascending: true });
-        
-        if (simpleError) throw simpleError;
-        
-        setWorkOrders((simpleData || []).map(item => ({
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) throw fallbackError;
+
+        setWorkOrders((fallbackData || []).map(item => ({
           ...item,
           assetName: 'Équipement',
           client_name: 'Site',
           has_active_contract: false
         })));
       } else {
-        // Récupération des contrats actifs pour marquer les OT
         const { data: contracts } = await supabase.from('contracts').select('clinic').eq('status', 'Active');
         const activeClinics = (contracts || []).map(c => c.clinic);
 
         const mappedOrders: WorkOrder[] = (data || []).map((item: any) => ({
           ...item,
-          assetName: item.assets ? item.assets.name : 'Équipement inconnu',
-          client_name: item.assets ? item.assets.location : 'Site inconnu',
+          assetName: item.assets ? item.assets.name : 'Équipement',
+          client_name: item.assets ? item.assets.location : 'Site',
           has_active_contract: item.assets ? activeClinics.includes(item.assets.location) : false
         }));
         setWorkOrders(mappedOrders);
       }
     } catch (err: any) {
-      console.error("Erreur critique API:", err);
-      setError(err.message);
+      console.error("Erreur API Work Orders:", err);
+      setError(err.message || "La table 'work_orders' n'est pas encore accessible.");
     } finally {
       setIsLoading(false);
     }
@@ -96,34 +94,37 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
 
     if (error) showError("Erreur mise à jour facture.");
     else {
-      showSuccess(newStatus === 'Deposited' ? "Facture marquée comme déposée." : "Paiement confirmé.");
+      showSuccess("Statut mis à jour.");
       fetchWorkOrders();
     }
   };
 
   if (error) {
     return (
-      <div className="p-8 text-center bg-red-50 border border-red-100 rounded-xl">
-        <AlertCircle className="mx-auto h-10 w-10 text-red-500 mb-2" />
-        <h3 className="text-lg font-bold text-red-800">Erreur de connexion</h3>
-        <p className="text-sm text-red-600 mb-4">L'API ne parvient pas à lire vos données.</p>
-        <div className="text-xs text-left bg-white p-4 rounded border font-mono overflow-auto max-h-32">
-          Détail: {error}
-        </div>
-        <Button onClick={fetchWorkOrders} variant="outline" className="mt-4">Réessayer</Button>
+      <div className="p-12 text-center bg-slate-50 border-2 border-dashed rounded-2xl">
+        <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
+        <h3 className="text-xl font-bold text-slate-900">Initialisation de la base...</h3>
+        <p className="text-slate-600 mb-6 max-w-md mx-auto">
+          La table des ordres de travail est en cours de synchronisation avec l'API. 
+          Veuillez patienter quelques instants.
+        </p>
+        <Button onClick={fetchWorkOrders} className="bg-blue-600 rounded-xl">
+          <RefreshCw className="mr-2 h-4 w-4" /> Réessayer la connexion
+        </Button>
+        <div className="mt-4 text-[10px] font-mono text-slate-400">Code: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border shadow-lg bg-card">
+    <div className="overflow-x-auto rounded-xl border shadow-sm bg-card">
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow>
             <TableHead className="font-semibold">OT & Client</TableHead>
             <TableHead className="font-semibold">Type / Pièces</TableHead>
             <TableHead className="font-semibold">Statut OT</TableHead>
-            <TableHead className="font-semibold">Suivi Facturation</TableHead>
+            <TableHead className="font-semibold">Facturation</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -131,75 +132,40 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger }) => 
           {isLoading ? (
             <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-600" /></TableCell></TableRow>
           ) : workOrders.length === 0 ? (
-            <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Aucun ordre de travail trouvé.</TableCell></TableRow>
-          ) : workOrders.map((ot) => {
-            const needsInvoicing = !ot.has_active_contract || ot.parts_replaced;
-            const isCompleted = ot.status === 'Completed';
-
-            return (
-              <TableRow key={ot.id} className="hover:bg-accent/50 transition-colors">
-                <TableCell>
-                  <div className="font-bold">{ot.title}</div>
-                  <div className="text-xs text-blue-600 font-medium">{ot.client_name}</div>
-                  <div className="text-[10px] text-muted-foreground mt-1">{ot.assetName}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-xs font-medium">{ot.maintenance_type}</div>
-                  <Badge variant="outline" className={cn("mt-1 h-5 text-[9px]", ot.parts_replaced ? "bg-amber-50 text-amber-600" : "text-gray-400")}>
-                    <Package size={10} className="mr-1" />
-                    {ot.parts_replaced ? "Pièces remplacées" : "Aucune pièce"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={cn(
-                    "rounded-full text-[10px]",
-                    ot.status === 'Completed' ? "bg-green-600" : "bg-blue-500"
-                  )}>
-                    {ot.status}
-                  </Badge>
-                  {ot.has_active_contract && (
-                    <div className="text-[9px] text-green-600 font-bold mt-1 uppercase">Sous Contrat</div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {isCompleted && needsInvoicing ? (
-                    <div className="space-y-2">
-                      {ot.invoice_status === 'None' && (
-                        <Button 
-                          size="sm" 
-                          className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-8 text-xs"
-                          onClick={() => updateInvoice(ot.id, 'Deposited')}
-                        >
-                          <Receipt size={14} className="mr-1" /> Déposer Facture
-                        </Button>
-                      )}
-                      {ot.invoice_status === 'Deposited' && (
-                        <Button 
-                          size="sm" 
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-8 text-xs"
-                          onClick={() => updateInvoice(ot.id, 'Paid')}
-                        >
-                          <CreditCard size={14} className="mr-1" /> Confirmer Paiement
-                        </Button>
-                      )}
-                      {ot.invoice_status === 'Paid' && (
-                        <Badge className="w-full justify-center bg-green-100 text-green-700 border-green-200 rounded-xl h-8">
-                          <CheckCircle2 size={14} className="mr-1" /> Payé
-                        </Badge>
-                      )}
-                    </div>
-                  ) : isCompleted ? (
-                    <span className="text-[10px] text-muted-foreground italic">Inclus dans contrat</span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">En attente fin OT</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full"><Eye size={16} /></Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
+            <TableRow><TableCell colSpan={5} className="text-center py-16 text-muted-foreground italic">Aucun ordre de travail enregistré.</TableCell></TableRow>
+          ) : workOrders.map((ot) => (
+            <TableRow key={ot.id} className="hover:bg-accent/50 transition-colors">
+              <TableCell>
+                <div className="font-bold">{ot.title}</div>
+                <div className="text-xs text-blue-600 font-medium">{ot.client_name}</div>
+              </TableCell>
+              <TableCell>
+                <div className="text-xs font-medium">{ot.maintenance_type}</div>
+                <Badge variant="outline" className={cn("mt-1 h-5 text-[9px]", ot.parts_replaced ? "bg-amber-50 text-amber-600" : "text-gray-400")}>
+                  <Package size={10} className="mr-1" /> {ot.parts_replaced ? "Pièces" : "Standard"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge className={cn("rounded-full text-[10px]", ot.status === 'Completed' ? "bg-green-600" : "bg-blue-500")}>
+                  {ot.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {ot.status === 'Completed' ? (
+                  <div className="flex flex-col gap-1">
+                    {ot.invoice_status === 'Paid' ? (
+                      <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 text-[10px] rounded-lg" onClick={() => updateInvoice(ot.id, 'Paid')}>Marquer Payé</Button>
+                    )}
+                  </div>
+                ) : <span className="text-[10px] text-muted-foreground">En cours</span>}
+              </TableCell>
+              <TableCell className="text-right">
+                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full"><Eye size={16} /></Button>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
