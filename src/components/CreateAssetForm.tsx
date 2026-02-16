@@ -91,7 +91,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       const { data: clientData } = await supabase.from('clients').select('id, name').order('name');
       setClients(clientData || []);
       
-      const { data: techData } = await supabase.from('profil').select('id, first_name, last_name').order('last_name');
+      const { data: techData } = await supabase.from('profiles').select('id, first_name, last_name').order('last_name');
       setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
     };
     fetchData();
@@ -104,7 +104,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     const { error } = await supabase
       .from('assets')
       .insert({
-        user_id: user.id.includes('fake') ? null : user.id,
+        user_id: user.id,
         name: data.name,
         description: data.description,
         serial_number: data.serialNumber,

@@ -40,7 +40,7 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
   useEffect(() => {
     const fetchAssignee = async () => {
       if (asset.assigned_to) {
-        const { data } = await supabase.from('profil').select('first_name, last_name').eq('id', asset.assigned_to).single();
+        const { data } = await supabase.from('profiles').select('first_name, last_name').eq('id', asset.assigned_to).single();
         if (data) setAssigneeName(`${data.first_name} ${data.last_name}`);
       } else {
         setAssigneeName(null);
