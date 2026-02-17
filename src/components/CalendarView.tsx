@@ -14,8 +14,8 @@ interface ScheduledEvent {
   date: Date;
   type: 'Maintenance Corrective' | 'Maintenance Préventive' | 'Inspection';
   priority: 'Low' | 'Medium' | 'High';
-  isCompleted: boolean; // Ajouté
-  completionDate?: Date; // Ajouté
+  isCompleted: boolean;
+  completionDate?: Date;
 }
 
 // --- Utility Functions ---
@@ -40,27 +40,24 @@ const getEventIcon = (type: ScheduledEvent['type']) => {
 
 const getAlertStatus = (date: Date): 'Urgent' | 'Warning' | 'Normal' => {
   const today = new Date();
-  // Pour comparer uniquement les dates, on met l'heure à minuit
   const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const daysDifference = differenceInDays(dateOnly, todayOnly);
 
   if (daysDifference < 0) {
-    return 'Urgent'; // Dépassé
+    return 'Urgent';
   }
   if (daysDifference <= 3) {
-    return 'Warning'; // Proche (dans les 3 jours)
+    return 'Warning';
   }
-  return 'Normal'; // Futur
+  return 'Normal';
 };
 
 interface CalendarViewProps {
   events: ScheduledEvent[];
-  onCompleteEvent: (eventId: string) => void; // Ajouté
+  onCompleteEvent: (eventId: string) => void;
 }
-
-// --- Component ---
 
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -70,7 +67,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
 
   const firstDayOfMonth = startOfMonth(currentDate);
   const lastDayOfMonth = endOfMonth(currentDate);
-  const startDate = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 }); // Start week on Monday
+  const startDate = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 });
   const endDate = endOfWeek(lastDayOfMonth, { weekStartsOn: 1 });
 
   const days = useMemo(() => {
@@ -78,7 +75,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
   }, [startDate, endDate]);
 
   const eventsInView = useMemo(() => {
-    // Filter events to include only those visible in the current calendar view range
     return events.filter(event => event.date >= startDate && event.date <= endDate);
   }, [events, startDate, endDate]);
 
@@ -87,17 +83,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
     return events.filter(event => isSameDay(event.date, selectedDay));
   }, [events, selectedDay]);
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
+  const goToPreviousMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const goToNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const goToToday = () => setCurrentDate(new Date());
 
   const handleDayClick = (day: Date) => {
     setSelectedDay(day);
@@ -107,7 +95,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
   const renderDay = (day: Date) => {
     const isCurrentMonth = isSameMonth(day, currentDate);
     const isToday = isSameDay(day, today);
-    
     const dayEvents = eventsInView.filter(event => isSameDay(event.date, day));
 
     return (
@@ -129,27 +116,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
         
         <div className="mt-1 space-y-0.5 overflow-y-auto max-h-[75%]">
           {dayEvents.map(event => {
-            
             let alertClasses = '';
             let alertIcon = getEventIcon(event.type);
 
             if (event.isCompleted) {
-              // Couleur dédiée pour les tâches terminées
               alertClasses = 'bg-gray-500 hover:bg-gray-600 line-through opacity-70';
               alertIcon = <Clock size={12} className="mr-1 text-white" />;
             } else {
               const alertStatus = getAlertStatus(event.date);
-              
               if (alertStatus === 'Urgent') {
                 alertClasses = 'bg-red-700 hover:bg-red-800 ring-1 ring-red-400';
-                alertIcon = <Clock size={12} className="mr-1 text-white" />; // Icône d'urgence
+                alertIcon = <Clock size={12} className="mr-1 text-white" />;
               } else if (alertStatus === 'Warning') {
                 alertClasses = 'bg-amber-500 hover:bg-amber-600 ring-1 ring-amber-300';
               } else {
                 alertClasses = getEventStyle(event.type);
               }
             }
-
 
             return (
               <div 
@@ -159,7 +142,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
                   alertClasses
                 )}
                 title={event.title}
-                // Empêche la propagation du clic pour ne pas ouvrir la modale du jour si on clique sur l'événement
                 onClick={(e) => e.stopPropagation()} 
               >
                 <div className="flex items-center">
@@ -177,9 +159,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
   return (
     <>
       <div className="bg-card rounded-xl shadow-xl p-6">
-        {/* Header de navigation */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-primary">
+          <h2 className="text-2xl font-bold text-primary capitalize">
             {format(currentDate, 'MMMM yyyy', { locale: fr })}
           </h2>
           <div className="flex space-x-2">
@@ -195,28 +176,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
           </div>
         </div>
 
-        {/* Jours de la semaine */}
         <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground border-b border-border/50 mb-1">
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
-            <div key={day} className="py-2">
-              {day}
-            </div>
+            <div key={day} className="py-2">{day}</div>
           ))}
         </div>
 
-        {/* Grille du calendrier */}
         <div className="grid grid-cols-7 gap-px border-t border-border/50">
           {days.map(renderDay)}
         </div>
       </div>
       
-      {/* Modale des événements du jour */}
       <DayEventsDialog 
         selectedDate={selectedDay}
         events={dayEvents}
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        onCompleteEvent={onCompleteEvent} // Passé à la modale
+        onCompleteEvent={onCompleteEvent}
       />
     </>
   );

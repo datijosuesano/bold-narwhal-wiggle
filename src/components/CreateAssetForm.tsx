@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { CalendarIcon, Loader2, User } from "lucide-react";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -183,7 +184,27 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="commissioningDate" render={({ field }) => (
-            <FormItem className="flex flex-col"><FormLabel>Mise en service</FormLabel><Popover><PopoverTrigger asChild><Button variant="outline" className="rounded-xl flex justify-between">{field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}<CalendarIcon size={16} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>
+            <FormItem className="flex flex-col">
+              <FormLabel>Mise en service</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                    {field.value ? format(field.value, "dd/MM/yyyy", { locale: fr }) : "Choisir"}
+                    <CalendarIcon size={16} className="opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar 
+                    mode="single" 
+                    selected={field.value} 
+                    onSelect={field.onChange}
+                    captionLayout="dropdown"
+                    fromYear={1980}
+                    toYear={new Date().getFullYear() + 10}
+                  />
+                </PopoverContent>
+              </Popover>
+            </FormItem>
           )} />
           <FormField control={form.control} name="purchaseCost" render={({ field }) => (
             <FormItem><FormLabel>Coût (FCFA)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
