@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const InterventionSchema = z.object({
   title: z.string().min(5, "Le titre doit contenir au moins 5 caractères."),
   description: z.string().min(10, "Veuillez décrire l'action menée (10 car. min)."),
-  maintenanceType: z.enum(["Preventive", "Corrective", "Palliative", "Ameliorative"]),
+  maintenanceType: z.string().min(1, "Le type est requis"),
   assetId: z.string().min(1, "Veuillez sélectionner un équipement."),
   date: z.string().min(1, "La date est requise."),
   partId: z.string().optional(),
@@ -58,7 +58,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     defaultValues: {
       title: initialData?.title || "",
       description: initialData?.description || "",
-      maintenanceType: (initialData?.maintenance_type as any) || "Corrective",
+      maintenanceType: initialData?.maintenance_type || "Corrective",
       assetId: initialData?.asset_id || assetId || "",
       date: initialData?.intervention_date || initialData?.due_date || format(new Date(), "yyyy-MM-dd"),
       partId: "none",
@@ -85,8 +85,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     
     setIsLoading(true);
 
+    // On s'assure que l'ID utilisateur est valide (pas de 'fake' ID de démo)
+    const userId = user.id.includes('fake') ? null : user.id;
+
     const payload = {
-      user_id: user.id,
+      user_id: userId,
       asset_id: data.assetId,
       title: data.title,
       description: data.description,
@@ -95,15 +98,27 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       parts_replaced: data.partId !== "none" && data.partQuantity > 0,
     };
 
+    console.log("[InterventionForm] Tentative d'enregistrement:", payload);
+
     try {
-      let result;
+      let error;
       if (initialData?.id) {
-        result = await supabase.from('interventions').update(payload).eq('id', initialData.id);
+        const { error: updateError } = await supabase
+          .from('interventions')
+          .update(payload)
+          .eq('id', initialData.id);
+        error = updateError;
       } else {
-        result = await supabase.from('interventions').insert(payload);
+        const { error: insertError } = await supabase
+          .from('interventions')
+          .insert(payload);
+        error = insertError;
       }
 
-      if (result.error) throw result.error;
+      if (error) {
+        console.error("[InterventionForm] Erreur Supabase détaillée:", error);
+        throw error;
+      }
 
       // Gestion du stock si une pièce a été utilisée
       if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
@@ -114,11 +129,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         }
       }
 
-      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée avec succès !");
+      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
       onSuccess();
     } catch (err: any) {
-      console.error("[AddPastInterventionForm] Erreur:", err);
-      showError(`Échec de l'enregistrement: ${err.message}`);
+      console.error("[AddPastInterventionForm] Erreur attrapée:", err);
+      showError(`Erreur: ${err.message || "Impossible d'enregistrer"}`);
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +148,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
             <Select onValueChange={field.onChange} value={field.value} disabled={!!initialData}>
               <FormControl>
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder={assets.length > 0 ? "Choisir un équipement" : "Aucun équipement disponible"} />
+                  <SelectValue placeholder="Choisir un équipement" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
