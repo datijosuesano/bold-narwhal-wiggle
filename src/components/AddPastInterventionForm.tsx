@@ -30,8 +30,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const InterventionSchema = z.object({
-  title: z.string().min(5, "Le titre est requis."),
-  description: z.string().min(10, "Veuillez décrire l'action menée."),
+  title: z.string().min(5, "Le titre doit contenir au moins 5 caractères."),
+  description: z.string().min(10, "Veuillez décrire l'action menée (10 car. min)."),
   maintenanceType: z.enum(["Preventive", "Corrective", "Palliative", "Ameliorative"]),
   assetId: z.string().min(1, "Veuillez sélectionner un équipement."),
   date: z.string().min(1, "La date est requise."),
@@ -53,17 +53,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock');
-      setSpareParts(parts || []);
-      
-      const { data: assetList } = await supabase.from('assets').select('id, name').order('name');
-      setAssets(assetList || []);
-    };
-    fetchData();
-  }, []);
-
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
@@ -77,6 +66,17 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     },
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock');
+      setSpareParts(parts || []);
+      
+      const { data: assetList } = await supabase.from('assets').select('id, name').order('name');
+      setAssets(assetList || []);
+    };
+    fetchData();
+  }, []);
+
   const onSubmit = async (data: InterventionFormValues) => {
     if (!user) {
       showError("Vous devez être connecté.");
@@ -84,12 +84,10 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     }
     
     setIsLoading(true);
-
-    // Si on est en mode démo (fake-user), on n'envoie pas le user_id car RLS le bloquerait
-    const userId = user.id.includes('fake') ? null : user.id;
+    console.log("[AddPastInterventionForm] Tentative d'enregistrement...", data);
 
     const payload = {
-      user_id: userId,
+      user_id: user.id,
       asset_id: data.assetId,
       title: data.title,
       description: data.description,
@@ -110,7 +108,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
       if (result.error) throw result.error;
 
-      // Gestion du stock
+      // Gestion du stock si une pièce a été utilisée
       if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
         const selectedPart = spareParts.find(p => p.id === data.partId);
         if (selectedPart) {
@@ -119,11 +117,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         }
       }
 
-      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
+      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée avec succès !");
       onSuccess();
     } catch (err: any) {
-      console.error("Erreur d'enregistrement:", err);
-      showError(`Échec: ${err.message || "Erreur inconnue"}`);
+      console.error("[AddPastInterventionForm] Erreur:", err);
+      showError(`Échec de l'enregistrement: ${err.message || "Vérifiez que la table 'work_orders' existe."}`);
     } finally {
       setIsLoading(false);
     }
@@ -135,34 +133,60 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         <FormField control={form.control} name="assetId" render={({ field }) => (
           <FormItem>
             <FormLabel>Équipement concerné</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!initialData}>
-              <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un équipement" /></SelectTrigger></FormControl>
-              <SelectContent>{assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+            <Select onValueChange={field.onChange} value={field.value} disabled={!!initialData}>
+              <FormControl>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder={assets.length > 0 ? "Choisir un équipement" : "Aucun équipement disponible"} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
             </Select>
             <FormMessage />
           </FormItem>
         )} />
 
         <FormField control={form.control} name="title" render={({ field }) => (
-          <FormItem><FormLabel>Objet de l'intervention</FormLabel><FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+          <FormItem>
+            <FormLabel>Objet de l'intervention</FormLabel>
+            <FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" /></FormControl>
+            <FormMessage />
+          </FormItem>
         )} />
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="date" render={({ field }) => (
-            <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem>
+              <FormLabel>Date</FormLabel>
+              <FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
           <FormField control={form.control} name="maintenanceType" render={({ field }) => (
-            <FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Preventive">Préventive</SelectItem><SelectItem value="Corrective">Corrective</SelectItem></SelectContent></Select></FormItem>
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="Preventive">Préventive</SelectItem>
+                  <SelectItem value="Corrective">Corrective</SelectItem>
+                  <SelectItem value="Palliative">Palliative</SelectItem>
+                  <SelectItem value="Ameliorative">Améliorative</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
 
         {!initialData && (
           <div className="p-4 bg-blue-50/50 border rounded-xl space-y-4">
-            <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Pièce de rechange utilisée</div>
+            <div className="flex items-center text-sm font-bold text-blue-700 mb-2"><Package size={16} className="mr-2" /> Pièce de rechange utilisée (Optionnel)</div>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="partId" render={({ field }) => (
                 <FormItem>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Pièce utilisée" /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="none">-- Aucune pièce --</SelectItem>
@@ -183,12 +207,19 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         )}
 
         <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem><FormLabel>Détails des travaux</FormLabel><FormControl><Textarea placeholder="Actions menées..." {...field} className="rounded-xl h-24" /></FormControl><FormMessage /></FormItem>
+          <FormItem>
+            <FormLabel>Détails des travaux</FormLabel>
+            <FormControl><Textarea placeholder="Décrivez les actions menées..." {...field} className="rounded-xl h-24" /></FormControl>
+            <FormMessage />
+          </FormItem>
         )} />
 
-        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : initialData ? <Save className="mr-2" /> : <CheckCircle2 className="mr-2" />} 
-          {initialData ? "Sauvegarder" : "Enregistrer"}
+        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 font-bold shadow-lg" disabled={isLoading}>
+          {isLoading ? (
+            <><Loader2 className="animate-spin mr-2" /> Enregistrement...</>
+          ) : (
+            <>{initialData ? <Save className="mr-2" /> : <CheckCircle2 className="mr-2" />} {initialData ? "Sauvegarder les modifications" : "Enregistrer l'intervention"}</>
+          )}
         </Button>
       </form>
     </Form>

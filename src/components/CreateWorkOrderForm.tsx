@@ -92,6 +92,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
   const onSubmit = async (data: WorkOrderFormValues) => {
     if (!user) return;
     setIsLoading(true);
+    
     const { error } = await supabase.from('work_orders').insert({
       user_id: user.id,
       title: data.title,
@@ -102,12 +103,15 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
       due_date: format(data.dueDate, 'yyyy-MM-dd'),
       status: 'Open',
     });
+    
     setIsLoading(false);
+    
     if (!error) {
-      showSuccess("OT créé !");
+      showSuccess("Ordre de travail créé avec succès !");
       onSuccess();
     } else {
-      showError("Erreur lors de la création de l'OT");
+      console.error("Erreur création OT:", error);
+      showError(`Erreur: ${error.message}`);
     }
   };
 
@@ -143,7 +147,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="Preventive">Préventive</SelectItem>
@@ -162,7 +166,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priorité</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="Low">Basse</SelectItem>
@@ -181,7 +185,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           render={({ field }) => (
             <FormItem>
               <FormLabel>Équipement</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder={isAssetsLoading ? "Chargement..." : "Choisir un équipement"} /></SelectTrigger></FormControl>
                 <SelectContent>
                   {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
@@ -213,8 +217,8 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           )}
         />
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : "Créer l'Ordre de Travail"}
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Créer l'Ordre de Travail"}
           </Button>
         </div>
       </form>
