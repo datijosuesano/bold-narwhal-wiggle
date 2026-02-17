@@ -33,25 +33,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import ImageUpload from "./ImageUpload";
 
 const AssetSchema = z.object({
-  name: z.string().min(3, "Le nom est requis."),
-  description: z.string().min(5, "La description est trop courte."),
-  serialNumber: z.string().min(1, "Le numéro de série est requis."),
-  model: z.string().min(1, "Le modèle est requis."),
-  brand: z.string().min(1, "La marque est requise."),
-  manufacturer: z.string().min(1, "Le fabricant est requis."),
-  location: z.string().min(1, "Veuillez sélectionner un site."),
-  category: z.string().min(1, "La catégorie est requise."),
+  name: z.string().min(3, "Le nom est requis (3 car. min)"),
+  description: z.string().optional(),
+  serialNumber: z.string().min(1, "Le numéro de série est requis"),
+  model: z.string().min(1, "Le modèle est requis"),
+  brand: z.string().min(1, "La marque est requise"),
+  manufacturer: z.string().min(1, "Le fabricant est requis"),
+  location: z.string().min(1, "Veuillez sélectionner un site"),
+  category: z.string().min(1, "La catégorie est requise"),
   assignedTo: z.string().optional().nullable(),
   imageUrl: z.string().optional(),
-  manufacturingDate: z.date({
-    required_error: "La date de fabrication est requise.",
-  }),
   commissioningDate: z.date({
-    required_error: "La date de mise en service est requise.",
+    required_error: "La date de mise en service est requise",
   }),
   purchaseCost: z.preprocess(
     (a) => (a === "" ? 0 : parseFloat(z.string().parse(a))),
-    z.number().min(0)
+    z.number().min(0, "Le coût doit être positif")
   ),
 });
 
@@ -80,7 +77,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       category: "Imagerie",
       assignedTo: "none",
       imageUrl: "",
-      manufacturingDate: new Date(),
       commissioningDate: new Date(),
       purchaseCost: 0,
     },
@@ -98,35 +94,43 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   }, []);
 
   const onSubmit = async (data: AssetFormValues) => {
-    if (!user) return;
+    if (!user) {
+      showError("Vous devez être connecté pour ajouter un équipement.");
+      return;
+    }
+    
     setIsLoading(true);
+
+    // Gestion du user_id pour éviter les erreurs de format UUID en mode démo
+    const userId = user.id.includes('fake') ? null : user.id;
 
     const { error } = await supabase
       .from('assets')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         name: data.name,
-        description: data.description,
+        description: data.description || "",
         serial_number: data.serialNumber,
         model: data.model,
         brand: data.brand,
         manufacturer: data.manufacturer,
         location: data.location,
-        manufacturing_date: format(data.manufacturingDate, 'yyyy-MM-dd'),
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         purchase_cost: data.purchaseCost,
         category: data.category,
-        image_url: data.imageUrl,
+        image_url: data.imageUrl || null,
         assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
         status: 'Opérationnel'
       });
 
     setIsLoading(false);
+    
     if (error) {
-      console.error("Insert error:", error);
-      showError(`Erreur: ${error.message}`);
+      console.error("Erreur d'insertion:", error);
+      showError(`Erreur base de données: ${error.message}`);
     } else {
-      showSuccess("Équipement ajouté avec succès !");
+      showSuccess("L'équipement a été enregistré avec succès !");
+      form.reset();
       onSuccess();
     }
   };
@@ -134,14 +138,18 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
-        <FormItem>
-          <FormLabel>Photo de l'équipement</FormLabel>
+        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+          <FormLabel className="text-blue-700 font-bold mb-2 block">Photo de l'équipement</FormLabel>
           <ImageUpload onUpload={(url) => form.setValue("imageUrl", url)} />
-        </FormItem>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Nom de l'équipement</FormLabel><FormControl><Input placeholder="Ex: Scanner portable" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+            <FormItem>
+              <FormLabel>Nom de l'appareil</FormLabel>
+              <FormControl><Input placeholder="Ex: Échographe" {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
           )} />
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
@@ -156,6 +164,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   <SelectItem value="Autre">Autre</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
             </FormItem>
           )} />
         </div>
@@ -163,11 +172,16 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="location" render={({ field }) => (
             <FormItem>
-              <FormLabel>Site</FormLabel>
+              <FormLabel>Site / Clinique</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir" /></SelectTrigger></FormControl>
-                <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {clients.length > 0 ? clients.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  )) : <SelectItem value="none" disabled>Aucun site trouvé</SelectItem>}
+                </SelectContent>
               </Select>
+              <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="assignedTo" render={({ field }) => (
@@ -186,24 +200,24 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="brand" render={({ field }) => (
-            <FormItem><FormLabel>Marque</FormLabel><FormControl><Input placeholder="Ex: Siemens" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Marque</FormLabel><FormControl><Input placeholder="Ex: GE" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="model" render={({ field }) => (
-            <FormItem><FormLabel>Modèle</FormLabel><FormControl><Input placeholder="Ex: Somatom" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Modèle</FormLabel><FormControl><Input placeholder="Ex: Voluson" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="manufacturer" render={({ field }) => (
-            <FormItem><FormLabel>Fabricant</FormLabel><FormControl><Input placeholder="Ex: Siemens Healthineers" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Fabricant</FormLabel><FormControl><Input placeholder="Ex: GE Healthcare" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="serialNumber" render={({ field }) => (
-            <FormItem><FormLabel>N° Série</FormLabel><FormControl><Input placeholder="Ex: SN-12345" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>N° Série</FormLabel><FormControl><Input placeholder="Ex: SN-9988" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
 
         <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Détails techniques..." {...field} className="rounded-xl h-20" /></FormControl></FormItem>
+          <FormItem><FormLabel>Notes / Description</FormLabel><FormControl><Textarea placeholder="Détails optionnels..." {...field} className="rounded-xl h-20" /></FormControl></FormItem>
         )} />
 
         <div className="grid grid-cols-2 gap-4">
@@ -223,21 +237,24 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                     selected={field.value} 
                     onSelect={field.onChange}
                     captionLayout="dropdown"
-                    fromYear={1980}
-                    toYear={new Date().getFullYear() + 10}
+                    fromYear={1990}
+                    toYear={new Date().getFullYear() + 5}
                   />
                 </PopoverContent>
               </Popover>
+              <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="purchaseCost" render={({ field }) => (
-            <FormItem><FormLabel>Coût (FCFA)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Coût (FCFA)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Ajouter l'Équipement"}
-        </Button>
+        <div className="sticky bottom-0 bg-background pt-4 pb-2">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 text-lg font-bold" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Enregistrer l'Équipement"}
+          </Button>
+        </div>
       </form>
     </Form>
   );
