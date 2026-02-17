@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import AssetDetailView from "@/components/AssetDetailView";
 import { cn } from "@/lib/utils";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Asset {
   id: string;
@@ -28,6 +29,7 @@ interface Asset {
 }
 
 const AssetsPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -35,25 +37,37 @@ const AssetsPage: React.FC = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [equipments, setEquipments] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchAssets = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('assets')
-      .select('*')
-      .order('name');
+    setFetchError(null);
+    
+    try {
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .order('name');
 
-    if (error) {
-      showError("Erreur lors du chargement des équipements.");
-    } else {
-      setEquipments(data || []);
+      if (error) {
+        console.error("Supabase error:", error);
+        setFetchError(error.message);
+        showError(`Erreur: ${error.message}`);
+      } else {
+        setEquipments(data || []);
+      }
+    } catch (err: any) {
+      setFetchError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchAssets();
-  }, []);
+  }, [user]);
 
   const filteredEquipments = useMemo(() => {
     if (!searchTerm) return equipments;
@@ -99,6 +113,17 @@ const AssetsPage: React.FC = () => {
         </Dialog>
       </div>
       
+      {fetchError && (
+        <Card className="border-red-200 bg-red-50 p-4 flex items-center gap-3 text-red-800">
+          <AlertCircle className="h-5 w-5" />
+          <div>
+            <p className="font-bold">Impossible de charger les équipements</p>
+            <p className="text-xs">Détail technique : {fetchError}</p>
+            <p className="text-xs mt-1 italic">Note : Si l'erreur indique que la table 'assets' n'existe pas, elle doit être créée dans Supabase.</p>
+          </div>
+        </Card>
+      )}
+
       <Card className="shadow-lg">
         <CardContent className="p-0">
           <div className="p-4 border-b flex gap-4">
@@ -129,6 +154,12 @@ const AssetsPage: React.FC = () => {
                   <tr>
                     <td colSpan={5} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+                    </td>
+                  </tr>
+                ) : equipments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                      Aucun équipement trouvé.
                     </td>
                   </tr>
                 ) : filteredEquipments.map((item) => (
