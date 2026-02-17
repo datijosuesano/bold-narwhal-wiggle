@@ -108,7 +108,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
       const { data: clientData } = await supabase.from('clients').select('id, name');
       setClients(clientData || []);
       
-      const { data: techData } = await supabase.from('profil').select('id, first_name, last_name');
+      const { data: techData } = await supabase.from('profiles').select('id, first_name, last_name');
       setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
     };
     fetchData();

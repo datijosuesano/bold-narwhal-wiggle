@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,8 +40,6 @@ const AssetsPage: React.FC = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchAssets = async () => {
-    if (!user) return;
-    
     setIsLoading(true);
     setFetchError(null);
     
@@ -54,7 +52,6 @@ const AssetsPage: React.FC = () => {
       if (error) {
         console.error("Supabase error:", error);
         setFetchError(error.message);
-        showError(`Erreur: ${error.message}`);
       } else {
         setEquipments(data || []);
       }
@@ -113,112 +110,112 @@ const AssetsPage: React.FC = () => {
         </Dialog>
       </div>
       
-      {fetchError && (
-        <Card className="border-red-200 bg-red-50 p-4 flex items-center gap-3 text-red-800">
-          <AlertCircle className="h-5 w-5" />
-          <div>
-            <p className="font-bold">Impossible de charger les équipements</p>
-            <p className="text-xs">Détail technique : {fetchError}</p>
-            <p className="text-xs mt-1 italic">Note : Si l'erreur indique que la table 'assets' n'existe pas, elle doit être créée dans Supabase.</p>
-          </div>
+      {fetchError ? (
+        <Card className="border-red-200 bg-red-50 p-6 text-center">
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-red-800">Erreur de chargement</h3>
+          <p className="text-sm text-red-600 mb-4">{fetchError}</p>
+          <Button onClick={fetchAssets} variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-100">
+            <RefreshCw className="mr-2 h-4 w-4" /> Réessayer
+          </Button>
+        </Card>
+      ) : (
+        <Card className="shadow-lg">
+          <CardContent className="p-0">
+            <div className="p-4 border-b flex gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input 
+                  placeholder="Rechercher..." 
+                  className="pl-10 rounded-xl" 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                />
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="text-xs uppercase text-muted-foreground bg-muted/50">
+                  <tr>
+                    <th className="px-6 py-3">Photo</th>
+                    <th className="px-6 py-3">Équipement</th>
+                    <th className="px-6 py-3">Localisation</th>
+                    <th className="px-6 py-3">Statut</th>
+                    <th className="px-6 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+                      </td>
+                    </tr>
+                  ) : equipments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                        Aucun équipement trouvé.
+                      </td>
+                    </tr>
+                  ) : filteredEquipments.map((item) => (
+                    <tr key={item.id} className="hover:bg-accent/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="h-10 w-10 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">{item.category}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm">{item.location}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-xs font-medium border",
+                          getStatusStyle(item.status)
+                        )}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => {
+                              setSelectedAsset(item);
+                              setIsDetailModalOpen(true);
+                            }}
+                          >
+                            <Eye size={16} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => {
+                              setSelectedAsset(item);
+                              setIsEditModalOpen(true);
+                            }}
+                          >
+                            <Edit2 size={16} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
         </Card>
       )}
-
-      <Card className="shadow-lg">
-        <CardContent className="p-0">
-          <div className="p-4 border-b flex gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input 
-                placeholder="Rechercher..." 
-                className="pl-10 rounded-xl" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-              />
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="text-xs uppercase text-muted-foreground bg-muted/50">
-                <tr>
-                  <th className="px-6 py-3">Photo</th>
-                  <th className="px-6 py-3">Équipement</th>
-                  <th className="px-6 py-3">Localisation</th>
-                  <th className="px-6 py-3">Statut</th>
-                  <th className="px-6 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
-                    </td>
-                  </tr>
-                ) : equipments.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-12 text-muted-foreground italic">
-                      Aucun équipement trouvé.
-                    </td>
-                  </tr>
-                ) : filteredEquipments.map((item) => (
-                  <tr key={item.id} className="hover:bg-accent/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="h-10 w-10 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-muted-foreground">{item.category}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{item.location}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-medium border",
-                        getStatusStyle(item.status)
-                      )}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 rounded-full"
-                          onClick={() => {
-                            setSelectedAsset(item);
-                            setIsDetailModalOpen(true);
-                          }}
-                        >
-                          <Eye size={16} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 rounded-full"
-                          onClick={() => {
-                            setSelectedAsset(item);
-                            setIsEditModalOpen(true);
-                          }}
-                        >
-                          <Edit2 size={16} />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
 
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl">

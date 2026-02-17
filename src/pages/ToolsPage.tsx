@@ -35,7 +35,7 @@ const ToolsPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     const { data: toolsData } = await supabase.from('tools').select('*').order('name');
-    const { data: profilesData } = await supabase.from('profil').select('id, first_name, last_name');
+    const { data: profilesData } = await supabase.from('profiles').select('id, first_name, last_name');
     
     setTools(toolsData || []);
     setTechs(profilesData || []);
@@ -48,8 +48,6 @@ const ToolsPage: React.FC = () => {
     const status = techId === "null" ? 'Disponible' : 'Attribué';
     const assignedValue = techId === "null" ? null : techId;
 
-    console.log(`[ToolsPage] Tentative d'attribution de l'outil ${toolId} au technicien ${assignedValue}`);
-
     const { error } = await supabase
       .from('tools')
       .update({ 
@@ -59,7 +57,6 @@ const ToolsPage: React.FC = () => {
       .eq('id', toolId);
 
     if (error) {
-      console.error("[ToolsPage] Erreur Supabase détaillée:", error);
       showError(`Erreur lors de l'attribution: ${error.message}`);
     } else {
       showSuccess("Mise à jour effectuée.");
@@ -165,13 +162,6 @@ const ToolsPage: React.FC = () => {
               </CardContent>
             </Card>
           ))}
-          
-          {filteredTools.length === 0 && (
-            <div className="col-span-full text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
-              <Hammer className="mx-auto h-12 w-12 opacity-20 mb-2" />
-              <p className="text-muted-foreground">Aucun outil trouvé.</p>
-            </div>
-          )}
         </div>
       )}
     </div>
