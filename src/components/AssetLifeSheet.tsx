@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Factory, Calendar, Wrench, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { Factory, Calendar, Wrench, CheckCircle2, Clock, Loader2, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -20,17 +20,18 @@ interface Asset {
   purchaseCost: number;
 }
 
-interface WorkOrderHistory {
+interface HistoryItem {
     id: string;
     title: string;
-    due_date: string;
+    date: string;
     status: string;
-    maintenance_type: string;
+    type: string;
+    source: 'OT' | 'Intervention';
 }
 
 interface AssetLifeSheetProps {
   asset: Asset;
-  refreshTrigger?: number; // Pour forcer le rechargement après un ajout
+  refreshTrigger?: number;
 }
 
 const formatCurrency = (amount: number) => {
@@ -42,19 +43,45 @@ const formatCurrency = (amount: number) => {
 };
 
 const AssetLifeSheet: React.FC<AssetLifeSheetProps> = ({ asset, refreshTrigger }) => {
-  const [history, setHistory] = useState<WorkOrderHistory[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
       setIsLoading(true);
-      const { data } = await supabase
+      
+      // Fetch Work Orders
+      const { data: ots } = await supabase
         .from('work_orders')
         .select('*')
-        .eq('asset_id', asset.id)
-        .order('due_date', { ascending: false });
+        .eq('asset_id', asset.id);
       
-      setHistory(data || []);
+      // Fetch Interventions
+      const { data: interventions } = await supabase
+        .from('interventions')
+        .select('*')
+        .eq('asset_id', asset.id);
+      
+      const combined: HistoryItem[] = [
+        ...(ots?.map(ot => ({
+          id: ot.id,
+          title: ot.title,
+          date: ot.due_date,
+          status: ot.status,
+          type: ot.maintenance_type,
+          source: 'OT' as const
+        })) || []),
+        ...(interventions?.map(i => ({
+          id: i.id,
+          title: i.title,
+          date: i.intervention_date,
+          status: 'Completed',
+          type: i.maintenance_type,
+          source: 'Intervention' as const
+        })) || [])
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setHistory(combined);
       setIsLoading(false);
     };
     fetchHistory();
@@ -107,7 +134,7 @@ const AssetLifeSheet: React.FC<AssetLifeSheetProps> = ({ asset, refreshTrigger }
       <Separator className="my-6" />
 
       <h2 className="text-lg font-bold mb-4 flex items-center text-blue-700 print:text-black">
-        <Wrench size={20} className="mr-2" /> Historique des Interventions ({history.length})
+        <Wrench size={20} className="mr-2" /> Historique des Actions ({history.length})
       </h2>
       
       {isLoading ? (
@@ -117,37 +144,38 @@ const AssetLifeSheet: React.FC<AssetLifeSheetProps> = ({ asset, refreshTrigger }
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-100 text-xs uppercase text-gray-600">
               <tr>
-                <th className="p-3">Titre de l'Intervention</th>
+                <th className="p-3">Action / Objet</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Date</th>
-                <th className="p-3 text-center">Statut</th>
+                <th className="p-3 text-center">Source</th>
               </tr>
             </thead>
             <tbody>
               {history.length > 0 ? (
-                history.map((ot, index) => (
-                  <tr key={ot.id} className={cn("border-t", index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}>
-                    <td className="p-3 font-medium">{ot.title}</td>
+                history.map((item, index) => (
+                  <tr key={item.id} className={cn("border-t", index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}>
                     <td className="p-3">
-                      <Badge variant="outline" className={cn(
-                        "text-xs",
-                        ot.maintenance_type === 'Preventive' ? 'border-green-400 text-green-700' : 'border-red-400 text-red-700'
-                      )}>
-                        {ot.maintenance_type === 'Preventive' ? 'Préventive' : 'Corrective'}
+                      <div className="font-medium">{item.title}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.status}</div>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="text-[10px]">
+                        {item.type}
                       </Badge>
                     </td>
-                    <td className="p-3">{format(new Date(ot.due_date), 'dd/MM/yyyy')}</td>
+                    <td className="px-3 py-2">{format(new Date(item.date), 'dd/MM/yyyy')}</td>
                     <td className="p-3 text-center">
-                      {ot.status === 'Completed' ? (
-                        <CheckCircle2 size={16} className="text-green-600 mx-auto" />
-                      ) : (
-                        <Clock size={16} className="text-amber-500 mx-auto" />
-                      )}
+                      <Badge className={cn(
+                        "text-[9px] uppercase",
+                        item.source === 'Intervention' ? "bg-green-100 text-green-700 border-green-200" : "bg-blue-100 text-blue-700 border-blue-200"
+                      )}>
+                        {item.source}
+                      </Badge>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground italic">Aucune intervention enregistrée pour le moment.</td></tr>
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground italic">Aucune action enregistrée.</td></tr>
               )}
             </tbody>
           </table>

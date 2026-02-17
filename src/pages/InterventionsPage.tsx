@@ -18,8 +18,7 @@ interface Intervention {
   id: string;
   title: string;
   maintenance_type: string;
-  due_date: string;
-  status: string;
+  intervention_date: string;
   description: string;
   asset_id: string;
   assets: {
@@ -43,10 +42,9 @@ const InterventionsPage: React.FC = () => {
   const fetchInterventions = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
-      .from('work_orders')
+      .from('interventions')
       .select('*, assets(name, location)')
-      .eq('status', 'Completed')
-      .order('due_date', { ascending: false });
+      .order('intervention_date', { ascending: false });
 
     if (error) showError("Erreur lors du chargement de l'historique.");
     else setInterventions(data || []);
@@ -57,7 +55,7 @@ const InterventionsPage: React.FC = () => {
 
   const handleDelete = async () => {
     if (!selectedIntervention) return;
-    const { error } = await supabase.from('work_orders').delete().eq('id', selectedIntervention.id);
+    const { error } = await supabase.from('interventions').delete().eq('id', selectedIntervention.id);
     if (error) showError("Erreur lors de la suppression.");
     else {
       showSuccess("Intervention supprimée.");
@@ -121,10 +119,12 @@ const InterventionsPage: React.FC = () => {
               <tbody className="divide-y">
                 {isLoading ? (
                   <tr><td colSpan={4} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
+                ) : filteredInterventions.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center py-20 text-muted-foreground italic">Aucune intervention enregistrée.</td></tr>
                 ) : filteredInterventions.map(item => (
                   <tr key={item.id} className="hover:bg-accent/50 transition-colors group">
                     <td className="px-6 py-4 text-sm font-medium">
-                      <div className="flex items-center"><Calendar size={14} className="mr-2 text-muted-foreground" />{format(new Date(item.due_date), 'dd/MM/yyyy')}</div>
+                      <div className="flex items-center"><Calendar size={14} className="mr-2 text-muted-foreground" />{format(new Date(item.intervention_date), 'dd/MM/yyyy')}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-foreground">{item.assets?.name}</div>
@@ -192,7 +192,10 @@ const InterventionsPage: React.FC = () => {
           <DialogHeader><DialogTitle>Générer un Rapport Administratif</DialogTitle></DialogHeader>
           {selectedIntervention && (
             <CreateReportForm 
-              initialData={selectedIntervention} 
+              initialData={{
+                ...selectedIntervention,
+                due_date: selectedIntervention.intervention_date
+              }} 
               onSuccess={() => { setIsReportOpen(false); }} 
             />
           )}

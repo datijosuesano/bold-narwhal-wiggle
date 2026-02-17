@@ -60,7 +60,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       description: initialData?.description || "",
       maintenanceType: (initialData?.maintenance_type as any) || "Corrective",
       assetId: initialData?.asset_id || assetId || "",
-      date: initialData?.due_date || format(new Date(), "yyyy-MM-dd"),
+      date: initialData?.intervention_date || initialData?.due_date || format(new Date(), "yyyy-MM-dd"),
       partId: "none",
       partQuantity: 0,
     },
@@ -84,7 +84,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     }
     
     setIsLoading(true);
-    console.log("[AddPastInterventionForm] Tentative d'enregistrement...", data);
 
     const payload = {
       user_id: user.id,
@@ -92,18 +91,16 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       title: data.title,
       description: data.description,
       maintenance_type: data.maintenanceType,
-      due_date: data.date,
-      status: 'Completed',
+      intervention_date: data.date,
       parts_replaced: data.partId !== "none" && data.partQuantity > 0,
-      priority: initialData?.priority || 'Medium'
     };
 
     try {
       let result;
       if (initialData?.id) {
-        result = await supabase.from('work_orders').update(payload).eq('id', initialData.id);
+        result = await supabase.from('interventions').update(payload).eq('id', initialData.id);
       } else {
-        result = await supabase.from('work_orders').insert(payload);
+        result = await supabase.from('interventions').insert(payload);
       }
 
       if (result.error) throw result.error;
@@ -121,7 +118,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       onSuccess();
     } catch (err: any) {
       console.error("[AddPastInterventionForm] Erreur:", err);
-      showError(`Échec de l'enregistrement: ${err.message || "Vérifiez que la table 'work_orders' existe."}`);
+      showError(`Échec de l'enregistrement: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
