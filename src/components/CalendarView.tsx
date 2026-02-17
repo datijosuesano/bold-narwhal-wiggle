@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import DayEventsDialog from './DayEventsDialog'; 
 
-// --- Types ---
-
 interface ScheduledEvent {
   id: string;
   title: string;
@@ -17,8 +15,6 @@ interface ScheduledEvent {
   isCompleted: boolean;
   completionDate?: Date;
 }
-
-// --- Utility Functions ---
 
 const getEventStyle = (type: ScheduledEvent['type']) => {
   switch (type) {
@@ -42,15 +38,10 @@ const getAlertStatus = (date: Date): 'Urgent' | 'Warning' | 'Normal' => {
   const today = new Date();
   const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
   const daysDifference = differenceInDays(dateOnly, todayOnly);
 
-  if (daysDifference < 0) {
-    return 'Urgent';
-  }
-  if (daysDifference <= 3) {
-    return 'Warning';
-  }
+  if (daysDifference < 0) return 'Urgent';
+  if (daysDifference <= 3) return 'Warning';
   return 'Normal';
 };
 
@@ -65,10 +56,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const today = new Date();
 
+  // Paramètres de la grille
   const firstDayOfMonth = startOfMonth(currentDate);
   const lastDayOfMonth = endOfMonth(currentDate);
-  const startDate = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 });
-  const endDate = endOfWeek(lastDayOfMonth, { weekStartsOn: 1 });
+  const startDate = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 }); // Lundi
+  const endDate = endOfWeek(lastDayOfMonth, { weekStartsOn: 1 }); // Dimanche
 
   const days = useMemo(() => {
     return eachDayOfInterval({ start: startDate, end: endDate });
@@ -92,98 +84,88 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onCompleteEvent }) 
     setIsDialogOpen(true);
   };
 
-  const renderDay = (day: Date) => {
-    const isCurrentMonth = isSameMonth(day, currentDate);
-    const isToday = isSameDay(day, today);
-    const dayEvents = eventsInView.filter(event => isSameDay(event.date, day));
-
-    return (
-      <div
-        key={day.toISOString()}
-        className={cn(
-          "h-32 p-1 border border-border/50 relative overflow-hidden transition-colors cursor-pointer",
-          isCurrentMonth ? "bg-card hover:bg-accent/50" : "bg-muted/30 text-muted-foreground hover:bg-muted/50",
-          isToday && "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-background",
-        )}
-        onClick={() => handleDayClick(day)}
-      >
-        <div className={cn(
-          "text-sm font-semibold text-right p-1 rounded-full inline-block",
-          isToday ? "bg-blue-500 text-white" : isCurrentMonth ? "text-foreground" : "text-muted-foreground"
-        )}>
-          {format(day, 'd')}
-        </div>
-        
-        <div className="mt-1 space-y-0.5 overflow-y-auto max-h-[75%]">
-          {dayEvents.map(event => {
-            let alertClasses = '';
-            let alertIcon = getEventIcon(event.type);
-
-            if (event.isCompleted) {
-              alertClasses = 'bg-gray-500 hover:bg-gray-600 line-through opacity-70';
-              alertIcon = <Clock size={12} className="mr-1 text-white" />;
-            } else {
-              const alertStatus = getAlertStatus(event.date);
-              if (alertStatus === 'Urgent') {
-                alertClasses = 'bg-red-700 hover:bg-red-800 ring-1 ring-red-400';
-                alertIcon = <Clock size={12} className="mr-1 text-white" />;
-              } else if (alertStatus === 'Warning') {
-                alertClasses = 'bg-amber-500 hover:bg-amber-600 ring-1 ring-amber-300';
-              } else {
-                alertClasses = getEventStyle(event.type);
-              }
-            }
-
-            return (
-              <div 
-                key={event.id}
-                className={cn(
-                  "text-xs text-white px-1 py-0.5 rounded-md truncate cursor-pointer shadow-sm",
-                  alertClasses
-                )}
-                title={event.title}
-                onClick={(e) => e.stopPropagation()} 
-              >
-                <div className="flex items-center">
-                  {alertIcon}
-                  {event.title}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
-      <div className="bg-card rounded-xl shadow-xl p-6">
+      <div className="bg-card rounded-xl shadow-xl p-6 border">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-primary capitalize">
+          <h2 className="text-2xl font-black text-primary capitalize tracking-tight">
             {format(currentDate, 'MMMM yyyy', { locale: fr })}
           </h2>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={goToToday} className="rounded-xl">
+            <Button variant="outline" size="sm" onClick={goToToday} className="rounded-xl font-bold">
               Aujourd'hui
             </Button>
-            <Button variant="outline" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
-              <ChevronLeft size={18} />
-            </Button>
-            <Button variant="outline" size="icon" onClick={goToNextMonth} className="rounded-xl">
-              <ChevronRight size={18} />
-            </Button>
+            <div className="flex border rounded-xl overflow-hidden">
+              <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-none border-r">
+                <ChevronLeft size={18} />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-none">
+                <ChevronRight size={18} />
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground border-b border-border/50 mb-1">
+        {/* En-tête des jours de la semaine */}
+        <div className="grid grid-cols-7 text-center text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
             <div key={day} className="py-2">{day}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-px border-t border-border/50">
-          {days.map(renderDay)}
+        {/* Grille des jours */}
+        <div className="grid grid-cols-7 gap-px bg-muted border rounded-lg overflow-hidden">
+          {days.map((day) => {
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isToday = isSameDay(day, today);
+            const currentDayEvents = eventsInView.filter(event => isSameDay(event.date, day));
+
+            return (
+              <div
+                key={day.toISOString()}
+                className={cn(
+                  "h-32 p-2 relative transition-colors cursor-pointer group",
+                  isCurrentMonth ? "bg-card hover:bg-accent/30" : "bg-muted/50 text-muted-foreground/40",
+                )}
+                onClick={() => handleDayClick(day)}
+              >
+                <div className={cn(
+                  "text-xs font-bold h-6 w-6 flex items-center justify-center rounded-full mb-1 transition-all",
+                  isToday ? "bg-blue-600 text-white shadow-md scale-110" : isCurrentMonth ? "text-foreground" : "text-muted-foreground/30"
+                )}>
+                  {format(day, 'd')}
+                </div>
+                
+                <div className="space-y-1 overflow-y-auto max-h-[70%] custom-scrollbar">
+                  {currentDayEvents.map(event => {
+                    let alertClasses = getEventStyle(event.type);
+                    let alertIcon = getEventIcon(event.type);
+
+                    if (event.isCompleted) {
+                      alertClasses = 'bg-slate-400 opacity-60 line-through';
+                    } else {
+                      const status = getAlertStatus(event.date);
+                      if (status === 'Urgent') alertClasses = 'bg-red-600 animate-pulse';
+                      else if (status === 'Warning') alertClasses = 'bg-amber-500';
+                    }
+
+                    return (
+                      <div 
+                        key={event.id}
+                        className={cn(
+                          "text-[10px] text-white px-1.5 py-0.5 rounded shadow-sm truncate flex items-center font-medium",
+                          alertClasses
+                        )}
+                      >
+                        {alertIcon}
+                        {event.title}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
       
