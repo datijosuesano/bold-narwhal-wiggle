@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, User } from "lucide-react";
+import { CalendarIcon, Loader2, User, Tag, Factory } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -49,7 +49,6 @@ const AssetSchema = z.object({
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
-  expiryDate: z.date().optional().nullable(),
   purchaseCost: z.preprocess(
     (a) => (a === "" ? 0 : parseFloat(z.string().parse(a))),
     z.number().min(0)
@@ -78,7 +77,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       brand: "",
       manufacturer: "",
       location: "",
-      category: "",
+      category: "Imagerie",
       assignedTo: "none",
       imageUrl: "",
       manufacturingDate: new Date(),
@@ -115,7 +114,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         location: data.location,
         manufacturing_date: format(data.manufacturingDate, 'yyyy-MM-dd'),
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
-        expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
         purchase_cost: data.purchaseCost,
         category: data.category,
         image_url: data.imageUrl,
@@ -128,7 +126,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       console.error("Insert error:", error);
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess("Équipement ajouté !");
+      showSuccess("Équipement ajouté avec succès !");
       onSuccess();
     }
   };
@@ -141,9 +139,26 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           <ImageUpload onUpload={(url) => form.setValue("imageUrl", url)} />
         </FormItem>
 
-        <FormField control={form.control} name="name" render={({ field }) => (
-          <FormItem><FormLabel>Nom de l'équipement</FormLabel><FormControl><Input placeholder="Ex: Scanner portable" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
-        )} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField control={form.control} name="name" render={({ field }) => (
+            <FormItem><FormLabel>Nom de l'équipement</FormLabel><FormControl><Input placeholder="Ex: Scanner portable" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="category" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Catégorie</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="Imagerie">Imagerie</SelectItem>
+                  <SelectItem value="Laboratoire">Laboratoire</SelectItem>
+                  <SelectItem value="Bloc Opératoire">Bloc Opératoire</SelectItem>
+                  <SelectItem value="Dentaire">Dentaire</SelectItem>
+                  <SelectItem value="Autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )} />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="location" render={({ field }) => (
@@ -157,7 +172,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )} />
           <FormField control={form.control} name="assignedTo" render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable / Détenteur</FormLabel>
+              <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Non assigné" /></SelectTrigger></FormControl>
                 <SelectContent>
@@ -171,15 +186,24 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="brand" render={({ field }) => (
-            <FormItem><FormLabel>Marque</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Marque</FormLabel><FormControl><Input placeholder="Ex: Siemens" {...field} className="rounded-xl" /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="model" render={({ field }) => (
+            <FormItem><FormLabel>Modèle</FormLabel><FormControl><Input placeholder="Ex: Somatom" {...field} className="rounded-xl" /></FormControl></FormItem>
+          )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="manufacturer" render={({ field }) => (
+            <FormItem><FormLabel>Fabricant</FormLabel><FormControl><Input placeholder="Ex: Siemens Healthineers" {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="serialNumber" render={({ field }) => (
-            <FormItem><FormLabel>N° Série</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>N° Série</FormLabel><FormControl><Input placeholder="Ex: SN-12345" {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
 
         <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl h-20" /></FormControl></FormItem>
+          <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Détails techniques..." {...field} className="rounded-xl h-20" /></FormControl></FormItem>
         )} />
 
         <div className="grid grid-cols-2 gap-4">
