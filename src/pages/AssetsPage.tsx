@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ const AssetsPage: React.FC = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [equipments, setEquipments] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<{message: string, code?: string} | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchAssets = async () => {
     if (!user) return;
@@ -53,12 +53,13 @@ const AssetsPage: React.FC = () => {
 
       if (error) {
         console.error("Supabase error:", error);
-        setFetchError({ message: error.message, code: error.code });
+        setFetchError(error.message);
+        showError(`Erreur: ${error.message}`);
       } else {
         setEquipments(data || []);
       }
     } catch (err: any) {
-      setFetchError({ message: err.message });
+      setFetchError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -113,26 +114,12 @@ const AssetsPage: React.FC = () => {
       </div>
       
       {fetchError && (
-        <Card className="border-red-200 bg-red-50 p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="p-2 bg-red-100 rounded-full text-red-600">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-red-900">Erreur de chargement</h3>
-              <p className="text-sm text-red-700 mt-1">{fetchError.message}</p>
-              {fetchError.code && (
-                <p className="text-[10px] font-mono text-red-500 mt-2">Code erreur : {fetchError.code}</p>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={fetchAssets} 
-                className="mt-4 border-red-200 text-red-700 hover:bg-red-100 rounded-xl"
-              >
-                <RefreshCw className="mr-2 h-3 w-3" /> Réessayer
-              </Button>
-            </div>
+        <Card className="border-red-200 bg-red-50 p-4 flex items-center gap-3 text-red-800">
+          <AlertCircle className="h-5 w-5" />
+          <div>
+            <p className="font-bold">Impossible de charger les équipements</p>
+            <p className="text-xs">Détail technique : {fetchError}</p>
+            <p className="text-xs mt-1 italic">Note : Si l'erreur indique que la table 'assets' n'existe pas, elle doit être créée dans Supabase.</p>
           </div>
         </Card>
       )}
@@ -165,15 +152,14 @@ const AssetsPage: React.FC = () => {
               <tbody className="divide-y">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                      <p className="text-xs text-muted-foreground mt-2">Chargement des données...</p>
+                    <td colSpan={5} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
                     </td>
                   </tr>
                 ) : equipments.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-16 text-muted-foreground italic">
-                      {fetchError ? "Impossible de charger les données." : "Aucun équipement trouvé."}
+                    <td colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                      Aucun équipement trouvé.
                     </td>
                   </tr>
                 ) : filteredEquipments.map((item) => (
