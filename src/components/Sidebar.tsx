@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer, Shield } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer, Shield, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -44,18 +44,18 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const { user, role, signOut, hasRole } = useAuth();
 
   const navItems = [
-    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technician', 'secretary', 'user', 'stock_manager'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technician'] },
-    { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & CRM", roles: ['admin', 'secretary'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'stock_manager', 'technician'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'stock_manager'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail", roles: ['admin', 'technician', 'stock_manager'] },
-    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats", roles: ['admin', 'secretary'] },
-    { to: "/technicians", icon: <Users size={20} />, label: "Techniciens", roles: ['admin'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports", roles: ['admin', 'secretary', 'technician'] },
+    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien', 'secretaire', 'utilisateur', 'gestionnaire_stock'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien', 'secretaire'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien'] },
+    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technicien', 'secretaire'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien', 'secretaire'] },
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire_stock', 'technicien'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire_stock'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technicien', 'gestionnaire_stock'] },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
+    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretaire', 'technicien'] },
   ];
   
   return (
@@ -64,7 +64,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
         <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
         {user && (
           <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase tracking-tighter">
-            <Shield size={10} className="mr-1" /> {role}
+            <Shield size={10} className="mr-1" /> {role?.replace('_', ' ')}
           </Badge>
         )}
       </div>
@@ -86,14 +86,6 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
       </nav>
 
       <div className="pt-4 border-t border-sidebar-border space-y-2">
-        {user && (
-          <div className="px-2 mb-2">
-            <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 font-bold">Session active</p>
-            <p className="text-xs text-sidebar-foreground font-medium truncate" title={user.email || ''}>
-              {user.email}
-            </p>
-          </div>
-        )}
         <Button 
           onClick={signOut} 
           variant="secondary" 
@@ -135,7 +127,5 @@ const Sidebar: React.FC = () => {
     </aside>
   );
 };
-
-const FileText = ({ size }: { size: number }) => <ClipboardList size={size} />;
 
 export default Sidebar;

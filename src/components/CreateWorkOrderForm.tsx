@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,26 +29,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { WORK_ORDER_PRIORITY, MAINTENANCE_TYPES } from "@/utils/constants";
 
 const WorkOrderSchema = z.object({
-  title: z.string().min(5, {
-    message: "Le titre doit contenir au moins 5 caractères.",
-  }),
-  description: z.string().min(10, {
-    message: "La description est trop courte.",
-  }),
-  maintenanceType: z.enum(["Preventive", "Corrective", "Palliative", "Ameliorative"], {
-    required_error: "Le type de maintenance est requis.",
-  }),
-  priority: z.enum(["Low", "Medium", "High"], {
-    required_error: "La priorité est requise.",
-  }),
-  assetId: z.string().min(1, {
-    message: "Veuillez sélectionner un équipement.",
-  }),
-  dueDate: z.date({
-    required_error: "La date d'échéance est requise.",
-  }),
+  title: z.string().min(5, "Le titre doit contenir au moins 5 caractères."),
+  description: z.string().min(10, "La description doit être détaillée (10 car. min)."),
+  maintenanceType: z.enum(MAINTENANCE_TYPES),
+  priority: z.enum(WORK_ORDER_PRIORITY),
+  assetId: z.string().min(1, "Veuillez sélectionner un équipement."),
+  dueDate: z.date({ required_error: "La date d'échéance est requise." }),
 });
 
 type WorkOrderFormValues = z.infer<typeof WorkOrderSchema>;
@@ -56,15 +46,10 @@ interface CreateWorkOrderFormProps {
   onSuccess: () => void;
 }
 
-interface Asset {
-  id: string;
-  name: string;
-}
-
 const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [assets, setAssets] = React.useState<Asset[]>([]);
-  const [isAssetsLoading, setIsAssetsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
+  const [isAssetsLoading, setIsAssetsLoading] = useState(true);
   const { user } = useAuth();
 
   const form = useForm<WorkOrderFormValues>({
@@ -72,18 +57,17 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
     defaultValues: {
       title: "",
       description: "",
-      maintenanceType: "Preventive",
-      priority: "Medium",
+      maintenanceType: "Préventive",
+      priority: "Moyenne",
       assetId: "",
-      dueDate: undefined,
     },
   });
 
   useEffect(() => {
     const fetchAssets = async () => {
       setIsAssetsLoading(true);
-      const { data, error } = await supabase.from('assets').select('id, name').order('name');
-      if (!error) setAssets(data as Asset[]);
+      const { data } = await supabase.from('assets').select('id, name').order('name');
+      setAssets(data || []);
       setIsAssetsLoading(false);
     };
     fetchAssets();
@@ -101,7 +85,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
       priority: data.priority,
       asset_id: data.assetId,
       due_date: format(data.dueDate, 'yyyy-MM-dd'),
-      status: 'Open',
+      status: 'Ouvert',
     });
     
     setIsLoading(false);
@@ -110,8 +94,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
       showSuccess("Ordre de travail créé avec succès !");
       onSuccess();
     } else {
-      console.error("Erreur création OT:", error);
-      showError(`Erreur: ${error.message}`);
+      showError(`Erreur : ${error.message}`);
     }
   };
 
@@ -123,37 +106,24 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Titre de l'OT</FormLabel>
-              <FormControl><Input placeholder="Ex: Remplacement filtre" {...field} className="rounded-xl" /></FormControl>
+              <FormLabel>Objet de la demande</FormLabel>
+              <FormControl><Input placeholder="Ex : Révision annuelle autoclave" {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl><Textarea placeholder="Détails de l'intervention..." className="resize-none rounded-xl h-24" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="maintenanceType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Type</FormLabel>
+                <FormLabel>Type de Maintenance</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="Preventive">Préventive</SelectItem>
-                    <SelectItem value="Corrective">Corrective</SelectItem>
-                    <SelectItem value="Palliative">Palliative</SelectItem>
-                    <SelectItem value="Ameliorative">Améliorative</SelectItem>
+                    {MAINTENANCE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -165,13 +135,11 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             name="priority"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Priorité</FormLabel>
+                <FormLabel>Niveau de Priorité</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="Low">Basse</SelectItem>
-                    <SelectItem value="Medium">Moyenne</SelectItem>
-                    <SelectItem value="High">Haute</SelectItem>
+                    {WORK_ORDER_PRIORITY.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -179,14 +147,19 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             )}
           />
         </div>
+
         <FormField
           control={form.control}
           name="assetId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Équipement</FormLabel>
+              <FormLabel>Équipement concerné</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder={isAssetsLoading ? "Chargement..." : "Choisir un équipement"} /></SelectTrigger></FormControl>
+                <FormControl>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder={isAssetsLoading ? "Chargement..." : "Sélectionner un appareil"} />
+                  </SelectTrigger>
+                </FormControl>
                 <SelectContent>
                   {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
@@ -195,30 +168,47 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="dueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date d'échéance</FormLabel>
+              <FormLabel>Date d'échéance souhaitée</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir une date"}
+                      {field.value ? format(field.value, "dd MMMM yyyy", { locale: fr }) : "Choisir une date"}
                       <CalendarIcon size={16} className="opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} />
+                </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description détaillée du problème ou de l'action</FormLabel>
+              <FormControl><Textarea placeholder="Précisez les symptômes ou les points de contrôle..." className="resize-none rounded-xl h-24" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Créer l'Ordre de Travail"}
+            {isLoading ? <Loader2 className="animate-spin mr-2" /> : <ClipboardList className="mr-2 h-4 w-4" />}
+            Émettre l'Ordre de Travail
           </Button>
         </div>
       </form>
