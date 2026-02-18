@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Factory, Package, Info, MapPin } from "lucide-react";
+import { CalendarIcon, Loader2, Factory } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -16,10 +16,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -93,12 +91,16 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
   }, []);
 
   const onSubmit = async (data: AssetFormValues) => {
-    if (!user) return;
+    if (!user) {
+      showError("Session expirée, veuillez vous reconnecter.");
+      return;
+    }
     setIsLoading(true);
 
     try {
+      // On utilise systématiquement l'ID de l'utilisateur authentifié
       const { error } = await supabase.from('assets').insert({
-        user_id: user.id.includes('fake') ? null : user.id,
+        user_id: user.id,
         name: data.name,
         description: data.description,
         serial_number: data.serialNumber,
@@ -106,7 +108,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         brand: data.brand,
         manufacturer: data.manufacturer,
         location: data.location,
-        category: data.category, // Envoie maintenant la valeur technique (ex: 'laboratoire')
+        category: data.category,
         status: data.status,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         purchase_cost: data.purchaseCost,
@@ -118,7 +120,8 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       showSuccess(`Équipement "${data.name}" enregistré.`);
       onSuccess();
     } catch (error: any) {
-      showError(`Erreur : ${error.message}`);
+      console.error("Erreur d'insertion:", error);
+      showError(`Erreur de sécurité : ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -210,6 +213,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                     {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
                     <CalendarIcon size={16} className="opacity-50" />
                   </Button>
+                </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} /></PopoverContent>
               </Popover>
