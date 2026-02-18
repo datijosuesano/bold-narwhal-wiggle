@@ -98,7 +98,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
 
     try {
-      // On utilise systématiquement l'ID de l'utilisateur authentifié
       const { error } = await supabase.from('assets').insert({
         user_id: user.id,
         name: data.name,
@@ -209,11 +208,12 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
               <FormLabel>Mise en service</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                    {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
-                    <CalendarIcon size={16} className="opacity-50" />
-                  </Button>
-                </FormControl>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} /></PopoverContent>
               </Popover>
