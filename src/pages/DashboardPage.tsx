@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, Factory, AlertTriangle, FlaskConical, Clock, Users, TrendingUp } from "lucide-react";
+import { Wrench, Factory, AlertTriangle, FlaskConical, Clock, Users, TrendingUp, ClipboardList } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -61,7 +62,7 @@ const DashboardPage: React.FC = () => {
           brokenAssets: broken || 0,
           criticalReagents: critical,
           ordersByPriority: priorityCounts,
-          interventionsByTech: [] // À implémenter avec une jointure si nécessaire
+          interventionsByTech: [] 
         });
       } catch (error) {
         console.error("Erreur Dashboard:", error);
@@ -80,7 +81,7 @@ const DashboardPage: React.FC = () => {
       icon: <Clock className="h-5 w-5 text-red-600" />,
       color: "border-l-red-600",
       path: "/work-orders",
-      description: "Échéance dépassée et non clôturés"
+      description: "Échéance dépassée"
     },
     {
       title: "Équipements HS",
@@ -88,7 +89,7 @@ const DashboardPage: React.FC = () => {
       icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
       color: "border-l-amber-500",
       path: "/assets",
-      description: "Statut différent de 'Opérationnel'"
+      description: "Hors service"
     },
     {
       title: "Stocks Critiques",
@@ -96,7 +97,7 @@ const DashboardPage: React.FC = () => {
       icon: <FlaskConical className="h-5 w-5 text-purple-500" />,
       color: "border-l-purple-500",
       path: "/reagents",
-      description: "Réactifs sous le seuil d'alerte"
+      description: "Réactifs à commander"
     },
     {
       title: "Priorité Critique",
@@ -104,7 +105,7 @@ const DashboardPage: React.FC = () => {
       icon: <TrendingUp className="h-5 w-5 text-red-800" />,
       color: "border-l-red-900",
       path: "/work-orders",
-      description: "Demandes urgentes à traiter"
+      description: "Urgences signalées"
     }
   ];
 
@@ -112,8 +113,8 @@ const DashboardPage: React.FC = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-4xl font-black text-primary tracking-tight">GMAO BIOMÉDICALE</h1>
-          <p className="text-lg text-muted-foreground">État du parc et des opérations au {format(new Date(), 'dd MMMM yyyy', { locale: import('date-fns/locale').then(m => m.fr) as any })}</p>
+          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">GMAO BIOMÉDICALE</h1>
+          <p className="text-lg text-muted-foreground">État du parc au {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</p>
         </div>
       </div>
 
@@ -128,7 +129,7 @@ const DashboardPage: React.FC = () => {
             onClick={() => navigate(kpi.path)}
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-black uppercase text-muted-foreground">{kpi.title}</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{kpi.title}</CardTitle>
               {kpi.icon}
             </CardHeader>
             <CardContent>
@@ -142,22 +143,22 @@ const DashboardPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-xl border-none bg-slate-900 text-white">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench size={20} className="text-blue-400" /> Distribution des Priorités
+            <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+              <Wrench size={18} className="text-blue-400" /> Charge par Priorité
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {Object.entries(stats.ordersByPriority).map(([label, count]) => (
               <div key={label} className="space-y-1">
-                <div className="flex justify-between text-xs font-bold">
+                <div className="flex justify-between text-[10px] font-black uppercase">
                   <span>{label}</span>
                   <span>{count}</span>
                 </div>
                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <div 
                     className={cn(
-                      "h-full transition-all",
-                      label === 'Critique' ? 'bg-red-600' : label === 'Élevée' ? 'bg-amber-500' : 'bg-blue-500'
+                      "h-full transition-all duration-1000",
+                      label === 'Critique' ? 'bg-red-600' : label === 'Élevée' ? 'bg-red-400' : label === 'Moyenne' ? 'bg-amber-400' : 'bg-blue-500'
                     )}
                     style={{ width: `${(count / (Object.values(stats.ordersByPriority).reduce((a, b) => a + b, 0) || 1)) * 100}%` }}
                   />
@@ -169,18 +170,18 @@ const DashboardPage: React.FC = () => {
 
         <Card className="shadow-xl border-none">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users size={20} className="text-blue-600" /> Actions Rapides
+            <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+              <Users size={18} className="text-blue-600" /> Actions de l'Équipe
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            <Button onClick={() => navigate('/work-orders')} className="h-20 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-100 border-none flex flex-col gap-1">
-              <ClipboardList size={24} />
-              <span className="text-xs font-bold">Nouvel OT</span>
+            <Button onClick={() => navigate('/work-orders')} className="h-24 rounded-2xl bg-blue-50 text-blue-700 hover:bg-blue-100 border-none flex flex-col gap-2 transition-transform active:scale-95 shadow-sm">
+              <ClipboardList size={28} />
+              <span className="text-[10px] font-black uppercase">Ouvrir un OT</span>
             </Button>
-            <Button onClick={() => navigate('/interventions')} className="h-20 rounded-2xl bg-green-50 text-green-700 hover:bg-green-100 border-none flex flex-col gap-1">
-              <Wrench size={24} />
-              <span className="text-xs font-bold">Saisir Rapport</span>
+            <Button onClick={() => navigate('/interventions')} className="h-24 rounded-2xl bg-green-50 text-green-700 hover:bg-green-100 border-none flex flex-col gap-2 transition-transform active:scale-95 shadow-sm">
+              <Wrench size={28} />
+              <span className="text-[10px] font-black uppercase">Saisir Rapport</span>
             </Button>
           </CardContent>
         </Card>
