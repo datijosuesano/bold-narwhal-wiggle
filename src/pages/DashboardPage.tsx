@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench, Factory, Clock, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
-} from 'recharts';
 import PerformanceDashboard from "@/components/PerformanceDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     openOrders: 0,
     brokenAssets: 0,
@@ -28,19 +27,16 @@ const DashboardPage: React.FC = () => {
         const { count: openOrders } = await supabase
           .from('work_orders')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
           .neq('status', 'Completed');
 
         const { count: brokenAssets } = await supabase
           .from('assets')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
           .eq('status', 'En Panne');
 
         const { count: totalAssets } = await supabase
           .from('assets')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+          .select('*', { count: 'exact', head: true });
 
         setStats({
           openOrders: openOrders || 0,
@@ -58,6 +54,41 @@ const DashboardPage: React.FC = () => {
     fetchStats();
   }, [user]);
 
+  const kpis = [
+    {
+      title: "OT Ouverts",
+      value: stats.openOrders,
+      icon: <Wrench className="h-5 w-5 text-blue-500" />,
+      color: "border-l-blue-500",
+      path: "/work-orders",
+      textColor: "text-foreground"
+    },
+    {
+      title: "En Panne",
+      value: stats.brokenAssets,
+      icon: <AlertTriangle className="h-5 w-5 text-red-500" />,
+      color: "border-l-red-500",
+      path: "/assets",
+      textColor: "text-red-600"
+    },
+    {
+      title: "Total Actifs",
+      value: stats.totalAssets,
+      icon: <Factory className="h-5 w-5 text-amber-500" />,
+      color: "border-l-amber-500",
+      path: "/assets",
+      textColor: "text-foreground"
+    },
+    {
+      title: "Disponibilité",
+      value: `${stats.availability.toFixed(1)}%`,
+      icon: <TrendingUp className="h-5 w-5 text-green-500" />,
+      color: "border-l-green-500",
+      path: "/reports",
+      textColor: "text-foreground"
+    }
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -68,45 +99,28 @@ const DashboardPage: React.FC = () => {
       <PerformanceDashboard />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-lg border-l-4 border-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">OT Ouverts</CardTitle>
-            <Wrench className="h-5 w-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Loader2 className="animate-spin" /> : <div className="text-3xl font-bold">{stats.openOrders}</div>}
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg border-l-4 border-red-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">En Panne</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Loader2 className="animate-spin" /> : <div className="text-3xl font-bold text-red-600">{stats.brokenAssets}</div>}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-amber-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Total Actifs</CardTitle>
-            <Factory className="h-5 w-5 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Loader2 className="animate-spin" /> : <div className="text-3xl font-bold">{stats.totalAssets}</div>}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-green-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Disponibilité</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Loader2 className="animate-spin" /> : <div className="text-3xl font-bold">{stats.availability.toFixed(1)}%</div>}
-          </CardContent>
-        </Card>
+        {kpis.map((kpi, index) => (
+          <Card 
+            key={index} 
+            className={cn(
+              "shadow-lg border-l-4 cursor-pointer transition-all hover:scale-[1.03] hover:shadow-xl active:scale-95", 
+              kpi.color
+            )}
+            onClick={() => navigate(kpi.path)}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium uppercase text-muted-foreground">{kpi.title}</CardTitle>
+              {kpi.icon}
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <div className={cn("text-3xl font-bold", kpi.textColor)}>{kpi.value}</div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
