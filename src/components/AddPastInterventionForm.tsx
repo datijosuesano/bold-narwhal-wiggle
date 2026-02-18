@@ -119,7 +119,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
       if (error) throw error;
 
-      // Gestion du stock si une pièce a été utilisée
+      // Gestion du stock si une pièce a été utilisée (uniquement en création)
       if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
         const selectedPart = spareParts.find(p => p.id === data.partId);
         if (selectedPart) {
@@ -128,11 +128,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         }
       }
 
-      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée !");
+      showSuccess(initialData?.id ? "Intervention mise à jour !" : "Intervention enregistrée avec succès !");
       onSuccess();
     } catch (err: any) {
       console.error("[AddPastInterventionForm] Erreur:", err);
-      showError(`Erreur: ${err.message || "Impossible d'enregistrer"}`);
+      showError(`Erreur: ${err.message || "Impossible d'enregistrer l'intervention"}`);
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +182,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         <FormField control={form.control} name="title" render={({ field }) => (
           <FormItem>
             <FormLabel>Objet de l'intervention</FormLabel>
-            <FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" /></FormControl>
+            <FormControl><Input placeholder="Ex: Réparation pompe à vide" {...field} className="rounded-xl" /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
@@ -267,10 +267,14 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
           </FormItem>
         )} />
 
-        <div className="sticky bottom-0 bg-background pt-2">
-          <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 font-bold shadow-lg" disabled={isLoading}>
+        <div className="sticky bottom-0 bg-background pt-2 pb-1">
+          <Button 
+            type="submit" 
+            className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 font-bold shadow-lg transition-all active:scale-95" 
+            disabled={isLoading}
+          >
             {isLoading ? (
-              <><Loader2 className="animate-spin mr-2" /> Enregistrement...</>
+              <><Loader2 className="animate-spin mr-2" /> Enregistrement en cours...</>
             ) : (
               <>{initialData ? <Save className="mr-2" /> : <CheckCircle2 className="mr-2" />} {initialData ? "Sauvegarder les modifications" : "Enregistrer l'intervention"}</>
             )}
