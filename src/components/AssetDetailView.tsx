@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, Image as ImageIcon } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -22,9 +22,11 @@ interface Asset {
   brand?: string;
   manufacturer: string;
   commissioningDate: Date;
+  expiryDate?: Date | null;
   purchaseCost: number;
   image_url?: string;
   assigned_to?: string | null;
+  description?: string;
 }
 
 interface AssetDetailViewProps {
@@ -97,18 +99,44 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
         </div>
 
         <TabsContent value="details" className="space-y-6">
-          <Card className="shadow-lg border-l-4 border-blue-600">
-            <CardHeader><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Responsabilité</CardTitle></CardHeader>
-            <CardContent className="flex items-center text-lg font-bold">
-              <User size={24} className="mr-3 text-blue-600" />
-              {assigneeName ? (
-                <div className="flex flex-col">
-                  <span>{assigneeName}</span>
-                  <span className="text-xs font-normal text-muted-foreground">Actuellement en possession de cet équipement</span>
-                </div>
-              ) : (
-                <span className="text-muted-foreground italic font-normal text-sm">Aucun technicien affecté à ce matériel</span>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="shadow-lg border-l-4 border-blue-600">
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Responsabilité</CardTitle></CardHeader>
+              <CardContent className="flex items-center text-lg font-bold">
+                <User size={24} className="mr-3 text-blue-600" />
+                {assigneeName ? (
+                  <div className="flex flex-col">
+                    <span>{assigneeName}</span>
+                    <span className="text-xs font-normal text-muted-foreground">Technicien assigné</span>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground italic font-normal text-sm">Non assigné</span>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg border-l-4 border-purple-600">
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Fin de vie / Garantie</CardTitle></CardHeader>
+              <CardContent className="flex items-center text-lg font-bold">
+                <AlertTriangle size={24} className="mr-3 text-purple-600" />
+                {asset.expiryDate ? (
+                  <div className="flex flex-col">
+                    <span>{format(asset.expiryDate, 'dd MMMM yyyy', { locale: fr })}</span>
+                    <span className="text-xs font-normal text-muted-foreground">Échéance prévue</span>
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground italic font-normal text-sm">Non renseigné</span>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-md">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground flex items-center"><FileText size={16} className="mr-2" /> Description / Notes</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                {asset.description || "Aucune description détaillée."}
+              </p>
             </CardContent>
           </Card>
 

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Factory } from "lucide-react";
+import { CalendarIcon, Loader2, Factory, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -45,7 +46,8 @@ const AssetSchema = z.object({
   status: z.string().min(1, "Le statut est requis"),
   assignedTo: z.string().optional().nullable().default("none"),
   imageUrl: z.string().optional().default(""),
-  commissioningDate: z.date({ required_error: "La date est requise" }),
+  commissioningDate: z.date({ required_error: "La date de mise en service est requise" }),
+  expiryDate: z.date().optional().nullable(),
   purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
 });
 
@@ -76,6 +78,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       assignedTo: "none",
       imageUrl: "",
       commissioningDate: new Date(),
+      expiryDate: null,
       purchaseCost: 0,
     },
   });
@@ -110,6 +113,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         category: data.category,
         status: data.status,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
+        expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
         purchase_cost: data.purchaseCost,
         image_url: data.imageUrl || null,
         assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
@@ -120,7 +124,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       onSuccess();
     } catch (error: any) {
       console.error("Erreur d'insertion:", error);
-      showError(`Erreur de sécurité : ${error.message}`);
+      showError(`Erreur : ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +141,15 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
+          
+          <FormField control={form.control} name="description" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description / Remarques</FormLabel>
+              <FormControl><Textarea {...field} className="rounded-xl resize-none h-20" placeholder="Informations complémentaires..." /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
           <div className="grid grid-cols-2 gap-4">
             <FormField control={form.control} name="brand" render={({ field }) => (
               <FormItem><FormLabel>Marque</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
@@ -215,14 +228,33 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} /></PopoverContent>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} /></PopoverContent>
               </Popover>
+              <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="purchaseCost" render={({ field }) => (
-            <FormItem><FormLabel>Coût (FCFA)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl font-bold" /></FormControl></FormItem>
+          <FormField control={form.control} name="expiryDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Fin de garantie / Vie</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Aucune"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} /></PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
+
+        <FormField control={form.control} name="purchaseCost" render={({ field }) => (
+          <FormItem><FormLabel>Coût d'achat (FCFA)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl font-bold" /></FormControl></FormItem>
+        )} />
 
         <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xl h-14 text-lg font-black uppercase" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Factory className="mr-2 h-5 w-5" />}
