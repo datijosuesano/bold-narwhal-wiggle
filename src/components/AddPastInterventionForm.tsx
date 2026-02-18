@@ -53,7 +53,7 @@ interface AddPastInterventionFormProps {
 
 const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ assetId, initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [spareParts, setSpareParts] = useState<{id: string, name: string, current_stock: number}[]>([]);
+  const [spareParts, setSpareParts] = useState<{id: string, name: string, current_stock: number, purchase_cost: number}[]>([]);
   const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
   const [technicians, setTechnicians] = useState<{id: string, first_name: string, last_name: string}[]>([]);
   const { user } = useAuth();
@@ -75,9 +75,12 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     },
   });
 
+  const watchPartId = form.watch("partId");
+  const watchPartQuantity = form.watch("partQuantity");
+
   useEffect(() => {
     const fetchData = async () => {
-      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock');
+      const { data: parts } = await supabase.from('spare_parts').select('id, name, current_stock, purchase_cost');
       setSpareParts(parts || []);
       
       const { data: assetList } = await supabase.from('assets').select('id, name').order('name');
@@ -88,6 +91,24 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
     };
     fetchData();
   }, []);
+
+  // Calcul automatique du coût des pièces
+  useEffect(() => {
+    if (watchPartId && watchPartId !== "none" && watchPartQuantity > 0) {
+      const part = spareParts.find(p => p.id === watchPartId);
+      if (part) {
+        const calculatedCost = part.purchase_cost * watchPartQuantity;
+        form.setValue("partsCost", calculatedCost);
+        // On suggère aussi de mettre à jour le coût total si celui-ci est à 0
+        if (form.getValues("totalCost") === 0) {
+          form.setValue("totalCost", calculatedCost);
+        }
+      }
+    } else if (watchPartId === "none") {
+      form.setValue("partsCost", 0);
+      form.setValue("partQuantity", 0);
+    }
+  }, [watchPartId, watchPartQuantity, spareParts, form]);
 
   const onSubmit = async (data: InterventionFormValues) => {
     setIsLoading(true);
@@ -117,6 +138,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
       if (error) throw error;
 
+      // Décrémentation du stock si une pièce est utilisée
       if (!initialData?.id && data.partId && data.partId !== "none" && data.partQuantity > 0) {
         const selectedPart = spareParts.find(p => p.id === data.partId);
         if (selectedPart) {
@@ -192,14 +214,40 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
           )} />
         </div>
 
+        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
+          <div className="flex items-center text-sm font-bold text-blue-700"><Package size={16} className="mr-2" /> Pièces de Rechange</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField control={form.control} name="partId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sélectionner la pièce</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Aucune" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">-- Aucune pièce --</SelectItem>
+                    {spareParts.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.purchase_cost} FCFA)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="partQuantity" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quantité utilisée</FormLabel>
+                <FormControl><Input type="number" {...field} className="rounded-xl" disabled={watchPartId === "none"} /></FormControl>
+              </FormItem>
+            )} />
+          </div>
+        </div>
+
         <div className="p-4 bg-muted/30 border rounded-xl space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center text-sm font-bold text-primary"><Package size={16} className="mr-2" /> Coûts</div>
+            <div className="flex items-center text-sm font-bold text-primary"><DollarSign size={16} className="mr-2" /> Récapitulatif Financier</div>
             <div className="flex gap-4">
               <FormField control={form.control} name="partsCost" render={({ field }) => (
                 <FormItem className="flex items-center space-x-2 space-y-0">
                   <FormLabel className="text-xs font-medium">Pièces (FCFA)</FormLabel>
-                  <FormControl><Input type="number" {...field} className="rounded-lg h-8 w-24 text-xs font-bold" /></FormControl>
+                  <FormControl><Input type="number" {...field} className="rounded-lg h-8 w-24 text-xs font-bold bg-blue-50" readOnly /></FormControl>
                 </FormItem>
               )} />
               <FormField control={form.control} name="totalCost" render={({ field }) => (

@@ -4,7 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Box } from "lucide-react";
+import { Loader2, Box, DollarSign } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ const PartSchema = z.object({
   reference: z.string().min(3, "La référence est requise"),
   quantity: z.coerce.number().min(0, "Le stock doit être positif"),
   minQuantity: z.coerce.number().min(0, "Le seuil doit être positif"),
+  purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
   location: z.string().min(1, "La localisation est requise"),
   category: z.string().min(1, "La catégorie est requise"),
 });
@@ -46,6 +47,7 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       reference: "", 
       quantity: 0, 
       minQuantity: 1, 
+      purchaseCost: 0,
       location: "Magasin Central", 
       category: "Mécanique" 
     },
@@ -61,6 +63,7 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       reference: data.reference,
       current_stock: data.quantity,
       min_stock: data.minQuantity,
+      purchase_cost: data.purchaseCost,
       location: data.location,
       category: data.category
     });
@@ -97,12 +100,15 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
           )} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <FormField control={form.control} name="quantity" render={({ field }) => (
-            <FormItem><FormLabel>Stock Actuel</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="minQuantity" render={({ field }) => (
-            <FormItem><FormLabel>Seuil Alerte</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Seuil</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="purchaseCost" render={({ field }) => (
+            <FormItem><FormLabel>Prix (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
         </div>
 

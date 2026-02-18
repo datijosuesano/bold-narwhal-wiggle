@@ -24,6 +24,7 @@ const PartSchema = z.object({
   reference: z.string().min(3, "La référence est requise"),
   quantity: z.coerce.number().min(0, "Le stock doit être positif"),
   minQuantity: z.coerce.number().min(0, "Le seuil doit être positif"),
+  purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
   location: z.string().min(1, "La localisation est requise"),
   category: z.string().min(1, "La catégorie est requise"),
 });
@@ -36,6 +37,7 @@ interface Part {
   reference: string;
   current_stock: number;
   min_stock: number;
+  purchase_cost?: number;
   location: string;
   category: string;
 }
@@ -55,6 +57,7 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
       reference: part.reference, 
       quantity: part.current_stock, 
       minQuantity: part.min_stock, 
+      purchaseCost: part.purchase_cost || 0,
       location: part.location || "", 
       category: part.category || "" 
     },
@@ -70,6 +73,7 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
         reference: data.reference,
         current_stock: data.quantity,
         min_stock: data.minQuantity,
+        purchase_cost: data.purchaseCost,
         location: data.location,
         category: data.category
       })
@@ -90,61 +94,37 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Désignation</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="reference" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Référence</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
         
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="category" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Catégorie</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Catégorie</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="location" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Emplacement / Casier</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Emplacement</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <FormField control={form.control} name="quantity" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stock Actuel</FormLabel>
-              <FormControl><Input type="number" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="minQuantity" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Seuil Alerte</FormLabel>
-              <FormControl><Input type="number" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Seuil</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="purchaseCost" render={({ field }) => (
+            <FormItem><FormLabel>Prix (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
         </div>
 
         <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
-          {isLoading ? (
-            <><Loader2 className="animate-spin mr-2" /> Mise à jour...</>
-          ) : (
-            <><Save className="mr-2" size={18} /> Sauvegarder les modifications</>
-          )}
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
+          Sauvegarder les modifications
         </Button>
       </form>
     </Form>
