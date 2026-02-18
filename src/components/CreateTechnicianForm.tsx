@@ -30,8 +30,8 @@ const TechnicianSchema = z.object({
   first_name: z.string().min(2, "Le prénom est requis"),
   last_name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Email invalide"),
-  phone: z.string().min(10, "Numéro de téléphone invalide"),
-  specialty: z.string().min(1, "Veuillez sélectionner une spécialité"),
+  telephone: z.string().min(10, "Numéro de téléphone invalide"),
+  specialite: z.string().min(1, "Veuillez sélectionner une spécialité"),
 });
 
 type TechnicianFormValues = z.infer<typeof TechnicianSchema>;
@@ -49,8 +49,8 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
       first_name: "",
       last_name: "",
       email: "",
-      phone: "",
-      specialty: "Polyvalent",
+      telephone: "",
+      specialite: "Polyvalent",
     },
   });
 
@@ -63,10 +63,10 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
-        phone: data.phone,
-        specialty: data.specialty,
-        role: 'technician', // Forcé à technicien
-        status: 'Available'
+        telephone: data.telephone,
+        specialite: data.specialite,
+        role: 'technician',
+        status: 'Disponible'
       });
 
     setIsLoading(false);
@@ -123,7 +123,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="phone"
+            name="telephone"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Téléphone</FormLabel>
@@ -134,7 +134,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           />
           <FormField
             control={form.control}
-            name="specialty"
+            name="specialite"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Spécialité</FormLabel>
