@@ -26,22 +26,12 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 
-const CREATABLE_ROLES: { value: string, label: string }[] = [
-  { value: 'technician', label: 'Technicien' },
-  { value: 'stock_manager', label: 'Gestionnaire de Stock' },
-  { value: 'secretary', label: 'Secrétaire' },
-  { value: 'user', label: 'Utilisateur Standard' },
-];
-
 const TechnicianSchema = z.object({
   first_name: z.string().min(2, "Le prénom est requis"),
   last_name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Email invalide"),
   phone: z.string().min(10, "Numéro de téléphone invalide"),
   specialty: z.string().min(1, "Veuillez sélectionner une spécialité"),
-  role: z.enum(['technician', 'stock_manager', 'secretary', 'user'], {
-    required_error: "Le rôle est requis.",
-  }),
 });
 
 type TechnicianFormValues = z.infer<typeof TechnicianSchema>;
@@ -60,8 +50,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
       last_name: "",
       email: "",
       phone: "",
-      specialty: "",
-      role: 'technician',
+      specialty: "Polyvalent",
     },
   });
 
@@ -76,7 +65,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
         email: data.email,
         phone: data.phone,
         specialty: data.specialty,
-        role: data.role,
+        role: 'technician', // Forcé à technicien
         status: 'Available'
       });
 
@@ -93,7 +82,7 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -145,20 +134,22 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           />
           <FormField
             control={form.control}
-            name="role"
+            name="specialty"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Rôle</FormLabel>
+                <FormLabel>Spécialité</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Sélectionner un rôle" />
+                      <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {CREATABLE_ROLES.map(r => (
-                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                    ))}
+                    <SelectItem value="Biomédical">Biomédical</SelectItem>
+                    <SelectItem value="Electricien">Electricien</SelectItem>
+                    <SelectItem value="Frigoriste">Frigoriste</SelectItem>
+                    <SelectItem value="Plombier">Plombier</SelectItem>
+                    <SelectItem value="Polyvalent">Polyvalent</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -167,37 +158,10 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="specialty"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Spécialité</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Sélectionner" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Biomédical">Biomédical</SelectItem>
-                  <SelectItem value="Electricien">Electricien</SelectItem>
-                  <SelectItem value="Frigoriste">Frigoriste</SelectItem>
-                  <SelectItem value="Plombier">Plombier</SelectItem>
-                  <SelectItem value="Polyvalent">Polyvalent</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <UserPlus className="mr-2" size={18} />}
-            Créer le Technicien
-          </Button>
-        </div>
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <UserPlus className="mr-2" size={18} />}
+          Créer le Technicien
+        </Button>
       </form>
     </Form>
   );

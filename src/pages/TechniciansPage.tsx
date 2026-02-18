@@ -27,6 +27,7 @@ const TechniciansPage: React.FC = () => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
+      .eq('role', 'technician') // Filtrage par rôle technicien
       .order('last_name', { ascending: true });
 
     if (error) {
