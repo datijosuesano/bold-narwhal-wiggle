@@ -15,8 +15,15 @@ export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
 export const ASSET_STATUS = ["Opérationnel", "En panne", "En maintenance", "Réformé"] as const;
 export const STATUTS_ASSET = ASSET_STATUS;
 
-// Catégories des équipements
-export const ASSET_CATEGORIES = ["Imagerie", "Laboratoire", "Bloc Opératoire", "Dentaire", "Stérilisation", "Autre"] as const;
+// Catégories des équipements (Utilisé dans les Select)
+export const ASSET_CATEGORIES = [
+  "Imagerie", 
+  "Laboratoire", 
+  "Bloc Opératoire", 
+  "Dentaire", 
+  "Stérilisation", 
+  "Autre"
+] as const;
 export const CATEGORIES_ASSET = ASSET_CATEGORIES;
 
 // Statuts des Ordres de Travail
