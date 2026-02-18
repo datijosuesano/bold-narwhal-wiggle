@@ -14,6 +14,14 @@ export const ASSET_CATEGORIES = [
 
 export const ASSET_STATUS = ["Opérationnel", "En panne", "En maintenance", "Réformé"] as const;
 
+// Priorités
 export const PRIORITES = ["Faible", "Moyenne", "Élevée", "Critique"] as const;
-export const MAINTENANCE_TYPES = ["Préventive", "Corrective", "Curative", "Palliative", "Améliorative"] as const;
+export const WORK_ORDER_PRIORITY = PRIORITES;
+
+// Types de maintenance
+export const TYPES_MAINTENANCE = ["Préventive", "Corrective", "Curative", "Palliative", "Améliorative"] as const;
+export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
+
+// Statuts des Ordres de Travail
 export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "Terminé", "Annulé"] as const;
+export const WORK_ORDER_STATUS = STATUTS_WORK_ORDER;
