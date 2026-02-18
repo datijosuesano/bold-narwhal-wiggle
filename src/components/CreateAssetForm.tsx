@@ -64,8 +64,17 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
     resolver: zodResolver(AssetSchema),
     defaultValues: {
       name: "",
+      description: "",
+      serialNumber: "",
+      model: "",
+      brand: "",
+      manufacturer: "",
+      location: "",
       category: "Imagerie",
       status: "Opérationnel",
+      assignedTo: "none",
+      imageUrl: "",
+      commissioningDate: new Date(),
       purchaseCost: 0,
     },
   });
