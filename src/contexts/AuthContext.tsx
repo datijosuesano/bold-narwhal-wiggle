@@ -19,49 +19,60 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole>('user'); // Rôle par défaut sécurisé
+  const [role, setRole] = useState<UserRole>('user'); 
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSessionAndRole = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-
-      if (currentSession?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentSession.user.id)
-          .single();
-        
-        if (profile?.role) {
-          setRole(profile.role as UserRole);
-        }
+  const fetchRole = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && profile?.role) {
+        return profile.role as UserRole;
       }
-      setIsLoading(false);
+    } catch (e) {
+      console.error("Erreur récupération rôle:", e);
+    }
+    return 'user' as UserRole;
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          const userRole = await fetchRole(currentSession.user.id);
+          setRole(userRole);
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    fetchSessionAndRole();
+    initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentSession.user.id)
-          .single();
-        
-        if (profile?.role) {
-          setRole(profile.role as UserRole);
-        }
+        const userRole = await fetchRole(currentSession.user.id);
+        setRole(userRole);
       } else {
         setRole('user');
       }
-      setIsLoading(false);
+      
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+        setIsLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -73,7 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasRole = (roles: UserRole[]) => {
-    // Si l'utilisateur est admin, il a accès à tout
     if (role === 'admin') return true;
     return roles.includes(role);
   };
@@ -81,7 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground animate-pulse">Initialisation de la session...</p>
+        </div>
       </div>
     );
   }
