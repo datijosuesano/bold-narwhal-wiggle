@@ -31,8 +31,9 @@ const TechnicianSchema = z.object({
   first_name: z.string().min(2, "Le prénom est requis"),
   last_name: z.string().min(2, "Le nom est requis"),
   email: z.string().email("Email invalide"),
-  phone: z.string().min(10, "Numéro de téléphone invalide"),
-  specialty: z.string().min(1, "Veuillez sélectionner une spécialité"),
+  telephone: z.string().min(10, "Numéro de téléphone invalide"),
+  specialite: z.string().min(1, "Veuillez sélectionner une spécialité"),
+  role: z.string().min(1, "Le rôle est requis"),
 });
 
 type TechnicianFormValues = z.infer<typeof TechnicianSchema>;
@@ -55,8 +56,9 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
       first_name: firstName,
       last_name: lastName,
       email: technician.email === 'N/A' ? '' : technician.email,
-      phone: technician.phone === 'N/A' ? '' : technician.phone,
-      specialty: technician.specialty,
+      telephone: technician.phone === 'N/A' ? '' : technician.phone,
+      specialite: technician.specialty,
+      role: 'technician',
     },
   });
 
@@ -69,8 +71,9 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
-        phone: data.phone,
-        specialty: data.specialty,
+        telephone: data.telephone,
+        specialite: data.specialite,
+        role: data.role,
       })
       .eq('id', technician.id);
 
@@ -79,7 +82,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Profil mis à jour.`);
+      showSuccess(`Profil de ${data.first_name} mis à jour.`);
       onSuccess();
     }
   };
@@ -126,7 +129,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
           />
           <FormField
             control={form.control}
-            name="phone"
+            name="telephone"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Téléphone</FormLabel>
@@ -137,33 +140,57 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="specialty"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Spécialité</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Sélectionner" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Biomédical">Biomédical</SelectItem>
-                  <SelectItem value="Electricien">Electricien</SelectItem>
-                  <SelectItem value="Frigoriste">Frigoriste</SelectItem>
-                  <SelectItem value="Plombier">Plombier</SelectItem>
-                  <SelectItem value="Polyvalent">Polyvalent</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="specialite"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Spécialité</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Biomédical">Biomédical</SelectItem>
+                    <SelectItem value="Electricien">Electricien</SelectItem>
+                    <SelectItem value="Frigoriste">Frigoriste</SelectItem>
+                    <SelectItem value="Plombier">Plombier</SelectItem>
+                    <SelectItem value="Polyvalent">Polyvalent</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Niveau d'accès</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="technician">Technicien</SelectItem>
+                    <SelectItem value="admin">Administrateur</SelectItem>
+                    <SelectItem value="secretaire">Secrétaire</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isLoading}>
             {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
             Enregistrer les modifications
           </Button>
