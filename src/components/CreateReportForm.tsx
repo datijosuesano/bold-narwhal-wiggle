@@ -30,8 +30,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const ReportSchema = z.object({
   type: z.enum(["Intervention", "Mission"]),
-  title: z.string().min(5, "Titre trop court (5 car. min)"),
-  client: z.string().min(1, "Veuillez sélectionner un client"),
+  title: z.string().min(5, "Titre trop court"),
+  client: z.string().min(1, "Client requis"),
   technician: z.string().min(1, "Technicien requis"),
   content: z.string().min(10, "Contenu requis"),
   date: z.string(),
@@ -41,13 +41,12 @@ type ReportFormValues = z.infer<typeof ReportSchema>;
 
 interface CreateReportFormProps {
   onSuccess: () => void;
-  initialData?: any; // Pour lier à une intervention
+  initialData?: any;
 }
 
 const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
-  const [isClientsLoading, setIsClientsLoading] = useState(true);
   const { user } = useAuth();
 
   const form = useForm<ReportFormValues>({
@@ -64,10 +63,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
 
   useEffect(() => {
     const fetchClients = async () => {
-      setIsClientsLoading(true);
       const { data } = await supabase.from('clients').select('id, name').order('name');
       setClients(data || []);
-      setIsClientsLoading(false);
     };
     fetchClients();
   }, []);
@@ -76,119 +73,34 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
     if (!user) return;
     setIsLoading(true);
     const { error } = await supabase.from('reports').insert({
-      user_id: user.id.includes('fake') ? null : user.id,
+      user_id: user.id,
       title: data.title,
       type: data.type,
-      client: data.client,
-      technician: data.technician,
       content: data.content,
       date: data.date,
-      status: 'Draft'
+      status: 'Brouillon'
     });
     setIsLoading(false);
     if (!error) {
-      showSuccess("Rapport généré avec succès ! Retrouvez-le dans l'onglet Rapports.");
+      showSuccess("Rapport généré !");
       onSuccess();
     } else {
-      showError("Erreur lors de la génération du rapport");
+      showError(`Erreur: ${error.message}`);
     }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type de Document</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="Intervention">Intervention</SelectItem>
-                    <SelectItem value="Mission">Mission</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date</FormLabel>
-                <FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="client"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Client / Site concerné</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Sélectionner un client"} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Objet du rapport</FormLabel>
-              <FormControl><Input placeholder="Ex: Maintenance annuelle..." {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="technician"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Intervenant (Signature)</FormLabel>
-              <FormControl><Input placeholder="Nom du technicien..." {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="content"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Corps du rapport</FormLabel>
-              <FormControl><Textarea placeholder="Actions réalisées..." className="rounded-xl min-h-[150px] resize-none" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg" disabled={isLoading || isClientsLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Finaliser le Rapport</>}
-          </Button>
-        </div>
+        <FormField control={form.control} name="title" render={({ field }) => (
+          <FormItem><FormLabel>Objet du rapport</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+        )} />
+        <FormField control={form.control} name="content" render={({ field }) => (
+          <FormItem><FormLabel>Corps du rapport</FormLabel><FormControl><Textarea className="rounded-xl min-h-[150px]" {...field} /></FormControl><FormMessage /></FormItem>
+        )} />
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : <><FileCheck className="mr-2 h-4 w-4" /> Finaliser</>}
+        </Button>
       </form>
     </Form>
   );
