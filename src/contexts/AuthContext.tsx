@@ -19,21 +19,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole>('admin'); // Par défaut admin pour faciliter le retour
+  const [role, setRole] = useState<UserRole>('user'); // Rôle par défaut sécurisé
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    const fetchSessionAndRole = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (currentSession?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentSession.user.id)
+          .single();
+        
+        if (profile?.role) {
+          setRole(profile.role as UserRole);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    fetchSessionAndRole();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentSession.user.id)
+          .single();
+        
+        if (profile?.role) {
+          setRole(profile.role as UserRole);
+        }
+      } else {
+        setRole('user');
+      }
       setIsLoading(false);
     });
 
@@ -46,8 +73,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasRole = (roles: UserRole[]) => {
-    // Pour l'instant, on autorise tout si l'utilisateur est connecté
-    return !!user;
+    // Si l'utilisateur est admin, il a accès à tout
+    if (role === 'admin') return true;
+    return roles.includes(role);
   };
 
   if (isLoading) {
