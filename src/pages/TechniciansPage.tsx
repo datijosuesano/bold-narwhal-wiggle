@@ -24,22 +24,22 @@ const TechniciansPage: React.FC = () => {
 
   const fetchTechnicians = async () => {
     setIsLoading(true);
+    // On récupère tous les profils pour permettre à l'admin d'attribuer les rôles
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'technician') // Filtrage par rôle technicien
       .order('last_name', { ascending: true });
 
     if (error) {
-      showError("Erreur lors du chargement des techniciens.");
+      showError("Erreur lors du chargement des profils.");
     } else {
       const mapped: Technician[] = (data || []).map(p => ({
         id: p.id,
         name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sans nom',
-        specialty: p.specialty || 'Polyvalent',
+        specialty: p.specialite || 'Non défini', // Colonne correcte: specialite
         status: p.status || 'Available',
         activeOrders: 0,
-        phone: p.phone || 'N/A',
+        phone: p.telephone || 'N/A', // Colonne correcte: telephone
         email: p.email || 'N/A'
       }));
       setTechnicians(mapped);
@@ -84,7 +84,7 @@ const TechniciansPage: React.FC = () => {
       if (error) {
         showError("Erreur lors de la suppression.");
       } else {
-        showSuccess(`Technicien ${selectedTech.name} supprimé.`);
+        showSuccess(`Profil de ${selectedTech.name} supprimé.`);
         fetchTechnicians();
       }
       setIsDeleteOpen(false);
@@ -100,21 +100,21 @@ const TechniciansPage: React.FC = () => {
             <Users className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Nos Techniciens</h1>
-            <p className="text-lg text-muted-foreground">Équipe technique et gestion des accès.</p>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Utilisateurs & Techniciens</h1>
+            <p className="text-lg text-muted-foreground">Gérez les accès et les spécialités de votre équipe.</p>
           </div>
         </div>
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <UserPlus className="mr-2 h-4 w-4" /> Nouveau Technicien
+              <UserPlus className="mr-2 h-4 w-4" /> Nouveau Compte
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Nouveau Compte Technicien</DialogTitle>
-              <DialogDescription>Enregistrez un nouvel intervenant dans l'équipe.</DialogDescription>
+              <DialogTitle className="text-2xl font-bold">Ajouter un Intervenant</DialogTitle>
+              <DialogDescription>Note: Le technicien doit d'abord s'inscrire via la page Register.</DialogDescription>
             </DialogHeader>
             <CreateTechnicianForm onSuccess={() => { setIsCreateOpen(false); fetchTechnicians(); }} />
           </DialogContent>
@@ -124,12 +124,12 @@ const TechniciansPage: React.FC = () => {
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="shadow-lg border-l-4 border-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Effectif Technique</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Total Comptes</CardTitle>
             <Users className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : `${technicians.length} Intervenants`}
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : `${technicians.length} Profils`}
             </div>
           </CardContent>
         </Card>
@@ -140,13 +140,13 @@ const TechniciansPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : `${technicians.filter(t => t.status === 'Available').length} Actifs`}
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : `${technicians.filter(t => t.status === 'Disponible').length} Actifs`}
             </div>
           </CardContent>
         </Card>
         <Card className="shadow-lg border-l-4 border-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Charge Moyenne</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Charge de Travail</CardTitle>
             <HardHat className="h-5 w-5 text-amber-500" />
           </CardHeader>
           <CardContent>
@@ -161,13 +161,13 @@ const TechniciansPage: React.FC = () => {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Registre de l'Équipe</CardTitle>
-              <CardDescription>Liste exhaustive des techniciens par spécialité.</CardDescription>
+              <CardTitle>Liste du Personnel</CardTitle>
+              <CardDescription>Cliquez sur "Modifier" pour attribuer un rôle de technicien aux nouveaux inscrits.</CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input 
-                placeholder="Chercher un technicien..." 
+                placeholder="Chercher un nom..." 
                 className="pl-10 rounded-xl" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -179,7 +179,7 @@ const TechniciansPage: React.FC = () => {
           {isLoading ? (
             <div className="p-12 text-center">
               <Loader2 className="animate-spin h-10 w-10 mx-auto text-blue-600 mb-4" />
-              <p className="text-muted-foreground">Chargement des techniciens...</p>
+              <p className="text-muted-foreground">Chargement des profils...</p>
             </div>
           ) : (
             <TechniciansTable 
@@ -195,8 +195,8 @@ const TechniciansPage: React.FC = () => {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Modifier le Profil</DialogTitle>
-            <DialogDescription>Mettez à jour les informations du technicien.</DialogDescription>
+            <DialogTitle className="text-2xl font-bold">Gérer l'utilisateur</DialogTitle>
+            <DialogDescription>Attribuez un rôle ou modifiez les informations.</DialogDescription>
           </DialogHeader>
           {selectedTech && (
             <EditTechnicianForm 
@@ -210,8 +210,8 @@ const TechniciansPage: React.FC = () => {
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le technicien ?</AlertDialogTitle>
-            <AlertDialogDescription>Cela retirera {selectedTech?.name} de l'équipe technique. Cette action est irréversible.</AlertDialogDescription>
+            <AlertDialogTitle>Supprimer le profil ?</AlertDialogTitle>
+            <AlertDialogDescription>Cela retirera {selectedTech?.name} de la plateforme. Cette action est irréversible.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
