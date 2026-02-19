@@ -40,9 +40,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Garde-fou : Si après 3 secondes l'app est toujours en chargement, on force l'affichage
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Auth initialization took too long, forcing display...");
+        setIsLoading(false);
+      }
+    }, 3000);
+
     const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
@@ -54,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Auth init error:", error);
       } finally {
         setIsLoading(false);
+        clearTimeout(timer);
       }
     };
 
@@ -72,13 +84,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
         setIsLoading(false);
+        clearTimeout(timer);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const signOut = async () => {
+    setIsLoading(true);
     await supabase.auth.signOut();
     window.location.href = '/login';
   };
@@ -93,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground animate-pulse">Initialisation de la session...</p>
+          <p className="text-sm text-muted-foreground animate-pulse font-medium">Initialisation de la session...</p>
         </div>
       </div>
     );
