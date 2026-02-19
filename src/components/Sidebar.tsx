@@ -43,19 +43,20 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
+  // Les rôles autorisés doivent correspondre aux types 'admin' | 'technician' | 'stock_manager' | 'secretary' | 'user'
   const navItems = [
-    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien', 'secretaire', 'utilisateur', 'gestionnaire_stock'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien', 'secretaire'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien'] },
-    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technicien', 'secretaire'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien', 'secretaire'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire_stock', 'technicien'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire_stock'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technicien', 'gestionnaire_stock'] },
-    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
+    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technician', 'secretary', 'user', 'stock_manager'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technician', 'secretary'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technician'] },
+    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technician', 'secretary'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technician', 'secretary'] },
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretary'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'stock_manager', 'technician'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'stock_manager'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technician', 'stock_manager'] },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretary'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretaire', 'technicien'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretary', 'technician'] },
   ];
   
   return (
@@ -64,7 +65,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
         <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
         {user && (
           <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase tracking-tighter">
-            <Shield size={10} className="mr-1" /> {role?.replace('_', ' ')}
+            <Shield size={10} className="mr-1" /> {role}
           </Badge>
         )}
       </div>
