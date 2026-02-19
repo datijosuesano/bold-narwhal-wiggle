@@ -43,20 +43,20 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
-  // Les rôles autorisés doivent correspondre aux types 'admin' | 'technician' | 'stock_manager' | 'secretary' | 'user'
+  // Liste des menus avec les rôles autorisés (inclus 'user' pour les rubriques de base pour éviter le blocage)
   const navItems = [
-    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technician', 'secretary', 'user', 'stock_manager'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technician'] },
-    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technician', 'secretary'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretary'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'stock_manager', 'technician'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'stock_manager'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technician', 'stock_manager'] },
-    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretary'] },
+    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technician', 'secretaire', 'user', 'stock_manager'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technician', 'secretaire', 'user'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technician', 'user'] },
+    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technician', 'secretaire', 'user'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technician', 'secretaire', 'user'] },
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire', 'user'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'stock_manager', 'technician', 'user'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'stock_manager', 'user'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technician', 'stock_manager', 'user'] },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire', 'user'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretary', 'technician'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretaire', 'technician', 'user'] },
   ];
   
   return (

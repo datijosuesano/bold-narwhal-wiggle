@@ -3,7 +3,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
-type UserRole = 'admin' | 'technician' | 'stock_manager' | 'secretary' | 'user';
+// Harmonisation des rôles (supporte les variantes FR/EN)
+type UserRole = 'admin' | 'technician' | 'stock_manager' | 'secretaire' | 'secretary' | 'user' | 'administrateur';
 
 interface AuthContextType {
   session: Session | null;
@@ -31,7 +32,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && profile?.role) {
-        return profile.role as UserRole;
+        const dbRole = profile.role.toLowerCase();
+        // Normalisation simple
+        if (dbRole === 'administrateur' || dbRole === 'admin') return 'admin';
+        if (dbRole === 'secretaire' || dbRole === 'secretary') return 'secretaire';
+        return dbRole as UserRole;
       }
     } catch (e) {
       console.error("Erreur récupération rôle:", e);
@@ -40,20 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Garde-fou : Si après 3 secondes l'app est toujours en chargement, on force l'affichage
     const timer = setTimeout(() => {
-      if (isLoading) {
-        console.warn("Auth initialization took too long, forcing display...");
-        setIsLoading(false);
-      }
+      if (isLoading) setIsLoading(false);
     }, 3000);
 
     const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
@@ -81,11 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setRole('user');
       }
-      
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-        setIsLoading(false);
-        clearTimeout(timer);
-      }
+      setIsLoading(false);
     });
 
     return () => {
@@ -101,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasRole = (roles: UserRole[]) => {
+    // L'admin voit TOUT
     if (role === 'admin') return true;
     return roles.includes(role);
   };
@@ -110,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground animate-pulse font-medium">Initialisation de la session...</p>
+          <p className="text-sm text-muted-foreground font-medium">Initialisation...</p>
         </div>
       </div>
     );
