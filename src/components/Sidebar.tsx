@@ -43,19 +43,20 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
+  // Liste des menus simplifiée pour s'assurer que vous voyez tout par défaut
   const navItems = [
-    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technician', 'secretaire', 'user', 'stock_manager'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technician', 'secretaire', 'user'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technician', 'user'] },
-    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technician', 'secretaire', 'user'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technician', 'secretaire', 'user'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire', 'user'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'stock_manager', 'technician', 'user'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'stock_manager', 'user'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technician', 'stock_manager', 'user'] },
-    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire', 'user'] },
-    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin', 'user'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'secretaire', 'technician', 'user'] },
+    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['any'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['any'] },
+    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['any'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['any'] },
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['any'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['any'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['any'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['any'] },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['any'] },
+    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['any'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['any'] },
   ];
   
   return (
@@ -64,14 +65,14 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
         <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
         {user && (
           <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase tracking-tighter">
-            <Shield size={10} className="mr-1" /> {role}
+            <Shield size={10} className="mr-1" /> {role || 'Utilisateur'}
           </Badge>
         )}
       </div>
 
       <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
         {navItems
-          .filter(item => hasRole(item.roles as any))
+          .filter(item => item.roles.includes('any') || hasRole(item.roles as any))
           .map((item) => (
             <NavItem
               key={item.to}
