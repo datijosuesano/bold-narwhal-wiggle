@@ -9,7 +9,7 @@ export const useUserRole = () => {
     const getRole = async () => {
       const { data: userData } = await supabase.auth.getUser();
 
-      if (!userData?.user) {
+      if (!userData?.technicien biomedical) {
         setRole(null);
         setLoading(false);
         return;
