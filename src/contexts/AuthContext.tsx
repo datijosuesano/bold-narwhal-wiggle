@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole>('admin'); // Par défaut admin pour débloquer
+  const [role, setRole] = useState<UserRole>(null); 
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRole = async (userId: string) => {
@@ -34,13 +34,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return data.role;
       }
     } catch (e) {
-      console.warn("La colonne 'role' est peut-être manquante dans la table profiles.");
+      console.error("Erreur récupération rôle:", e);
     }
-    return 'admin'; // Retourne admin par défaut si erreur ou absent
+    return 'user'; // Rôle par défaut
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
+      setIsLoading(true);
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
@@ -82,13 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasRole = (roles: string[]) => {
-    // Si pas de rôle (non connecté), pas d'accès
     if (!role) return false;
-    
     const userRole = role.toLowerCase();
-    // L'admin ou administrateur a toujours accès
     if (userRole === 'admin' || userRole === 'administrateur') return true;
-    
     return roles.includes(role);
   };
 
