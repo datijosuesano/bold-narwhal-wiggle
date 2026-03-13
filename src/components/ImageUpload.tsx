@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2, X, UploadCloud } from "lucide-react";
+import { Loader2, X, UploadCloud, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -28,8 +28,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       const filePath = `assets/${fileName}`;
 
-      // Tentative d'upload dans le bucket 'asset-images'
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      // Tentative d'upload
+      const { error: uploadError } = await supabase.storage
         .from("asset-images")
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -37,8 +37,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
         });
 
       if (uploadError) {
-        console.error("Erreur Storage détaillée:", uploadError);
-        throw new Error(`Erreur d'upload: ${uploadError.message}. Vérifiez que le bucket 'asset-images' est créé et public.`);
+        // Erreur spécifique si le bucket n'existe pas
+        if (uploadError.message.includes("not found")) {
+          throw new Error("Le dossier 'asset-images' n'est pas configuré dans Supabase Storage.");
+        }
+        throw uploadError;
       }
 
       // Récupération de l'URL publique
@@ -47,10 +50,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
       if (data?.publicUrl) {
         setPreview(data.publicUrl);
         onUpload(data.publicUrl);
-        showSuccess("Image téléchargée avec succès !");
+        showSuccess("Image enregistrée !");
       }
     } catch (error: any) {
-      showError(error.message || "Erreur lors de l'envoi de l'image");
+      console.error("Upload error:", error);
+      showError(error.message || "Impossible d'envoyer l'image. Vérifiez vos permissions.");
     } finally {
       setUploading(false);
     }
@@ -69,6 +73,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
           <Button 
             variant="destructive" 
             size="icon" 
+            type="button"
             className="absolute top-2 right-2 rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={removeImage}
           >
@@ -86,7 +91,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload, defaultValue }) => 
             <p className="mb-2 text-sm text-muted-foreground font-semibold">
               {uploading ? "Envoi en cours..." : "Cliquez pour uploader une photo"}
             </p>
-            <p className="text-xs text-muted-foreground">PNG, JPG ou JPEG (Max 5Mo)</p>
+            <p className="text-xs text-muted-foreground">PNG, JPG (Max 5Mo)</p>
           </div>
           <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={uploading} />
         </label>
