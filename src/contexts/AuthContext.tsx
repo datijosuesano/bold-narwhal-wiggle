@@ -1,4 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+"use client";
+
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -21,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>(null); 
   const [isLoading, setIsLoading] = useState(true);
+  const isInitialized = useRef(false);
 
   const fetchRole = async (userId: string) => {
     try {
@@ -36,20 +39,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error("Erreur récupération rôle:", e);
     }
-    return 'user'; // Rôle par défaut
+    return 'technician'; // Rôle par défaut sécurisé
   };
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+    // Éviter la double initialisation en mode StrictMode
+    if (isInitialized.current) return;
+    isInitialized.current = true;
 
-        if (currentSession?.user) {
-          const userRole = await fetchRole(currentSession.user.id);
-          setRole(userRole);
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          // Si une erreur de session survient (ex: changement de projet), on nettoie
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setRole(null);
+        } else {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (currentSession?.user) {
+            const userRole = await fetchRole(currentSession.user.id);
+            setRole(userRole);
+          }
         }
       } catch (error) {
         console.error("Auth init error:", error);
@@ -61,16 +76,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        const userRole = await fetchRole(currentSession.user.id);
-        setRole(userRole);
-      } else {
+      // On ignore l'événement INITIAL_SESSION s'il est déjà géré par getSession
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        if (currentSession?.user) {
+          const userRole = await fetchRole(currentSession.user.id);
+          setRole(userRole);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
         setRole(null);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -78,8 +96,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setIsLoading(true);
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+    try {
+      await supabase.auth.signOut();
+      // Effacer le localStorage pour éviter les résidus d'ancienne session
+      localStorage.removeItem('gmao-dyad-auth-token');
+    } catch (e) {
+      console.error("Sign out error:", e);
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   const hasRole = (roles: string[]) => {
