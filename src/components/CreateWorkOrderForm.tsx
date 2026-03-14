@@ -48,7 +48,7 @@ interface CreateWorkOrderFormProps {
 
 const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
+  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string}[]>([]);
   const [isAssetsLoading, setIsAssetsLoading] = useState(true);
   const { user } = useAuth();
 
@@ -66,7 +66,10 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
   useEffect(() => {
     const fetchAssets = async () => {
       setIsAssetsLoading(true);
-      const { data } = await supabase.from('assets').select('id, name').order('name');
+      const { data } = await supabase
+        .from('assets')
+        .select('id, name, serial_number, location')
+        .order('name');
       setAssets(data || []);
       setIsAssetsLoading(false);
     };
@@ -156,12 +159,21 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
               <FormLabel>Équipement concerné</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger className="rounded-xl">
+                  <SelectTrigger className="rounded-xl h-auto py-3">
                     <SelectValue placeholder={isAssetsLoading ? "Chargement..." : "Sélectionner un appareil"} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  {assets.map(a => (
+                    <SelectItem key={a.id} value={a.id} className="py-2">
+                      <div className="flex flex-col">
+                        <span className="font-bold">{a.name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                          SN: {a.serial_number || 'N/A'} • Site: {a.location}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />

@@ -26,7 +26,7 @@ const WorkOrdersPage: React.FC = () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('work_orders')
-      .select('*, assets(name)')
+      .select('*, assets(name, serial_number, location)')
       .order('created_at', { ascending: false });
 
     if (error) showError("Erreur de chargement.");
@@ -38,8 +38,11 @@ const WorkOrdersPage: React.FC = () => {
 
   const filteredOTs = useMemo(() => {
     return workOrders.filter(ot => {
-      const matchesSearch = ot.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           ot.assets?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = 
+        ot.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        ot.assets?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ot.assets?.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ot.assets?.location?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPriority = filterPriority === "Toutes" || ot.priority === filterPriority;
       return matchesSearch && matchesPriority;
     });
@@ -90,7 +93,7 @@ const WorkOrdersPage: React.FC = () => {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input 
-            placeholder="Rechercher par objet ou équipement..." 
+            placeholder="Rechercher par objet, équipement, SN ou site..." 
             className="pl-10 rounded-xl border-none bg-slate-50 h-11" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -137,7 +140,12 @@ const WorkOrdersPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{ot.title}</div>
-                      <div className="text-[10px] text-blue-600 font-black uppercase">{ot.assets?.name || 'Équipement inconnu'}</div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-blue-600 font-black uppercase">{ot.assets?.name || 'Inconnu'}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase font-medium">
+                          SN: {ot.assets?.serial_number || 'N/A'} • {ot.assets?.location || 'Sans site'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-xs font-medium text-slate-600">{ot.maintenance_type}</span>
