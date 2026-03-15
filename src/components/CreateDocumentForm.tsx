@@ -29,10 +29,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const DocSchema = z.object({
-  name: z.string().min(3, "Le nom doit comporter au moins 3 caractères"),
-  category: z.string().min(1, "La catégorie est requise"),
-  asset_id: z.string().min(1, "Veuillez sélectionner un équipement"),
-  file_url: z.string().optional(),
+  name: z.string().min(3, "Titre requis (3 car. min)"),
+  category: z.string().min(1, "Catégorie requise"),
+  asset_id: z.string().min(1, "Équipement requis"),
 });
 
 type DocFormValues = z.infer<typeof DocSchema>;
@@ -51,11 +50,7 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
 
   const form = useForm<DocFormValues>({
     resolver: zodResolver(DocSchema),
-    defaultValues: {
-      name: "",
-      category: "Manuel Technique",
-      asset_id: "",
-    },
+    defaultValues: { name: "", category: "Manuel Technique", asset_id: "" },
   });
 
   useEffect(() => {
@@ -70,66 +65,63 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      // On pré-remplit le nom si vide
-      if (!form.getValues('name')) {
-        form.setValue('name', file.name.split('.')[0]);
-      }
+      if (!form.getValues('name')) form.setValue('name', file.name.split('.')[0]);
     }
   };
 
   const onSubmit = async (data: DocFormValues) => {
-    if (!user) {
-      showError("Session expirée. Veuillez vous reconnecter.");
-      return;
-    }
-
+    console.log("[CreateDoc] Début soumission", { mode, data });
     setIsLoading(true);
-    let finalUrl = externalUrl;
 
     try {
-      // Cas 1 : Mode Upload (Fichier)
-      if (mode === 'upload') {
-        if (!selectedFile) {
-          throw new Error("Veuillez sélectionner un fichier PDF ou Image.");
-        }
+      let finalUrl = externalUrl;
 
-        const fileExt = selectedFile.name.split(".").pop();
-        const fileName = `${data.asset_id}/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      // ÉTAPE 1: GESTION DU FICHIER (si mode upload)
+      if (mode === 'upload') {
+        if (!selectedFile) throw new Error("Veuillez choisir un fichier.");
+        
+        console.log("[CreateDoc] Upload du fichier vers Storage...");
+        const fileName = `${Date.now()}-${selectedFile.name.replace(/[^a-z0-9.]/gi, '_')}`;
         
         const { error: uploadError } = await supabase.storage
           .from("asset-documents")
           .upload(fileName, selectedFile);
 
         if (uploadError) {
-          if (uploadError.message.includes("not found")) {
-            throw new Error("Le dossier 'asset-documents' n'existe pas dans Supabase Storage.");
-          }
-          throw uploadError;
+          console.error("[CreateDoc] Erreur Storage:", uploadError);
+          throw new Error(`Erreur Stockage: ${uploadError.message}. Vérifiez que le bucket 'asset-documents' existe.`);
         }
 
         const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(fileName);
         finalUrl = urlData.publicUrl;
+        console.log("[CreateDoc] Fichier uploadé avec succès:", finalUrl);
       }
 
-      // Cas 2 : On enregistre dans la base de données
-      if (!finalUrl) throw new Error("URL manquante pour le document.");
+      // ÉTAPE 2: INSERTION EN BASE DE DONNÉES
+      if (!finalUrl) throw new Error("L'URL du document est manquante.");
 
+      console.log("[CreateDoc] Insertion en base de données...");
       const { error: dbError } = await supabase.from('asset_documents').insert({
         asset_id: data.asset_id,
-        user_id: user.id,
+        user_id: user?.id,
         name: data.name,
         file_url: finalUrl,
         category: data.category
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("[CreateDoc] Erreur DB:", dbError);
+        throw dbError;
+      }
 
-      showSuccess("Document enregistré avec succès !");
+      console.log("[CreateDoc] Succès total !");
+      showSuccess("Le document a été enregistré.");
       onSuccess();
     } catch (err: any) {
-      console.error("Erreur enregistrement:", err);
-      showError(err.message || "Une erreur est survenue lors de l'enregistrement.");
+      console.error("[CreateDoc] Erreur rattrapée:", err);
+      showError(err.message || "Une erreur inconnue est survenue.");
     } finally {
+      // On s'assure que le chargement s'arrête quoi qu'il arrive
       setIsLoading(false);
     }
   };
@@ -180,50 +172,48 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
         </div>
 
         <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl h-12">
-            <TabsTrigger value="upload" className="rounded-lg"><UploadCloud size={16} className="mr-2" /> Fichier Local</TabsTrigger>
-            <TabsTrigger value="link" className="rounded-lg"><LinkIcon size={16} className="mr-2" /> Lien Web</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 rounded-xl h-12 bg-slate-100">
+            <TabsTrigger value="upload" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><UploadCloud size={16} className="mr-2" /> Fichier local</TabsTrigger>
+            <TabsTrigger value="link" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><LinkIcon size={16} className="mr-2" /> Lien Web</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {mode === 'upload' ? (
-          <div className="space-y-4">
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-400 transition-all group">
-              <div className="text-center">
-                {selectedFile ? (
-                  <div className="flex flex-col items-center text-blue-600">
-                    <CheckCircle2 className="h-8 w-8 mb-2" />
-                    <p className="text-xs font-bold truncate max-w-[200px]">{selectedFile.name}</p>
-                  </div>
-                ) : (
-                  <>
-                    <FileText className="text-slate-400 mx-auto mb-2 group-hover:text-blue-500" />
-                    <p className="text-xs font-bold text-slate-600">Cliquez pour choisir un PDF ou Image</p>
-                  </>
-                )}
-              </div>
-              <input type="file" className="hidden" accept="application/pdf,image/*" onChange={handleFileChange} />
-            </label>
-          </div>
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-400 transition-all group">
+            <div className="text-center">
+              {selectedFile ? (
+                <div className="flex flex-col items-center text-blue-600 animate-in fade-in zoom-in-95">
+                  <CheckCircle2 className="h-8 w-8 mb-2" />
+                  <p className="text-xs font-bold truncate max-w-[200px]">{selectedFile.name}</p>
+                </div>
+              ) : (
+                <>
+                  <FileText className="text-slate-400 mx-auto mb-2 group-hover:text-blue-500 transition-colors" />
+                  <p className="text-xs font-bold text-slate-600">Cliquez pour choisir un PDF ou Image</p>
+                </>
+              )}
+            </div>
+            <input type="file" className="hidden" accept="application/pdf,image/*" onChange={handleFileChange} />
+          </label>
         ) : (
-          <div className="space-y-1.5">
-            <FormLabel>URL (Lien vers Google Drive, Dropbox, etc.)</FormLabel>
+          <div className="space-y-1.5 animate-in slide-in-from-top-2">
+            <FormLabel>Adresse URL du document</FormLabel>
             <Input 
-              placeholder="https://..." 
+              placeholder="https://google.com/mon-document.pdf" 
               value={externalUrl} 
               onChange={e => setExternalUrl(e.target.value)} 
-              className="rounded-xl" 
+              className="rounded-xl h-11" 
             />
           </div>
         )}
 
         <Button 
           type="submit" 
-          className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-12 shadow-lg font-bold" 
+          className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-12 shadow-lg font-bold transition-all active:scale-[0.98]" 
           disabled={isLoading || (mode === 'link' && !externalUrl) || (mode === 'upload' && !selectedFile)}
         >
           {isLoading ? (
-            <><Loader2 className="animate-spin mr-2" /> Enregistrement...</>
+            <><Loader2 className="animate-spin mr-2" /> Enregistrement en cours...</>
           ) : (
             <>Enregistrer le document</>
           )}
