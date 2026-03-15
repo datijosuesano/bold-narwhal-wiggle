@@ -17,7 +17,6 @@ interface AssetDocument {
   file_url: string;
   category: string;
   created_at: string;
-  is_link?: boolean;
 }
 
 interface AssetDocumentsProps {
@@ -87,8 +86,8 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
       setIsSubmitting(true);
       const file = event.target.files[0];
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `${assetId}/${fileName}`;
+      const fileName = `${assetId}/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `documents/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("asset-documents")
@@ -120,12 +119,9 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
 
   const handleDelete = async (id: string, url: string) => {
     try {
-      // Si c'est un fichier hébergé (pas un lien externe), on le supprime du storage
       if (url.includes('supabase.co/storage')) {
-        const fileName = url.split('/').pop();
-        if (fileName) {
-          await supabase.storage.from('asset-documents').remove([`${assetId}/${fileName}`]);
-        }
+        const path = url.split('asset-documents/')[1];
+        if (path) await supabase.storage.from('asset-documents').remove([path]);
       }
       await supabase.from('asset_documents').delete().eq('id', id);
       showSuccess("Supprimé.");
@@ -186,7 +182,7 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
           </div>
 
           {mode === 'link' ? (
-            <div className="flex gap-2 items-end animate-in fade-in slide-in-from-top-2">
+            <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Lien vers le document (URL)</label>
                 <Input 
@@ -205,11 +201,8 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
               </Button>
             </div>
           ) : (
-            <div className="animate-in fade-in slide-in-from-top-2">
-              <label className={cn(
-                "flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
-                isSubmitting ? "bg-slate-50 border-slate-200" : "bg-white border-blue-200 hover:border-blue-500 hover:bg-blue-50/50"
-              )}>
+            <div>
+              <label className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-2xl cursor-pointer bg-white border-blue-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all">
                 <div className="flex flex-col items-center justify-center text-center">
                   {isSubmitting ? <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-2" /> : <UploadCloud className="h-8 w-8 text-blue-600 mb-2" />}
                   <p className="text-sm font-bold text-slate-700">
@@ -231,41 +224,38 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
           documents.map((doc) => {
             const isExternal = !doc.file_url.includes('supabase.co/storage');
             return (
-              <div key={doc.id} className="flex items-center justify-between p-4 bg-card border rounded-2xl hover:shadow-md transition-all group border-l-4 border-l-blue-500">
+              <div key={doc.id} className="flex items-center justify-between p-4 bg-card border rounded-2xl hover:shadow-md transition-all border-l-4 border-l-blue-500">
                 <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "h-12 w-12 rounded-xl flex items-center justify-center shadow-sm",
-                    isExternal ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
-                  )}>
-                    {isExternal ? <Globe size={22} /> : <FileType size={22} />}
+                  <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    {isExternal ? <Globe size={20} /> : <FileType size={20} />}
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 flex items-center gap-2">
                       {doc.name}
-                      <Badge variant="outline" className="text-[8px] font-black uppercase px-2 py-0 border-slate-200">
+                      <Badge variant="outline" className="text-[8px] font-black uppercase px-2 py-0">
                         {doc.category}
                       </Badge>
                     </h4>
                     <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-medium">
-                      {isExternal ? "Lien externe" : "Document hébergé"} • Ajouté le {new Date(doc.created_at).toLocaleDateString()}
+                      Ajouté le {new Date(doc.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="rounded-full text-blue-600 hover:bg-blue-50 h-9 w-9"
+                    className="rounded-full text-blue-600 hover:bg-blue-50"
                     asChild
                   >
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                      {isExternal ? <Globe size={18} /> : <Download size={18} />}
+                      <Download size={18} />
                     </a>
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="rounded-full text-red-500 hover:bg-red-50 h-9 w-9"
+                    className="rounded-full text-red-500 hover:bg-red-50"
                     onClick={() => handleDelete(doc.id, doc.file_url)}
                   >
                     <Trash2 size={16} />
@@ -275,16 +265,14 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
             );
           })
         ) : (
-          <div className="text-center py-12 border-2 border-dashed rounded-3xl bg-slate-50/50">
-            <FileText className="mx-auto h-12 w-12 text-slate-200 mb-2" />
-            <p className="text-sm font-medium text-slate-400">Aucune documentation associée à cet équipement.</p>
+          <div className="text-center py-10 border-2 border-dashed rounded-3xl bg-slate-50">
+            <FileText className="mx-auto h-10 w-10 text-slate-200 mb-2" />
+            <p className="text-xs font-medium text-slate-400">Aucun document pour cet équipement.</p>
           </div>
         )}
       </div>
     </div>
   );
 };
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 export default AssetDocuments;
