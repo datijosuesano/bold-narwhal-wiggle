@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, Loader2, Globe, FileType, ExternalLink, Download, Filter, Factory } from 'lucide-react';
+import { FileText, Search, Loader2, Globe, FileType, ExternalLink, Download, Filter, Factory, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import CreateDocumentForm from '@/components/CreateDocumentForm';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface AssetDoc {
   id: string;
@@ -24,10 +27,10 @@ const DocumentationPage: React.FC = () => {
   const [docs, setDocs] = useState<AssetDoc[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const fetchDocs = async () => {
     setIsLoading(true);
-    // Jointure avec la table assets pour savoir à quel appareil appartient le document
     const { data, error } = await supabase
       .from('asset_documents')
       .select('*, assets(name, location)')
@@ -38,6 +41,19 @@ const DocumentationPage: React.FC = () => {
   };
 
   useEffect(() => { fetchDocs(); }, []);
+
+  const handleDelete = async (id: string, url: string) => {
+    if (!confirm("Supprimer ce document ?")) return;
+    try {
+      if (url.includes('supabase.co/storage')) {
+        const path = url.split('asset-documents/')[1];
+        if (path) await supabase.storage.from('asset-documents').remove([path]);
+      }
+      await supabase.from('asset_documents').delete().eq('id', id);
+      showSuccess("Document supprimé.");
+      fetchDocs();
+    } catch (err) { showError("Erreur suppression."); }
+  };
 
   const filteredDocs = docs.filter(doc => 
     doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,24 +70,36 @@ const DocumentationPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Documentation Technique</h1>
-            <p className="text-lg text-muted-foreground">Accédez aux manuels et schémas de vos équipements.</p>
+            <p className="text-lg text-muted-foreground">Gestion centralisée des manuels et schémas.</p>
           </div>
         </div>
+
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 px-6 font-bold">
+              <Plus className="mr-2 h-5 w-5" /> Ajouter Document
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-lg rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black">Nouveau Document</DialogTitle>
+              <DialogDescription>Associez un fichier ou un lien à un équipement du parc.</DialogDescription>
+            </DialogHeader>
+            <CreateDocumentForm onSuccess={() => { setIsAddOpen(false); fetchDocs(); }} />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input 
-            placeholder="Rechercher un manuel, un modèle d'appareil..." 
-            className="pl-10 rounded-xl bg-white shadow-sm h-12" 
+            placeholder="Rechercher par manuel, appareil, site..." 
+            className="pl-10 rounded-xl bg-white shadow-sm h-12 border-none ring-1 ring-slate-200" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="rounded-xl h-12 border-slate-200">
-          <Filter className="mr-2 h-4 w-4" /> Filtrer par type
-        </Button>
       </div>
 
       {isLoading ? (
@@ -93,9 +121,14 @@ const DocumentationPage: React.FC = () => {
                       )}>
                         {isExternal ? <Globe size={20} /> : <FileType size={20} />}
                       </div>
-                      <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest bg-white">
-                        {doc.category}
-                      </Badge>
+                      <div className="flex gap-1">
+                        <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest bg-white">
+                          {doc.category}
+                        </Badge>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(doc.id, doc.file_url)}>
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-4">
