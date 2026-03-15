@@ -58,7 +58,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
       email: technician.email === 'N/A' ? '' : technician.email,
       telephone: technician.phone === 'N/A' ? '' : technician.phone,
       specialite: technician.specialty,
-      role: 'technician',
+      role: technician.specialty === 'Nouveau compte' ? 'technicien biomedical' : (technician.specialty.toLowerCase().includes('stock') ? 'gestionnaire de stock' : 'technicien biomedical'),
     },
   });
 
@@ -82,7 +82,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Profil de ${data.first_name} mis à jour.`);
+      showSuccess(`Profil mis à jour.`);
       onSuccess();
     }
   };
@@ -146,7 +146,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
             name="specialite"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Spécialité</FormLabel>
+                <FormLabel>Spécialité technique</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
@@ -155,10 +155,11 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="Biomédical">Biomédical</SelectItem>
-                    <SelectItem value="Electricien">Electricien</SelectItem>
-                    <SelectItem value="Frigoriste">Frigoriste</SelectItem>
-                    <SelectItem value="Plombier">Plombier</SelectItem>
-                    <SelectItem value="Polyvalent">Polyvalent</SelectItem>
+                    <SelectItem value="Imagerie">Imagerie</SelectItem>
+                    <SelectItem value="Laboratoire">Laboratoire</SelectItem>
+                    <SelectItem value="Froid Médical">Froid Médical</SelectItem>
+                    <SelectItem value="Gestion Stock">Gestion Stock</SelectItem>
+                    <SelectItem value="Administratif">Administratif</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -170,7 +171,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
             name="role"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Niveau d'accès</FormLabel>
+                <FormLabel>Rôle (Droits d'accès)</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
@@ -178,8 +179,9 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="technician">Technicien</SelectItem>
                     <SelectItem value="admin">Administrateur</SelectItem>
+                    <SelectItem value="technicien biomedical">Technicien Biomédical</SelectItem>
+                    <SelectItem value="gestionnaire de stock">Gestionnaire de Stock</SelectItem>
                     <SelectItem value="secretaire">Secrétaire</SelectItem>
                   </SelectContent>
                 </Select>
