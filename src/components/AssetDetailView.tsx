@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle, FileCode } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import AssetLifeSheet from './AssetLifeSheet';
 import AddPastInterventionForm from './AddPastInterventionForm';
+import AssetDocuments from './AssetDocuments';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Asset {
@@ -82,6 +83,7 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
           <TabsList className="bg-muted p-1 rounded-xl">
             <TabsTrigger value="details" className="rounded-lg px-4">Détails</TabsTrigger>
             <TabsTrigger value="life-sheet" className="rounded-lg px-4">Fiche de Vie</TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-lg px-4">Docs Tech</TabsTrigger>
           </TabsList>
           
           <div className="flex gap-2">
@@ -153,6 +155,10 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
         
         <TabsContent value="life-sheet">
           <AssetLifeSheet asset={asset} refreshTrigger={refreshTrigger} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <AssetDocuments assetId={asset.id} />
         </TabsContent>
       </Tabs>
     </div>
