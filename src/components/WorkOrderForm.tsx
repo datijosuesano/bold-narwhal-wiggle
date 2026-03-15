@@ -53,7 +53,7 @@ interface WorkOrderFormProps {
 
 const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [assets, setAssets] = useState<{id: string, name: string}[]>([]);
+  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string}[]>([]);
   const [techs, setTechs] = useState<{id: string, name: string}[]>([]);
   const { user } = useAuth();
 
@@ -73,10 +73,18 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: assetData } = await supabase.from('assets').select('id, name').order('name');
+      // Fetch Assets with more info
+      const { data: assetData } = await supabase
+        .from('assets')
+        .select('id, name, serial_number, location')
+        .order('name');
       setAssets(assetData || []);
       
-      const { data: techData } = await supabase.from('profiles').select('id, first_name, last_name').eq('role', 'technicien');
+      // Fetch Technicians
+      const { data: techData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .order('last_name');
       setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
     };
     fetchData();
@@ -87,9 +95,15 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
     setIsLoading(true);
     
     const payload = {
-      ...data,
       user_id: user.id,
+      asset_id: data.asset_id,
+      title: data.title,
+      description: data.description,
+      maintenance_type: data.maintenance_type,
+      priority: data.priority,
+      status: data.status,
       due_date: format(data.due_date, 'yyyy-MM-dd'),
+      assigned_to: data.assigned_to === "none" ? null : data.assigned_to,
     };
 
     let error;
@@ -165,10 +179,23 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
           render={({ field }) => (
             <FormItem>
               <FormLabel>Équipement concerné</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un appareil" /></SelectTrigger></FormControl>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!!initialData}>
+                <FormControl>
+                  <SelectTrigger className="rounded-xl h-auto py-2">
+                    <SelectValue placeholder="Choisir un appareil" />
+                  </SelectTrigger>
+                </FormControl>
                 <SelectContent>
-                  {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  {assets.map(a => (
+                    <SelectItem key={a.id} value={a.id} className="py-2">
+                       <div className="flex flex-col">
+                        <span className="font-bold text-xs">{a.name}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                          SN: {a.serial_number || 'N/A'} • {a.location}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormItem>
@@ -214,6 +241,23 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="assigned_to"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Assigner à (Technicien)</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value || "none"}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un technicien" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="none">-- Non assigné --</SelectItem>
+                  {techs.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
