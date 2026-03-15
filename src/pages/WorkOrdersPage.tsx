@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, AlertCircle } from "lucide-react";
+import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
@@ -10,7 +10,7 @@ import WorkOrderForm from "@/components/WorkOrderForm";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
-import { PRIORITES, TYPES_MAINTENANCE, STATUTS_WORK_ORDER } from "@/utils/constants";
+import { PRIORITES, STATUTS_WORK_ORDER } from "@/utils/constants";
 
 const WorkOrdersPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -18,23 +18,37 @@ const WorkOrdersPage: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedOT, setSelectedOT] = useState<any>(null);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<{id: string, name: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("Toutes");
+  const [filterTechnician, setFilterTechnician] = useState<string>("Tous");
 
-  const fetchWorkOrders = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch Work Orders
+    const { data: woData, error: woError } = await supabase
       .from('work_orders')
-      .select('*, assets(name, serial_number, location)')
+      .select('*, assets(name, serial_number, location), profiles:assigned_to(first_name, last_name)')
       .order('created_at', { ascending: false });
 
-    if (error) showError("Erreur de chargement.");
-    else setWorkOrders(data || []);
+    // Fetch Technicians for filter
+    const { data: techData } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .order('last_name');
+
+    if (woError) {
+      showError("Erreur de chargement.");
+    } else {
+      setWorkOrders(woData || []);
+      setTechnicians(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
+    }
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchWorkOrders(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const filteredOTs = useMemo(() => {
     return workOrders.filter(ot => {
@@ -43,10 +57,19 @@ const WorkOrdersPage: React.FC = () => {
         ot.assets?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ot.assets?.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ot.assets?.location?.toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesPriority = filterPriority === "Toutes" || ot.priority === filterPriority;
-      return matchesSearch && matchesPriority;
+      
+      let matchesTech = true;
+      if (filterTechnician === "Unassigned") {
+        matchesTech = !ot.assigned_to;
+      } else if (filterTechnician !== "Tous") {
+        matchesTech = ot.assigned_to === filterTechnician;
+      }
+      
+      return matchesSearch && matchesPriority && matchesTech;
     });
-  }, [workOrders, searchTerm, filterPriority]);
+  }, [workOrders, searchTerm, filterPriority, filterTechnician]);
 
   const handleDelete = async () => {
     if (!selectedOT) return;
@@ -54,7 +77,7 @@ const WorkOrdersPage: React.FC = () => {
     if (error) showError("Erreur lors de la suppression.");
     else {
       showSuccess("Ordre de travail supprimé.");
-      fetchWorkOrders();
+      fetchData();
     }
     setIsDeleteOpen(false);
   };
@@ -84,12 +107,12 @@ const WorkOrdersPage: React.FC = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg rounded-2xl">
             <DialogHeader><DialogTitle className="text-2xl font-black">Nouvel Ordre de Travail</DialogTitle></DialogHeader>
-            <WorkOrderForm onSuccess={() => { setIsCreateOpen(false); fetchWorkOrders(); }} />
+            <WorkOrderForm onSuccess={() => { setIsCreateOpen(false); fetchData(); }} />
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border">
+      <div className="flex flex-col lg:flex-row gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input 
@@ -99,16 +122,29 @@ const WorkOrdersPage: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto">
           <select 
-            className="rounded-xl border-none bg-slate-50 h-11 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500"
+            className="rounded-xl border-none bg-slate-50 h-11 px-4 text-xs font-bold focus:ring-2 focus:ring-blue-500 min-w-[140px]"
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
           >
-            <option value="Toutes">Toutes les priorités</option>
+            <option value="Toutes">Toutes Priorités</option>
             {PRIORITES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <Button variant="outline" className="rounded-xl h-11 border-slate-200"><Filter size={18} /></Button>
+
+          <select 
+            className="rounded-xl border-none bg-slate-50 h-11 px-4 text-xs font-bold focus:ring-2 focus:ring-blue-500 min-w-[160px]"
+            value={filterTechnician}
+            onChange={(e) => setFilterTechnician(e.target.value)}
+          >
+            <option value="Tous">Tous les Techniciens</option>
+            <option value="Unassigned">Non assignés</option>
+            {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+
+          <Button variant="outline" className="rounded-xl h-11 border-slate-200" onClick={fetchData}>
+            <Filter size={18} />
+          </Button>
         </div>
       </div>
       
@@ -120,7 +156,7 @@ const WorkOrdersPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">Priorité</th>
                   <th className="px-6 py-4">Objet / Équipement</th>
-                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Technicien</th>
                   <th className="px-6 py-4">Échéance</th>
                   <th className="px-6 py-4">Statut</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -148,7 +184,18 @@ const WorkOrdersPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-xs font-medium text-slate-600">{ot.maintenance_type}</span>
+                      {ot.assigned_to ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700">
+                            {ot.profiles?.first_name?.[0]}{ot.profiles?.last_name?.[0]}
+                          </div>
+                          <span className="text-xs font-medium text-slate-700">
+                            {ot.profiles?.first_name} {ot.profiles?.last_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic">Non assigné</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center text-xs font-bold">
@@ -193,7 +240,7 @@ const WorkOrdersPage: React.FC = () => {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader><DialogTitle className="text-2xl font-black">Modifier l'OT</DialogTitle></DialogHeader>
-          {selectedOT && <WorkOrderForm initialData={selectedOT} onSuccess={() => { setIsEditOpen(false); fetchWorkOrders(); }} />}
+          {selectedOT && <WorkOrderForm initialData={selectedOT} onSuccess={() => { setIsEditOpen(false); fetchData(); }} />}
         </DialogContent>
       </Dialog>
 
