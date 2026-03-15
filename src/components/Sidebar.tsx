@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer, Shield, FileText } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer, Shield, FileText, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -43,13 +43,13 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
-  // Liste des menus simplifiée pour s'assurer que vous voyez tout par défaut
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['any'] },
     { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['any'] },
     { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['any'] },
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['any'] },
+    { to: "/documentation", icon: <Library size={20} />, label: "Documentation", roles: ['any'] },
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['any'] },
     { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['any'] },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['any'] },
