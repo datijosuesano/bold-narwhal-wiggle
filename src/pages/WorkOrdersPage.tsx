@@ -27,25 +27,39 @@ const WorkOrdersPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // Fetch Work Orders
-    const { data: woData, error: woError } = await supabase
-      .from('work_orders')
-      .select('*, assets(name, serial_number, location), profiles:assigned_to(first_name, last_name)')
-      .order('created_at', { ascending: false });
+    try {
+      // Requête simplifiée pour éviter les erreurs de jointure si les FK ne sont pas nommées exactement
+      const { data: woData, error: woError } = await supabase
+        .from('work_orders')
+        .select(`
+          *,
+          assets(name, serial_number, location)
+        `)
+        .order('created_at', { ascending: false });
 
-    // Fetch Technicians for filter
-    const { data: techData } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .order('last_name');
+      // Récupération des techniciens pour le filtrage et l'affichage (jointure manuelle pour plus de sécurité)
+      const { data: techData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .order('last_name');
 
-    if (woError) {
-      showError("Erreur de chargement.");
-    } else {
-      setWorkOrders(woData || []);
+      if (woError) throw woError;
+
+      const techMap = new Map((techData || []).map(t => [t.id, `${t.first_name} ${t.last_name}`]));
+      
+      const formattedData = (woData || []).map(ot => ({
+        ...ot,
+        technician_name: ot.assigned_to ? techMap.get(ot.assigned_to) || "Inconnu" : null
+      }));
+
+      setWorkOrders(formattedData);
       setTechnicians(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
+    } catch (error: any) {
+      console.error("Erreur de chargement OT:", error);
+      showError("Erreur de chargement des données. Vérifiez la console.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -184,13 +198,13 @@ const WorkOrdersPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {ot.assigned_to ? (
+                      {ot.technician_name ? (
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700">
-                            {ot.profiles?.first_name?.[0]}{ot.profiles?.last_name?.[0]}
+                            {ot.technician_name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
                           <span className="text-xs font-medium text-slate-700">
-                            {ot.profiles?.first_name} {ot.profiles?.last_name}
+                            {ot.technician_name}
                           </span>
                         </div>
                       ) : (
