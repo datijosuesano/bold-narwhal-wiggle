@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, UploadCloud, Link as LinkIcon, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, UploadCloud, CheckCircle2, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const DocSchema = z.object({
-  name: z.string().min(3, "Titre requis (3 car. min)"),
+  name: z.string().min(3, "Titre requis"),
   category: z.string().min(1, "Catégorie requise"),
   asset_id: z.string().min(1, "Équipement requis"),
 });
@@ -50,13 +50,8 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
 
   useEffect(() => {
     const fetchAssets = async () => {
-      try {
-        const { data, error } = await supabase.from('assets').select('id, name, location').order('name');
-        if (error) throw error;
-        setAssets(data || []);
-      } catch (err) {
-        console.error("Erreur chargement équipements:", err);
-      }
+      const { data } = await supabase.from('assets').select('id, name, location').order('name');
+      setAssets(data || []);
     };
     fetchAssets();
   }, []);
@@ -67,86 +62,53 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   });
 
   const onSubmit = async (data: DocFormValues) => {
-    if (!user) {
-      showError("Erreur : Utilisateur non authentifié. Veuillez vous reconnecter.");
-      return;
-    }
-
+    if (!user) return showError("Reconnectez-vous.");
     setIsLoading(true);
     
-    // Sécurité : Timeout après 20 secondes pour ne pas bloquer l'UI
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        setIsLoading(false);
-        showError("Le serveur met trop de temps à répondre. Vérifiez votre connexion.");
-      }
-    }, 20000);
-
     try {
       let finalUrl = "";
 
-      if (mode === 'upload') {
-        if (!selectedFile) throw new Error("Veuillez choisir un fichier.");
-        
+      if (mode === 'upload' && selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `doc_${Date.now()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("asset-documents")
-          .upload(fileName, selectedFile, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) {
-          throw new Error(`Erreur Stockage : ${uploadError.message}`);
-        }
-
+        const fileName = `assets/${data.asset_id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from("asset-documents").upload(fileName, selectedFile);
+        if (uploadError) throw new Error("Erreur lors du transfert du fichier.");
         const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(fileName);
         finalUrl = urlData.publicUrl;
       } else {
-        if (!externalUrl) throw new Error("Veuillez saisir une adresse URL.");
         finalUrl = externalUrl;
       }
 
+      // ON ENVOIE LES DEUX ICI : asset_id pour le lien, user_id pour la sécurité
       const { error: dbError } = await supabase.from('asset_documents').insert({
-        asset_id: data.asset_id,
-        user_id: user.id,
+        asset_id: data.asset_id, // LIEN VERS L'APPAREIL
+        user_id: user.id,        // LIEN VERS L'AUTEUR (RLS)
         name: data.name,
         file_url: finalUrl,
         category: data.category
       });
 
-      if (dbError) throw new Error(`Erreur Base de données : ${dbError.message}`);
+      if (dbError) throw dbError;
 
-      clearTimeout(timeoutId);
-      showSuccess("Document enregistré avec succès !");
+      showSuccess("Document enregistré !");
       onSuccess();
     } catch (err: any) {
-      console.error("Crash insertion document:", err);
-      showError(err.message || "Impossible d'enregistrer le document.");
+      showError(err.message || "Erreur lors de l'enregistrement.");
     } finally {
       setIsLoading(false);
-      clearTimeout(timeoutId);
     }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {!user && (
-          <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-red-700 text-xs flex items-center gap-2">
-            <AlertTriangle size={14} /> Session perdue. Reconnectez-vous.
-          </div>
-        )}
-
         <FormField control={form.control} name="asset_id" render={({ field }) => (
           <FormItem>
             <FormLabel>Équipement lié</FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={assets.length > 0 ? "Choisir un appareil" : "Chargement des appareils..."} />
+                  <SelectValue placeholder="Sélectionner l'équipement" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -157,13 +119,9 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
           </FormItem>
         )} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Titre du document</FormLabel>
-              <FormControl><Input placeholder="Ex: Plan d'entretien" {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>Titre du document</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
@@ -172,64 +130,32 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="Manuel Technique">Manuel Technique</SelectItem>
-                  <SelectItem value="Manuel Utilisateur">Manuel Utilisateur</SelectItem>
                   <SelectItem value="Schéma">Schéma / Plan</SelectItem>
-                  <SelectItem value="Autre">Autre</SelectItem>
+                  <SelectItem value="Certificat">Certificat</SelectItem>
                 </SelectContent>
               </Select>
-              <FormMessage />
             </FormItem>
           )} />
         </div>
 
-        <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl h-12 bg-slate-100">
-            <TabsTrigger value="upload" className="rounded-lg">Fichier local (PDF)</TabsTrigger>
-            <TabsTrigger value="link" className="rounded-lg">Lien externe (URL)</TabsTrigger>
+        <Tabs value={mode} onValueChange={(v: any) => setMode(v)}>
+          <TabsList className="grid w-full grid-cols-2 rounded-xl h-11 bg-slate-100">
+            <TabsTrigger value="upload" className="rounded-lg">Fichier local</TabsTrigger>
+            <TabsTrigger value="link" className="rounded-lg">Lien URL</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {mode === 'upload' ? (
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 transition-all">
-            <div className="text-center">
-              {selectedFile ? (
-                <div className="text-blue-600 font-bold text-xs flex flex-col items-center">
-                  <CheckCircle2 size={24} className="mb-2" />
-                  {selectedFile.name}
-                </div>
-              ) : (
-                <>
-                  <UploadCloud className="text-slate-400 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-600">Cliquez pour choisir un PDF</p>
-                </>
-              )}
-            </div>
-            <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => {
-              if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
-            }} />
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50">
+            {selectedFile ? <span className="text-blue-600 font-bold">{selectedFile.name}</span> : <span className="text-xs text-slate-500">Choisir un PDF</span>}
+            <input type="file" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} />
           </label>
         ) : (
-          <div className="space-y-2">
-            <FormLabel>URL du document</FormLabel>
-            <Input 
-              placeholder="https://example.com/manuel.pdf" 
-              value={externalUrl} 
-              onChange={e => setExternalUrl(e.target.value)} 
-              className="rounded-xl h-11" 
-            />
-          </div>
+          <Input placeholder="https://..." value={externalUrl} onChange={e => setExternalUrl(e.target.value)} className="rounded-xl" />
         )}
 
-        <Button 
-          type="submit" 
-          className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-12 font-bold shadow-lg transition-transform active:scale-95" 
-          disabled={isLoading || (mode === 'upload' && !selectedFile) || (mode === 'link' && !externalUrl)}
-        >
-          {isLoading ? (
-            <><Loader2 className="animate-spin mr-2" /> Enregistrement...</>
-          ) : (
-            "Confirmer l'ajout du document"
-          )}
+        <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl font-bold" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : "Enregistrer"}
         </Button>
       </form>
     </Form>
