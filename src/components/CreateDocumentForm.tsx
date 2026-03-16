@@ -48,11 +48,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { user } = useAuth();
 
-  const form = useForm<DocFormValues>({
-    resolver: zodResolver(DocSchema),
-    defaultValues: { name: "", category: "Manuel Technique", asset_id: "" },
-  });
-
   useEffect(() => {
     const fetchAssets = async () => {
       const { data } = await supabase.from('assets').select('id, name, location').order('name');
@@ -61,67 +56,57 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
     fetchAssets();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      if (!form.getValues('name')) form.setValue('name', file.name.split('.')[0]);
-    }
-  };
+  const form = useForm<DocFormValues>({
+    resolver: zodResolver(DocSchema),
+    defaultValues: { name: "", category: "Manuel Technique", asset_id: "" },
+  });
 
   const onSubmit = async (data: DocFormValues) => {
-    console.log("[CreateDoc] Début soumission", { mode, data });
+    if (!user) {
+      showError("Session non trouvée. Reconnectez-vous.");
+      return;
+    }
+
     setIsLoading(true);
+    console.log("Tentative d'enregistrement...", { mode, data });
 
     try {
-      let finalUrl = externalUrl;
+      let finalUrl = "";
 
-      // ÉTAPE 1: GESTION DU FICHIER (si mode upload)
       if (mode === 'upload') {
-        if (!selectedFile) throw new Error("Veuillez choisir un fichier.");
+        if (!selectedFile) throw new Error("Fichier manquant.");
         
-        console.log("[CreateDoc] Upload du fichier vers Storage...");
-        const fileName = `${Date.now()}-${selectedFile.name.replace(/[^a-z0-9.]/gi, '_')}`;
-        
+        const fileName = `${Date.now()}-${selectedFile.name.replace(/\s/g, '_')}`;
         const { error: uploadError } = await supabase.storage
           .from("asset-documents")
           .upload(fileName, selectedFile);
 
-        if (uploadError) {
-          console.error("[CreateDoc] Erreur Storage:", uploadError);
-          throw new Error(`Erreur Stockage: ${uploadError.message}. Vérifiez que le bucket 'asset-documents' existe.`);
-        }
+        if (uploadError) throw new Error(`Erreur Stockage : ${uploadError.message}`);
 
         const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(fileName);
         finalUrl = urlData.publicUrl;
-        console.log("[CreateDoc] Fichier uploadé avec succès:", finalUrl);
+      } else {
+        if (!externalUrl) throw new Error("URL du lien manquante.");
+        finalUrl = externalUrl;
       }
 
-      // ÉTAPE 2: INSERTION EN BASE DE DONNÉES
-      if (!finalUrl) throw new Error("L'URL du document est manquante.");
-
-      console.log("[CreateDoc] Insertion en base de données...");
+      // Insertion finale
       const { error: dbError } = await supabase.from('asset_documents').insert({
         asset_id: data.asset_id,
-        user_id: user?.id,
+        user_id: user.id,
         name: data.name,
         file_url: finalUrl,
         category: data.category
       });
 
-      if (dbError) {
-        console.error("[CreateDoc] Erreur DB:", dbError);
-        throw dbError;
-      }
+      if (dbError) throw new Error(`Erreur Base de données : ${dbError.message}`);
 
-      console.log("[CreateDoc] Succès total !");
-      showSuccess("Le document a été enregistré.");
+      showSuccess("Enregistrement réussi !");
       onSuccess();
     } catch (err: any) {
-      console.error("[CreateDoc] Erreur rattrapée:", err);
-      showError(err.message || "Une erreur inconnue est survenue.");
+      console.error("Crash formulaire:", err);
+      showError(err.message);
     } finally {
-      // On s'assure que le chargement s'arrête quoi qu'il arrive
       setIsLoading(false);
     }
   };
@@ -142,7 +127,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
                 {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name} ({a.location})</SelectItem>)}
               </SelectContent>
             </Select>
-            <FormMessage />
           </FormItem>
         )} />
 
@@ -151,7 +135,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
             <FormItem>
               <FormLabel>Titre du document</FormLabel>
               <FormControl><Input placeholder="Ex: Plan d'entretien" {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="category" render={({ field }) => (
@@ -163,7 +146,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
                   <SelectItem value="Manuel Technique">Manuel Technique</SelectItem>
                   <SelectItem value="Manuel Utilisateur">Manuel Utilisateur</SelectItem>
                   <SelectItem value="Schéma">Schéma / Plan</SelectItem>
-                  <SelectItem value="PV Intervention">PV Intervention</SelectItem>
                   <SelectItem value="Autre">Autre</SelectItem>
                 </SelectContent>
               </Select>
@@ -173,50 +155,41 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
 
         <Tabs value={mode} onValueChange={(v: any) => setMode(v)} className="w-full">
           <TabsList className="grid w-full grid-cols-2 rounded-xl h-12 bg-slate-100">
-            <TabsTrigger value="upload" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><UploadCloud size={16} className="mr-2" /> Fichier local</TabsTrigger>
-            <TabsTrigger value="link" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><LinkIcon size={16} className="mr-2" /> Lien Web</TabsTrigger>
+            <TabsTrigger value="upload" className="rounded-lg">Fichier PDF</TabsTrigger>
+            <TabsTrigger value="link" className="rounded-lg">Lien Web</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {mode === 'upload' ? (
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-400 transition-all group">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 transition-all">
             <div className="text-center">
               {selectedFile ? (
-                <div className="flex flex-col items-center text-blue-600 animate-in fade-in zoom-in-95">
-                  <CheckCircle2 className="h-8 w-8 mb-2" />
-                  <p className="text-xs font-bold truncate max-w-[200px]">{selectedFile.name}</p>
+                <div className="text-blue-600 font-bold text-xs">
+                  <CheckCircle2 className="mx-auto mb-2" />
+                  {selectedFile.name}
                 </div>
               ) : (
                 <>
-                  <FileText className="text-slate-400 mx-auto mb-2 group-hover:text-blue-500 transition-colors" />
-                  <p className="text-xs font-bold text-slate-600">Cliquez pour choisir un PDF ou Image</p>
+                  <FileText className="text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600">Sélectionner un fichier</p>
                 </>
               )}
             </div>
-            <input type="file" className="hidden" accept="application/pdf,image/*" onChange={handleFileChange} />
+            <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => {
+              if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+            }} />
           </label>
         ) : (
-          <div className="space-y-1.5 animate-in slide-in-from-top-2">
-            <FormLabel>Adresse URL du document</FormLabel>
-            <Input 
-              placeholder="https://google.com/mon-document.pdf" 
-              value={externalUrl} 
-              onChange={e => setExternalUrl(e.target.value)} 
-              className="rounded-xl h-11" 
-            />
-          </div>
+          <Input 
+            placeholder="https://..." 
+            value={externalUrl} 
+            onChange={e => setExternalUrl(e.target.value)} 
+            className="rounded-xl" 
+          />
         )}
 
-        <Button 
-          type="submit" 
-          className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-12 shadow-lg font-bold transition-all active:scale-[0.98]" 
-          disabled={isLoading || (mode === 'link' && !externalUrl) || (mode === 'upload' && !selectedFile)}
-        >
-          {isLoading ? (
-            <><Loader2 className="animate-spin mr-2" /> Enregistrement en cours...</>
-          ) : (
-            <>Enregistrer le document</>
-          )}
+        <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl font-bold" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Confirmer l'enregistrement"}
         </Button>
       </form>
     </Form>
