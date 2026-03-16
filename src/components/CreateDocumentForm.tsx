@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/tabs";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,8 +50,13 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
 
   useEffect(() => {
     const fetchAssets = async () => {
-      const { data } = await supabase.from('assets').select('id, name, location').order('name');
-      setAssets(data || []);
+      try {
+        const { data, error } = await supabase.from('assets').select('id, name, location').order('name');
+        if (error) throw error;
+        setAssets(data || []);
+      } catch (err) {
+        console.error("Erreur chargement équipements:", err);
+      }
     };
     fetchAssets();
   }, []);
@@ -62,27 +67,40 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   });
 
   const onSubmit = async (data: DocFormValues) => {
-    if (!user) return showError("Reconnectez-vous.");
+    if (!user) return showError("Session expirée. Reconnectez-vous.");
     setIsLoading(true);
     
     try {
       let finalUrl = "";
 
-      if (mode === 'upload' && selectedFile) {
+      if (mode === 'upload') {
+        if (!selectedFile) throw new Error("Veuillez choisir un fichier.");
+        
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `assets/${data.asset_id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from("asset-documents").upload(fileName, selectedFile);
-        if (uploadError) throw new Error("Erreur lors du transfert du fichier.");
-        const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(fileName);
+        const fileName = `${data.asset_id}/${Date.now()}.${fileExt}`;
+        const filePath = `documentation/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("asset-documents")
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          if (uploadError.message.includes("not found")) {
+            throw new Error("Dossier 'asset-documents' non trouvé dans le Storage Supabase.");
+          }
+          throw uploadError;
+        }
+
+        const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(filePath);
         finalUrl = urlData.publicUrl;
       } else {
+        if (!externalUrl) throw new Error("Veuillez saisir une URL.");
         finalUrl = externalUrl;
       }
 
-      // ON ENVOIE LES DEUX ICI : asset_id pour le lien, user_id pour la sécurité
       const { error: dbError } = await supabase.from('asset_documents').insert({
-        asset_id: data.asset_id, // LIEN VERS L'APPAREIL
-        user_id: user.id,        // LIEN VERS L'AUTEUR (RLS)
+        asset_id: data.asset_id,
+        user_id: user.id,
         name: data.name,
         file_url: finalUrl,
         category: data.category
@@ -93,6 +111,7 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
       showSuccess("Document enregistré !");
       onSuccess();
     } catch (err: any) {
+      console.error("Erreur doc:", err);
       showError(err.message || "Erreur lors de l'enregistrement.");
     } finally {
       setIsLoading(false);
@@ -104,11 +123,11 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField control={form.control} name="asset_id" render={({ field }) => (
           <FormItem>
-            <FormLabel>Équipement lié</FormLabel>
+            <FormLabel>Associer à un équipement</FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Sélectionner l'équipement" />
+                  <SelectValue placeholder={assets.length === 0 ? "Aucun équipement trouvé" : "Choisir l'équipement"} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -121,7 +140,7 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Titre du document</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Nom du document</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
@@ -138,24 +157,44 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
           )} />
         </div>
 
-        <Tabs value={mode} onValueChange={(v: any) => setMode(v)}>
-          <TabsList className="grid w-full grid-cols-2 rounded-xl h-11 bg-slate-100">
-            <TabsTrigger value="upload" className="rounded-lg">Fichier local</TabsTrigger>
-            <TabsTrigger value="link" className="rounded-lg">Lien URL</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex bg-slate-100 p-1 rounded-xl">
+          <Button 
+            type="button"
+            variant={mode === 'upload' ? 'default' : 'ghost'} 
+            className="flex-1 rounded-lg text-xs"
+            onClick={() => setMode('upload')}
+          >Fichier local</Button>
+          <Button 
+            type="button"
+            variant={mode === 'link' ? 'default' : 'ghost'} 
+            className="flex-1 rounded-lg text-xs"
+            onClick={() => setMode('link')}
+          >Lien URL</Button>
+        </div>
 
         {mode === 'upload' ? (
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50">
-            {selectedFile ? <span className="text-blue-600 font-bold">{selectedFile.name}</span> : <span className="text-xs text-slate-500">Choisir un PDF</span>}
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 transition-colors">
+            {selectedFile ? (
+              <span className="text-blue-600 font-bold text-sm">{selectedFile.name}</span>
+            ) : (
+              <div className="text-center">
+                <UploadCloud className="mx-auto h-8 w-8 text-slate-400 mb-2" />
+                <span className="text-xs text-slate-500">Cliquez pour choisir un PDF ou Image</span>
+              </div>
+            )}
             <input type="file" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} />
           </label>
         ) : (
-          <Input placeholder="https://..." value={externalUrl} onChange={e => setExternalUrl(e.target.value)} className="rounded-xl" />
+          <Input 
+            placeholder="https://exemple.com/manuel.pdf" 
+            value={externalUrl} 
+            onChange={e => setExternalUrl(e.target.value)} 
+            className="rounded-xl" 
+          />
         )}
 
-        <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl font-bold" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Enregistrer"}
+        <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl font-bold shadow-lg" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Enregistrer le document"}
         </Button>
       </form>
     </Form>
