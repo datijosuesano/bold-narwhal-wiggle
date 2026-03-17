@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, UploadCloud, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, UploadCloud, FileCheck, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/tabs";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,14 +66,18 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   });
 
   const onSubmit = async (data: DocFormValues) => {
-    if (!user) return showError("Session expirée. Reconnectez-vous.");
+    if (!user) {
+      showError("Session introuvable. Veuillez vous déconnecter et vous reconnecter.");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
       let finalUrl = "";
 
       if (mode === 'upload') {
-        if (!selectedFile) throw new Error("Veuillez choisir un fichier.");
+        if (!selectedFile) throw new Error("Aucun fichier sélectionné.");
         
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${data.asset_id}/${Date.now()}.${fileExt}`;
@@ -85,16 +88,13 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
           .upload(filePath, selectedFile);
 
         if (uploadError) {
-          if (uploadError.message.includes("not found")) {
-            throw new Error("Dossier 'asset-documents' non trouvé dans le Storage Supabase.");
-          }
-          throw uploadError;
+          throw new Error(`Erreur Storage: ${uploadError.message}. Vérifiez que le bucket 'asset-documents' est bien créé en mode PUBLIC.`);
         }
 
         const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(filePath);
         finalUrl = urlData.publicUrl;
       } else {
-        if (!externalUrl) throw new Error("Veuillez saisir une URL.");
+        if (!externalUrl) throw new Error("L'URL est vide.");
         finalUrl = externalUrl;
       }
 
@@ -106,13 +106,18 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
         category: data.category
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        throw new Error(`Erreur Base de données: ${dbError.message}. Vérifiez vos politiques RLS.`);
+      }
 
-      showSuccess("Document enregistré !");
+      showSuccess("Document enregistré avec succès !");
+      form.reset();
+      setSelectedFile(null);
+      setExternalUrl("");
       onSuccess();
     } catch (err: any) {
-      console.error("Erreur doc:", err);
-      showError(err.message || "Erreur lors de l'enregistrement.");
+      console.error("Détail de l'erreur:", err);
+      showError(err.message || "Une erreur inconnue est survenue.");
     } finally {
       setIsLoading(false);
     }
@@ -123,11 +128,11 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField control={form.control} name="asset_id" render={({ field }) => (
           <FormItem>
-            <FormLabel>Associer à un équipement</FormLabel>
+            <FormLabel>Équipement associé</FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder={assets.length === 0 ? "Aucun équipement trouvé" : "Choisir l'équipement"} />
+                  <SelectValue placeholder={assets.length === 0 ? "Aucun équipement en base" : "Choisir l'équipement"} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -138,19 +143,20 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
           </FormItem>
         )} />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Nom du document</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Nom du document</FormLabel><FormControl><Input placeholder="ex: Manuel Utilisateur" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
-              <FormLabel>Type</FormLabel>
+              <FormLabel>Catégorie</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="Manuel Technique">Manuel Technique</SelectItem>
                   <SelectItem value="Schéma">Schéma / Plan</SelectItem>
                   <SelectItem value="Certificat">Certificat</SelectItem>
+                  <SelectItem value="Autre">Autre</SelectItem>
                 </SelectContent>
               </Select>
             </FormItem>
@@ -158,43 +164,54 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
         </div>
 
         <div className="flex bg-slate-100 p-1 rounded-xl">
-          <Button 
+          <button 
             type="button"
-            variant={mode === 'upload' ? 'default' : 'ghost'} 
-            className="flex-1 rounded-lg text-xs"
+            className={cn(
+              "flex-1 py-2 rounded-lg text-xs font-bold transition-all",
+              mode === 'upload' ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"
+            )}
             onClick={() => setMode('upload')}
-          >Fichier local</Button>
-          <Button 
+          >Fichier local</button>
+          <button 
             type="button"
-            variant={mode === 'link' ? 'default' : 'ghost'} 
-            className="flex-1 rounded-lg text-xs"
+            className={cn(
+              "flex-1 py-2 rounded-lg text-xs font-bold transition-all",
+              mode === 'link' ? "bg-white shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"
+            )}
             onClick={() => setMode('link')}
-          >Lien URL</Button>
+          >Lien URL (ex: Drive)</button>
         </div>
 
         {mode === 'upload' ? (
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 transition-colors">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-400 transition-all">
             {selectedFile ? (
-              <span className="text-blue-600 font-bold text-sm">{selectedFile.name}</span>
+              <div className="flex flex-col items-center">
+                <FileCheck className="h-8 w-8 text-green-500 mb-2" />
+                <span className="text-blue-600 font-bold text-sm">{selectedFile.name}</span>
+              </div>
             ) : (
               <div className="text-center">
                 <UploadCloud className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                <span className="text-xs text-slate-500">Cliquez pour choisir un PDF ou Image</span>
+                <span className="text-xs text-slate-500">PDF, JPG, PNG (Max 5Mo)</span>
               </div>
             )}
             <input type="file" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} />
           </label>
         ) : (
-          <Input 
-            placeholder="https://exemple.com/manuel.pdf" 
-            value={externalUrl} 
-            onChange={e => setExternalUrl(e.target.value)} 
-            className="rounded-xl" 
-          />
+          <div className="space-y-2">
+            <FormLabel className="text-xs">Lien vers le document</FormLabel>
+            <Input 
+              placeholder="https://votre-drive.com/fichier.pdf" 
+              value={externalUrl} 
+              onChange={e => setExternalUrl(e.target.value)} 
+              className="rounded-xl h-11" 
+            />
+          </div>
         )}
 
         <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl font-bold shadow-lg" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Enregistrer le document"}
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <FileCheck className="mr-2 h-4 w-4" />}
+          Enregistrer le document
         </Button>
       </form>
     </Form>
