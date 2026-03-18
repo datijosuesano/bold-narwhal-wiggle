@@ -25,7 +25,7 @@ FOR ALL TO authenticated
 USING (true) 
 WITH CHECK (true);
 
--- 4. CORRECTION DE LA VUE (SECURITY INVOKER)
+-- 4. CORRECTION DE LA VUE DES ORDRES DE TRAVAIL (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.vue_work_orders_par_priorite;
 CREATE VIEW public.vue_work_orders_par_priorite 
 WITH (security_invoker = true) 
@@ -35,3 +35,11 @@ SELECT
   count(*) as total 
 FROM public.work_orders 
 GROUP BY priority;
+
+-- 5. CORRECTION DE LA VUE DES ÉQUIPEMENTS NON-OPÉRANTS (SECURITY INVOKER)
+DROP VIEW IF EXISTS public.vue_assets_non_operants;
+CREATE VIEW public.vue_assets_non_operants 
+WITH (security_invoker = true) 
+AS
+SELECT * FROM public.assets 
+WHERE status != 'Opérationnel';
