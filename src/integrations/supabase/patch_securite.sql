@@ -54,3 +54,11 @@ SELECT
   p.first_name || ' ' || p.last_name as tech_full_name
 FROM public.interventions i
 LEFT JOIN public.profiles p ON i.technician_id = p.id;
+
+-- 7. CORRECTION DE LA VUE DES RÉACTIFS EN STOCK CRITIQUE (SECURITY INVOKER)
+DROP VIEW IF EXISTS public.vue_reactifs_stock_critique;
+CREATE VIEW public.vue_reactifs_stock_critique 
+WITH (security_invoker = true) 
+AS
+SELECT * FROM public.lab_reagents 
+WHERE current_stock <= min_stock;
