@@ -43,3 +43,14 @@ WITH (security_invoker = true)
 AS
 SELECT * FROM public.assets 
 WHERE status != 'Opérationnel';
+
+-- 6. CORRECTION DE LA VUE DES INTERVENTIONS PAR TECHNICIEN (SECURITY INVOKER)
+DROP VIEW IF EXISTS public.vue_interventions_tech;
+CREATE VIEW public.vue_interventions_tech 
+WITH (security_invoker = true) 
+AS
+SELECT 
+  i.*, 
+  p.first_name || ' ' || p.last_name as tech_full_name
+FROM public.interventions i
+LEFT JOIN public.profiles p ON i.technician_id = p.id;
