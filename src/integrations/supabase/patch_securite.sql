@@ -70,4 +70,4 @@ WITH (security_invoker = true)
 AS
 SELECT * FROM public.work_orders 
 WHERE due_date < CURRENT_DATE 
-AND status != 'Terminé';
+AND status != 'Clôturé';
