@@ -62,3 +62,12 @@ WITH (security_invoker = true)
 AS
 SELECT * FROM public.lab_reagents 
 WHERE current_stock <= min_stock;
+
+-- 8. CORRECTION DE LA VUE DES ORDRES DE TRAVAIL EN RETARD (SECURITY INVOKER)
+DROP VIEW IF EXISTS public.vue_work_orders_retard;
+CREATE VIEW public.vue_work_orders_retard 
+WITH (security_invoker = true) 
+AS
+SELECT * FROM public.work_orders 
+WHERE due_date < CURRENT_DATE 
+AND status != 'Completed';
