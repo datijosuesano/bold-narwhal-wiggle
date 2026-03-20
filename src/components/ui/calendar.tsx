@@ -3,7 +3,6 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { fr } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -19,8 +18,6 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      locale={fr}
-      weekStartsOn={1} // Force le début de semaine au Lundi
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -48,21 +45,22 @@ function Calendar({
         day_range_end: "day-range-end",
         day_selected:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground font-bold border border-primary/20",
+        day_today: "bg-accent text-accent-foreground",
         day_outside:
-          "day-outside text-muted-foreground opacity-30 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
         day_disabled: "text-muted-foreground opacity-50",
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
-        dropdown: "rdp-dropdown bg-card border rounded-md px-1 py-0.5 text-xs focus:ring-2 focus:ring-primary outline-none",
-        dropdown_month: "flex-1",
-        dropdown_year: "flex-1",
+        vhidden: "hidden",
+        dropdown: "rounded-md border border-input bg-background px-1 py-1 text-xs focus:ring-2 focus:ring-ring focus:outline-none",
+        dropdown_month: "font-medium",
+        dropdown_year: "font-medium",
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
       {...props}
     />
