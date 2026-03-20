@@ -25,7 +25,12 @@ FOR ALL TO authenticated
 USING (true) 
 WITH CHECK (true);
 
--- 4. CORRECTION DE LA VUE DES ORDRES DE TRAVAIL (SECURITY INVOKER)
+-- 4. FIX SECURITY : Empêcher le détournement du search_path sur les fonctions sensibles
+ALTER FUNCTION public.get_user_role() SET search_path = '';
+
+-- 5. CORRECTION DES VUES (SECURITY INVOKER)
+-- On s'assure que les vues respectent les droits de l'utilisateur qui les consulte
+
 DROP VIEW IF EXISTS public.vue_work_orders_par_priorite;
 CREATE VIEW public.vue_work_orders_par_priorite 
 WITH (security_invoker = true) 
@@ -36,7 +41,6 @@ SELECT
 FROM public.work_orders 
 GROUP BY priority;
 
--- 5. CORRECTION DE LA VUE DES ÉQUIPEMENTS NON-OPÉRANTS (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.vue_assets_non_operants;
 CREATE VIEW public.vue_assets_non_operants 
 WITH (security_invoker = true) 
@@ -44,7 +48,6 @@ AS
 SELECT * FROM public.assets 
 WHERE status != 'Opérationnel';
 
--- 6. CORRECTION DE LA VUE DES INTERVENTIONS PAR TECHNICIEN (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.vue_interventions_tech;
 CREATE VIEW public.vue_interventions_tech 
 WITH (security_invoker = true) 
@@ -55,7 +58,6 @@ SELECT
 FROM public.interventions i
 LEFT JOIN public.profiles p ON i.technician_id = p.id;
 
--- 7. CORRECTION DE LA VUE DES RÉACTIFS EN STOCK CRITIQUE (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.vue_reactifs_stock_critique;
 CREATE VIEW public.vue_reactifs_stock_critique 
 WITH (security_invoker = true) 
@@ -63,7 +65,6 @@ AS
 SELECT * FROM public.lab_reagents 
 WHERE current_stock <= min_stock;
 
--- 8. CORRECTION DE LA VUE DES ORDRES DE TRAVAIL EN RETARD (SECURITY INVOKER)
 DROP VIEW IF EXISTS public.vue_work_orders_retard;
 CREATE VIEW public.vue_work_orders_retard 
 WITH (security_invoker = true) 
