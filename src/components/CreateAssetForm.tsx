@@ -233,7 +233,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )} />
           <FormField control={form.control} name="commissioning_date" render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Service</FormLabel>
+              <FormLabel>Mise en service</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -249,7 +249,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )} />
           <FormField control={form.control} name="expiry_date" render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Garantie/Fin</FormLabel>
+              <FormLabel>Péremption / Expire</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>

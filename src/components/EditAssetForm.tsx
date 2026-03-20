@@ -1,9 +1,12 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { CalendarIcon, Loader2, Save, User } from "lucide-react";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 const AssetSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
   category: z.string().min(1, "La catégorie est requise."),
-  status: z.enum(['Opérationnel', 'Maintenance', 'En Panne']),
+  status: z.string().min(1, "Le statut est requis"),
   description: z.string().optional(),
   serialNumber: z.string().min(1, "Le numéro de série est requis."),
   model: z.string().min(1, "Le modèle est requis."),
@@ -40,9 +43,7 @@ const AssetSchema = z.object({
   manufacturer: z.string().min(1, "Le fabricant est requis."),
   location: z.string().min(1, "Le site est requis."),
   assignedTo: z.string().optional().nullable(),
-  manufacturingDate: z.date({
-    required_error: "La date de fabrication est requise.",
-  }),
+  manufacturingDate: z.date().optional().nullable(),
   commissioningDate: z.date({
     required_error: "La date de mise en service est requise.",
   }),
@@ -60,7 +61,7 @@ interface Asset {
   name: string;
   category: string;
   location: string;
-  status: 'Opérationnel' | 'Maintenance' | 'En Panne';
+  status: string;
   serialNumber: string;
   model: string;
   brand?: string;
@@ -96,9 +97,9 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
       manufacturer: asset.manufacturer,
       location: asset.location,
       assignedTo: asset.assigned_to || "none",
-      manufacturingDate: asset.manufacturingDate || new Date(),
+      manufacturingDate: asset.manufacturingDate || null,
       commissioningDate: asset.commissioningDate,
-      expiryDate: asset.expiryDate,
+      expiryDate: asset.expiryDate || null,
       purchaseCost: asset.purchaseCost,
     },
   });
@@ -130,7 +131,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         manufacturer: data.manufacturer,
         location: data.location,
         assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
-        manufacturing_date: format(data.manufacturingDate, 'yyyy-MM-dd'),
+        manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
         expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
         purchase_cost: data.purchaseCost,
@@ -293,7 +294,27 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4 pb-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="manufacturingDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date de fabrication</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} /></PopoverContent>
+                </Popover>
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="commissioningDate"
@@ -309,9 +330,31 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} /></PopoverContent>
                 </Popover>
-                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 pb-4">
+          <FormField
+            control={form.control}
+            name="expiryDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Péremption / Expire</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                        <CalendarIcon size={16} className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} /></PopoverContent>
+                </Popover>
               </FormItem>
             )}
           />
@@ -321,14 +364,14 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Coût (FCFA)</FormLabel>
-                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl" /></FormControl>
+                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl font-bold" /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4 h-12 font-bold" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
           Enregistrer les modifications
         </Button>
