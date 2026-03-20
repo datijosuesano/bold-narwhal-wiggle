@@ -31,12 +31,15 @@ ALTER FUNCTION public.get_user_role() SET search_path = '';
 -- 5. SECURISATION DES DOCUMENTS D'EQUIPEMENTS
 ALTER TABLE public.asset_documents ENABLE ROW LEVEL SECURITY;
 
+-- Suppression de toutes les anciennes variantes de politiques permissives
 DROP POLICY IF EXISTS "Allow_All_Docs" ON public.asset_documents;
+DROP POLICY IF EXISTS "Docs_Insert" ON public.asset_documents; 
 DROP POLICY IF EXISTS "Docs_select_policy" ON public.asset_documents;
 DROP POLICY IF EXISTS "Docs_insert_policy" ON public.asset_documents;
 DROP POLICY IF EXISTS "Docs_update_policy" ON public.asset_documents;
 DROP POLICY IF EXISTS "Docs_delete_policy" ON public.asset_documents;
 
+-- Réinstallation des politiques sécurisées
 CREATE POLICY "Docs_select_policy" ON public.asset_documents FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Docs_insert_policy" ON public.asset_documents FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Docs_update_policy" ON public.asset_documents FOR UPDATE TO authenticated USING (auth.uid() = user_id);
