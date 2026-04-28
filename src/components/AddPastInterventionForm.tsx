@@ -4,8 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, CheckCircle2, Save, User, FileText, Package } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, Save, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +54,19 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const { user } = useAuth();
   const [savedInterventionId, setSavedInterventionId] = useState<string | null>(initialData?.id || null);
 
+  const form = useForm<InterventionFormValues>({
+    resolver: zodResolver(InterventionSchema),
+    defaultValues: {
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      maintenance_type: initialData?.maintenance_type || "Préventive",
+      asset_id: assetId || initialData?.asset_id || "",
+      technician_id: initialData?.technician_id || "",
+      intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
+      parts_replaced: initialData?.parts_replaced || false,
+    },
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: assetList } = await supabase.from('assets').select('id, name, serial_number, location').order('name');
@@ -68,10 +79,15 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   }, []);
 
   const onSubmit = async (data: InterventionFormValues) => {
+    if (!user) {
+      showError("Vous devez être connecté pour enregistrer une intervention.");
+      return;
+    }
+
     setIsLoading(true);
 
     const payload = {
-      user_id: user?.id,
+      user_id: user.id,
       technician_id: data.technician_id,
       asset_id: data.asset_id,
       title: data.title,
@@ -94,6 +110,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         showSuccess("Intervention enregistrée ! Vous pouvez maintenant ajouter des documents.");
       }
     } catch (err: any) {
+      console.error("Erreur enregistrement intervention:", err);
       showError(`Erreur : ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -131,6 +148,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                   <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
                   <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
                 </Select>
+                <FormMessage />
               </FormItem>
             )} />
           </div>
@@ -139,12 +157,13 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
             <FormItem>
               <FormLabel>Objet de l'intervention</FormLabel>
               <FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" disabled={!!savedInterventionId} /></FormControl>
+              <FormMessage />
             </FormItem>
           )} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField control={form.control} name="intervention_date" render={({ field }) => (
-              <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" disabled={!!savedInterventionId} /></FormControl></FormItem>
+              <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" disabled={!!savedInterventionId} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="maintenance_type" render={({ field }) => (
               <FormItem>
@@ -158,6 +177,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                     <SelectItem value="Améliorative">Améliorative</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
               </FormItem>
             )} />
           </div>
@@ -166,6 +186,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
             <FormItem>
               <FormLabel>Détails des travaux</FormLabel>
               <FormControl><Textarea placeholder="Actions menées..." {...field} className="rounded-xl h-24 resize-none" disabled={!!savedInterventionId} /></FormControl>
+              <FormMessage />
             </FormItem>
           )} />
 
