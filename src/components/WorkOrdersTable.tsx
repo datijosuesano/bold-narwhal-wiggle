@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2, Edit2, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Eye, Loader2, Edit2, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -58,17 +58,18 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger, onEdi
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Completed': return <Badge className="bg-green-600 rounded-full">Terminé</Badge>;
-      case 'InProgress': return <Badge className="bg-blue-500 rounded-full">En cours</Badge>;
-      case 'Cancelled': return <Badge variant="secondary" className="rounded-full">Annulé</Badge>;
+      case 'Terminé': return <Badge className="bg-green-600 rounded-full">Terminé</Badge>;
+      case 'En cours': return <Badge className="bg-blue-500 rounded-full">En cours</Badge>;
+      case 'Annulé': return <Badge variant="secondary" className="rounded-full">Annulé</Badge>;
       default: return <Badge variant="outline" className="rounded-full">Ouvert</Badge>;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
-      case 'High': return <Badge variant="destructive" className="rounded-full text-[10px]">Haute</Badge>;
-      case 'Medium': return <Badge className="bg-amber-500 text-white rounded-full text-[10px]">Moyenne</Badge>;
+      case 'Critique': return <Badge variant="destructive" className="rounded-full text-[10px]">Critique</Badge>;
+      case 'Élevée': return <Badge className="bg-red-500 text-white rounded-full text-[10px]">Élevée</Badge>;
+      case 'Moyenne': return <Badge className="bg-amber-500 text-white rounded-full text-[10px]">Moyenne</Badge>;
       default: return <Badge variant="outline" className="rounded-full text-[10px]">Basse</Badge>;
     }
   };
