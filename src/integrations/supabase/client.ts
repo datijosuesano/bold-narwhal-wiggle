@@ -2,16 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = "https://gvwtsrxttnqsnpanjppk.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2d3Rzcnh0dG5xc25wYW5qcHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjM3OTQsImV4cCI6MjA3Nzk5OTc5NH0.q8a55b1pL3JEK_NO8VJa9UShIFbyNT7k6U271JlA0ao";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2MeZpKvD8wUu1dJ6wX8_yQ_DK_Zfjfd";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'gmao-dyad-auth-token',
-  }
-});
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
