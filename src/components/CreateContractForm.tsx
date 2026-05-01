@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,10 +47,11 @@ type ContractFormValues = z.infer<typeof ContractSchema>;
 
 interface CreateContractFormProps {
   onSuccess: () => void;
-  existingContracts: string[]; // Liste des cliniques ayant déjà un contrat
+  existingContracts: string[];
+  defaultClinicName?: string; // Nouveau prop pour pré-sélectionner
 }
 
-const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, existingContracts }) => {
+const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, existingContracts, defaultClinicName }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [isClientsLoading, setIsClientsLoading] = useState(true);
@@ -61,7 +62,7 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, exis
     defaultValues: { 
       name: "", 
       provider: "", 
-      clinic: "", 
+      clinic: defaultClinicName || "", 
       description: "",
       annualCost: 0
     },
@@ -80,8 +81,7 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, exis
   const onSubmit = async (data: ContractFormValues) => {
     if (!user) return;
 
-    // Vérification de l'unicité du contrat par clinique
-    if (existingContracts.includes(data.clinic)) {
+    if (!defaultClinicName && existingContracts.includes(data.clinic)) {
       showError(`Un contrat existe déjà pour la clinique "${data.clinic}".`);
       return;
     }
@@ -141,8 +141,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, exis
             name="clinic"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Clinique / Site</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormLabel>Clinique / Site (Base Clients)</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!defaultClinicName}>
                   <FormControl>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder={isClientsLoading ? "Chargement..." : "Choisir un site"} />
@@ -152,8 +152,8 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, exis
                     {clients.map((client) => {
                       const hasContract = existingContracts.includes(client.name);
                       return (
-                        <SelectItem key={client.id} value={client.name} disabled={hasContract}>
-                          {client.name} {hasContract ? "(Déjà sous contrat)" : ""}
+                        <SelectItem key={client.id} value={client.name} disabled={hasContract && client.name !== defaultClinicName}>
+                          {client.name} {hasContract && client.name !== defaultClinicName ? "(Déjà sous contrat)" : ""}
                         </SelectItem>
                       );
                     })}
@@ -220,8 +220,9 @@ const CreateContractForm: React.FC<CreateContractFormProps> = ({ onSuccess, exis
           )}
         />
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl" disabled={isLoading || isClientsLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : "Créer le Contrat"}
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12 font-bold" disabled={isLoading || isClientsLoading}>
+          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Building2 className="mr-2 h-4 w-4" />}
+          Enregistrer le Contrat
         </Button>
       </form>
     </Form>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Search, Loader2, Edit2, Trash2, MapPin, User, Phone, ShieldCheck } from 'lucide-react';
+import { Building2, Plus, Search, Loader2, Edit2, Trash2, MapPin, User, Phone, ShieldCheck, FilePlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
 import CreateClientForm from '@/components/CreateClientForm';
 import EditClientForm from '@/components/EditClientForm';
+import CreateContractForm from '@/components/CreateContractForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -27,9 +28,11 @@ const ClientsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isCreateContractOpen, setIsCreateContractOpen] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -193,9 +196,17 @@ const ClientsPage: React.FC = () => {
                       Sous Contrat
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="rounded-full bg-gray-50 text-gray-500 border-gray-200">
-                      Sans Contrat
-                    </Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="rounded-full text-[10px] font-bold uppercase border-blue-200 text-blue-600 hover:bg-blue-50"
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setIsCreateContractOpen(true);
+                      }}
+                    >
+                      <FilePlus size={12} className="mr-1" /> Créer Contrat
+                    </Button>
                   )}
                 </div>
               </div>
@@ -204,6 +215,7 @@ const ClientsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modale de modification client */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-xl">
           <DialogHeader>
@@ -214,6 +226,25 @@ const ClientsPage: React.FC = () => {
               client={selectedClient} 
               onSuccess={() => {
                 setIsEditOpen(false);
+                fetchData();
+              }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale de création de contrat liée au client */}
+      <Dialog open={isCreateContractOpen} onOpenChange={setIsCreateContractOpen}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Nouveau Contrat pour {selectedClient?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedClient && (
+            <CreateContractForm 
+              existingContracts={activeContractClinics}
+              defaultClinicName={selectedClient.name}
+              onSuccess={() => {
+                setIsCreateContractOpen(false);
                 fetchData();
               }} 
             />
