@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,13 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Utiliser useEffect pour une redirection stable
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, isLoading, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -33,7 +40,7 @@ const LoginPage: React.FC = () => {
         showError(`Erreur: ${error.message}`);
       } else {
         showSuccess("Connexion réussie !");
-        navigate("/");
+        // La redirection sera gérée par le useEffect ci-dessus
       }
     } catch (err) {
       showError("Une erreur s'est produite lors de la connexion.");
@@ -42,8 +49,17 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  if (isLoading) return null;
-  if (user) return <Navigate to="/" replace />;
+  // Si on charge, on affiche un écran neutre ou un spinner pour éviter le flash
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Si l'utilisateur est déjà là, on ne rend rien (le useEffect s'occupe du reste)
+  if (user) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
