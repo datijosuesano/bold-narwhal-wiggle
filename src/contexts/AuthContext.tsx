@@ -3,7 +3,6 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
 
 type UserRole = string | null;
 
@@ -23,7 +22,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>(null); 
   const [isLoading, setIsLoading] = useState(true);
-  const isInitialized = useRef(false);
 
   const fetchRole = async (userId: string) => {
     try {
@@ -33,42 +31,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq("id", userId)
         .single();
 
-      if (!error && data) {
-        return data.role;
-      }
+      if (!error && data) return data.role;
     } catch (e) {
       console.error("Erreur récupération rôle:", e);
     }
-    return 'technician'; // Rôle par défaut sécurisé
+    return 'technician';
   };
 
   useEffect(() => {
-    // Éviter la double initialisation en mode StrictMode
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
-        if (error) {
-          // Si une erreur de session survient (ex: changement de projet), on nettoie
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setRole(null);
-        } else {
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
+        if (error) throw error;
 
-          if (currentSession?.user) {
-            const userRole = await fetchRole(currentSession.user.id);
-            setRole(userRole);
-          }
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          const userRole = await fetchRole(currentSession.user.id);
+          setRole(userRole);
         }
       } catch (error) {
         console.error("Auth init error:", error);
       } finally {
+        // On libère le chargement quoi qu'il arrive pour laisser le router agir
         setIsLoading(false);
       }
     };
@@ -76,35 +62,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      // On ignore l'événement INITIAL_SESSION s'il est déjà géré par getSession
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      if (currentSession) {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        if (currentSession?.user) {
-          const userRole = await fetchRole(currentSession.user.id);
-          setRole(userRole);
-        }
-      } else if (event === 'SIGNED_OUT') {
+        setUser(currentSession.user);
+        const userRole = await fetchRole(currentSession.user.id);
+        setRole(userRole);
+      } else {
         setSession(null);
         setUser(null);
         setRole(null);
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    setIsLoading(true);
     try {
       await supabase.auth.signOut();
-      // Effacer le localStorage pour éviter les résidus d'ancienne session
       localStorage.removeItem('gmao-dyad-auth-token');
     } catch (e) {
       console.error("Sign out error:", e);
-    } finally {
-      window.location.href = '/login';
     }
+    // On ne fait pas de window.location.href ici pour éviter de casser le SPA
   };
 
   const hasRole = (roles: string[]) => {
@@ -114,14 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roles.includes(role);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
+  // CRITIQUE : On retourne toujours les enfants (children). 
+  // C'est la ProtectedRoute qui décidera d'afficher un loader ou de rediriger.
   return (
     <AuthContext.Provider value={{ session, user, role, isLoading, signOut, hasRole }}>
       {children}
