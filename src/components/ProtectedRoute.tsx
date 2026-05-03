@@ -1,21 +1,22 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const location = useLocation(); // Ajoute ceci
+  const location = useLocation();
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
       </div>
     ); 
   }
 
   if (!user) {
-    // On passe l'emplacement actuel dans l'état pour pouvoir y revenir
+    // Redirection vers login avec l'URL de retour en mémoire
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
