@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -41,10 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession) {
           setSession(currentSession);
           setUser(currentSession.user);
@@ -54,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error("Auth init error:", error);
       } finally {
-        // On libère le chargement quoi qu'il arrive pour laisser le router agir
         setIsLoading(false);
       }
     };
@@ -85,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error("Sign out error:", e);
     }
-    // On ne fait pas de window.location.href ici pour éviter de casser le SPA
   };
 
   const hasRole = (roles: string[]) => {
@@ -95,8 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roles.includes(role);
   };
 
-  // CRITIQUE : On retourne toujours les enfants (children). 
-  // C'est la ProtectedRoute qui décidera d'afficher un loader ou de rediriger.
+  // On retourne toujours children pour que le Router (App.tsx) soit actif immédiatement
   return (
     <AuthContext.Provider value={{ session, user, role, isLoading, signOut, hasRole }}>
       {children}
