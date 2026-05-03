@@ -51,6 +51,10 @@ BEGIN
   RETURN new;
 END;
 $$;
+-- Permettre à tous les utilisateurs connectés de voir les profils (pour les listes de techniciens)
+DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;
+CREATE POLICY "profiles_select_all" ON public.profiles
+FOR SELECT TO authenticated USING (true);
 
 -- Trigger la fonction sur la création d'utilisateur
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
