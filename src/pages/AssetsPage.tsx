@@ -19,7 +19,7 @@ const AssetsPage: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [equipments, setEquipments] = useState<any[]>([]);
@@ -107,7 +107,7 @@ const AssetsPage: React.FC = () => {
                           <Eye size={16} />
                         </Button>
                         {canEdit && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => { setSelectedAsset(item); setIsEditModalOpen(true); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => { setSelectedAsset(item); setIsEditOpen(true); }}>
                             <Edit2 size={16} />
                           </Button>
                         )}
