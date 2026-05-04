@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Hammer, Shield, FileText } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Shield, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -41,36 +41,33 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, isMobile, 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { user, role, signOut, hasRole } = useAuth();
+  const { user, role, specialty, signOut, hasRole } = useAuth();
 
-  // DÉFINITION DES ACCÈS PAR RÔLE
+  // Définition des accès par rôle
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
-    
-    // MODULES TECHNIQUES : Cachés pour le Gestionnaire de Stock
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical'] },
-    
-    // MODULES STOCK : Cachés pour les Techniciens et Secrétariat (sauf Admin/Stock)
     { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire de stock'] },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire de stock'] },
-    
-    // MODULES ADMINISTRATIFS
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
     { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
   ];
   
+  // On affiche la spécialité en priorité (ex: Gestionnaire de Stock), sinon le rôle (ex: Admin)
+  const displayFunction = specialty || (role === 'admin' ? 'Administrateur' : 'Utilisateur');
+
   return (
     <div className="flex flex-col h-full p-4 space-y-4">
       <div className="flex flex-col items-center mb-6">
         <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
         {user && (
-          <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase tracking-tighter">
-            <Shield size={10} className="mr-1" /> {role || 'Utilisateur'}
+          <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase tracking-tighter py-1 px-3">
+            <Shield size={10} className="mr-1" /> {displayFunction}
           </Badge>
         )}
       </div>
