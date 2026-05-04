@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, CheckCircle } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
@@ -60,18 +61,18 @@ const InterventionsPage: React.FC = () => {
 
   useEffect(() => { fetchInterventions(); }, []);
 
-  const handleValidateInvoice = async (id: string) => {
+  const handleUpdateInvoiceStatus = async (id: string, status: string) => {
     const { error } = await supabase
       .from('interventions')
       .update({ 
-        invoice_status: 'Déposée',
-        invoice_deposited_at: new Date().toISOString()
+        invoice_status: status,
+        invoice_deposited_at: status === 'Facture déposée' ? new Date().toISOString() : null
       })
       .eq('id', id);
 
-    if (error) showError("Erreur lors de la validation.");
+    if (error) showError("Erreur lors de la mise à jour.");
     else {
-      showSuccess("Facture marquée comme déposée.");
+      showSuccess(`Statut mis à jour : ${status}`);
       fetchInterventions();
     }
   };
@@ -163,22 +164,39 @@ const InterventionsPage: React.FC = () => {
                     <td className="px-6 py-4">
                       <Badge className={cn(
                         "rounded-full text-[10px] font-bold",
-                        item.invoice_status === 'Déposée' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                        item.invoice_status === 'Facture déposée' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
                       )}>
-                        <Receipt size={10} className="mr-1" /> {item.invoice_status || 'Non déposée'}
+                        <Receipt size={10} className="mr-1" /> {item.invoice_status || 'Facture non déposée'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1">
-                        {isSec && item.invoice_status !== 'Déposée' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="rounded-full text-[10px] font-bold border-green-200 text-green-600 hover:bg-green-50"
-                            onClick={() => handleValidateInvoice(item.id)}
-                          >
-                            <CheckCircle size={12} className="mr-1" /> Valider Facture
-                          </Button>
+                        {isSec && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
+                              >
+                                Valider facture <ChevronDown size={12} className="ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl">
+                              <DropdownMenuItem 
+                                className="text-green-600 font-bold cursor-pointer"
+                                onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture déposée')}
+                              >
+                                <CheckCircle2 size={14} className="mr-2" /> Facture déposée
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600 font-bold cursor-pointer"
+                                onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture non déposée')}
+                              >
+                                <XCircle size={14} className="mr-2" /> Facture non déposée
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                         
                         <Button 
