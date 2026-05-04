@@ -17,18 +17,17 @@ const CreateTechnicianForm: React.FC<CreateTechnicianFormProps> = ({ onSuccess }
         <AlertCircle className="h-4 w-4" />
         <AlertTitle className="font-bold">Action Requise</AlertTitle>
         <AlertDescription>
-          En raison de la sécurité de la base de données (RLS), vous ne pouvez pas créer de profil manuellement. 
-          Le technicien doit d'abord **créer son propre compte** via la page d'inscription.
+          Pour des raisons de sécurité, chaque utilisateur doit créer son propre compte.
         </AlertDescription>
       </Alert>
 
       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
         <h4 className="font-bold text-slate-900">Procédure d'ajout :</h4>
         <ol className="list-decimal ml-5 space-y-2 text-sm text-slate-600">
-          <li>Le technicien se rend sur la page <strong>/register</strong>.</li>
-          <li>Il crée son compte avec son email professionnel.</li>
-          <li>Une fois inscrit, son nom apparaîtra automatiquement dans la liste.</li>
-          <li>Vous pourrez alors cliquer sur "Modifier" pour lui assigner sa spécialité.</li>
+          <li>Envoyez le lien d'inscription au futur collaborateur.</li>
+          <li>Il remplit ses informations et **choisit sa spécialité**.</li>
+          <li>Une fois inscrit, il apparaîtra dans votre liste d'équipe.</li>
+          <li>En tant qu'admin, vous pourrez ensuite valider son rôle (Technicien, Stock, etc.).</li>
         </ol>
       </div>
 

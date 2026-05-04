@@ -7,8 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Building2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Building2, UserPlus, Loader2, Eye, EyeOff, HardHat } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,11 +23,17 @@ const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [specialty, setSpecialty] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!specialty) {
+      showError("Veuillez sélectionner votre spécialité.");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -31,6 +44,7 @@ const RegisterPage: React.FC = () => {
           data: {
             first_name: firstName,
             last_name: lastName,
+            specialite: specialty,
           }
         }
       });
@@ -38,7 +52,7 @@ const RegisterPage: React.FC = () => {
       if (error) {
         showError(`Erreur: ${error.message}`);
       } else {
-        showSuccess("Inscription réussie ! Vérifiez vos emails ou connectez-vous.");
+        showSuccess("Inscription réussie ! Vous pouvez maintenant vous connecter.");
         navigate("/login");
       }
     } catch (err) {
@@ -52,7 +66,7 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md rounded-2xl shadow-2xl border-none overflow-hidden">
         <div className="h-2 bg-blue-600 w-full" />
-        <CardHeader className="text-center space-y-2 pb-8">
+        <CardHeader className="text-center space-y-2 pb-6">
           <div className="mx-auto bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mb-2">
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
@@ -89,8 +103,26 @@ const RegisterPage: React.FC = () => {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label>Spécialité / Fonction</Label>
+              <Select onValueChange={setSpecialty} value={specialty}>
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder="Sélectionnez votre métier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Biomédical">Technicien Biomédical</SelectItem>
+                  <SelectItem value="Imagerie">Ingénieur Imagerie</SelectItem>
+                  <SelectItem value="Laboratoire">Spécialiste Laboratoire</SelectItem>
+                  <SelectItem value="Froid Médical">Technicien Froid</SelectItem>
+                  <SelectItem value="Gestion Stock">Gestionnaire de Stock</SelectItem>
+                  <SelectItem value="Administratif">Administratif / Secrétariat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email professionnel</Label>
               <Input
                 id="email"
                 type="email"
@@ -124,13 +156,13 @@ const RegisterPage: React.FC = () => {
             </div>
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg font-bold"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg font-bold text-lg mt-2"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <Loader2 className="animate-spin mr-2" />
               ) : (
-                <UserPlus className="mr-2 h-4 w-4" />
+                <UserPlus className="mr-2 h-5 w-5" />
               )}
               S'inscrire
             </Button>
