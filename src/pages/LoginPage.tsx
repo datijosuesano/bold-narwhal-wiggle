@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,15 +15,15 @@ const LoginPage: React.FC = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   
-  // États du formulaire
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirection stable : attend que l'auth soit chargée avant de rediriger
+  // Redirection stable : on attend que l'état d'authentification soit chargé
   useEffect(() => {
     if (!isLoading && user) {
+      // Utilisation de replace: true pour éviter de revenir en arrière sur le login
       navigate("/", { replace: true });
     }
   }, [user, isLoading, navigate]);
@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
         showError(`Erreur: ${error.message}`);
       } else {
         showSuccess("Connexion réussie !");
-        // Note: La redirection vers "/" est gérée par le useEffect ci-dessus
+        // La redirection vers "/" sera déclenchée par le useEffect au changement d'état
       }
     } catch (err) {
       showError("Une erreur s'est produite lors de la connexion.");
@@ -51,7 +51,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // 1. Pendant le chargement initial de Supabase
+  // Affichage d'un spinner pendant que Supabase vérifie la session existante
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -60,10 +60,9 @@ const LoginPage: React.FC = () => {
     );
   }
 
-  // 2. Si l'utilisateur est déjà connecté, on ne rend rien (le useEffect redirige)
+  // Si l'utilisateur est déjà présent, on ne rend rien (le useEffect redirige)
   if (user) return null;
 
-  // 3. Affichage du formulaire de connexion
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md rounded-2xl shadow-2xl border-none overflow-hidden">
