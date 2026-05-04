@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Building2, UserPlus, Loader2, Eye, EyeOff, HardHat } from 'lucide-react';
+import { Building2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import {
   Select,
