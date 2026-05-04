@@ -43,20 +43,21 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
+  // Définition des accès par menu
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['any'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['any'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical'] },
     { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['any'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['any'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/documentation", icon: <Library size={20} />, label: "Documentation", roles: ['any'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['any'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['any'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['any'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['any'] },
-    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['any'] },
-    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['any'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['any'] },
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire de stock', 'technicien biomedical'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire de stock'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technicien biomedical'] },
+    { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
+    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'technicien biomedical', 'secretaire'] },
   ];
   
   return (
@@ -72,7 +73,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
 
       <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
         {navItems
-          .filter(item => item.roles.includes('any') || hasRole(item.roles as any))
+          .filter(item => item.roles.includes('any') || hasRole(item.roles))
           .map((item) => (
             <NavItem
               key={item.to}
