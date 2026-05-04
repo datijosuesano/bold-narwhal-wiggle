@@ -23,25 +23,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole>(null); 
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fonction de récupération du rôle avec sécurité
   const fetchRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", userId)
-        .single();
+        .maybeSingle(); // maybeSingle évite une erreur si le profil n'existe pas encore
 
-      if (!error && data) return data.role;
+      if (error) throw error;
+      return data?.role || 'user';
     } catch (e) {
       console.error("Erreur récupération rôle:", e);
+      return 'user'; // Retourne un rôle par défaut en cas d'erreur
     }
-    return 'technician';
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
         if (currentSession) {
           setSession(currentSession);
           setUser(currentSession.user);
@@ -51,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error("Auth init error:", error);
       } finally {
+        // CRITIQUE : Toujours passer à false pour libérer l'application
         setIsLoading(false);
       }
     };
@@ -78,6 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       localStorage.removeItem('gmao-dyad-auth-token');
+      // Redirection propre
+      window.location.href = '/login';
     } catch (e) {
       console.error("Sign out error:", e);
     }
@@ -86,11 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasRole = (roles: string[]) => {
     if (!role) return false;
     const userRole = role.toLowerCase();
+    // Un admin a accès à tout par défaut
     if (userRole === 'admin' || userRole === 'administrateur') return true;
-    return roles.includes(role);
+    return roles.map(r => r.toLowerCase()).includes(userRole);
   };
 
-  // On retourne toujours children pour que le Router (App.tsx) soit actif immédiatement
   return (
     <AuthContext.Provider value={{ session, user, role, isLoading, signOut, hasRole }}>
       {children}
