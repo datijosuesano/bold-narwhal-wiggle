@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, CheckCircle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -22,6 +22,8 @@ interface Intervention {
   intervention_date: string;
   description: string;
   asset_id: string;
+  invoice_status: string;
+  invoice_number: string;
   assets: {
     name: string;
     location: string;
@@ -29,8 +31,9 @@ interface Intervention {
 }
 
 const InterventionsPage: React.FC = () => {
-  const { hasRole } = useAuth();
+  const { hasRole, role } = useAuth();
   const canEdit = hasRole(['admin', 'technicien biomedical']);
+  const isSec = role === 'secretaire';
 
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +60,22 @@ const InterventionsPage: React.FC = () => {
 
   useEffect(() => { fetchInterventions(); }, []);
 
+  const handleValidateInvoice = async (id: string) => {
+    const { error } = await supabase
+      .from('interventions')
+      .update({ 
+        invoice_status: 'Déposée',
+        invoice_deposited_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) showError("Erreur lors de la validation.");
+    else {
+      showSuccess("Facture marquée comme déposée.");
+      fetchInterventions();
+    }
+  };
+
   const handleDelete = async () => {
     if (!selectedIntervention) return;
     const { error } = await supabase.from('interventions').delete().eq('id', selectedIntervention.id);
@@ -81,7 +100,7 @@ const InterventionsPage: React.FC = () => {
           <div className="p-3 bg-green-100 rounded-2xl"><Wrench className="h-8 w-8 text-green-600" /></div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Interventions</h1>
-            <p className="text-lg text-muted-foreground">Journal historique des opérations réalisées.</p>
+            <p className="text-lg text-muted-foreground">Journal historique et suivi facturation.</p>
           </div>
         </div>
         
@@ -119,14 +138,15 @@ const InterventionsPage: React.FC = () => {
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Équipement & Site</th>
                   <th className="px-6 py-4">Objet</th>
+                  <th className="px-6 py-4">Facture</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {isLoading ? (
-                  <tr><td colSpan={4} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
+                  <tr><td colSpan={5} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
                 ) : filteredInterventions.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center py-20 text-muted-foreground italic">Aucune intervention enregistrée.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-20 text-muted-foreground italic">Aucune intervention enregistrée.</td></tr>
                 ) : filteredInterventions.map(item => (
                   <tr key={item.id} className="hover:bg-accent/50 transition-colors group">
                     <td className="px-6 py-4 text-sm font-medium">
@@ -140,8 +160,27 @@ const InterventionsPage: React.FC = () => {
                       <div className="text-sm font-medium line-clamp-1">{item.title}</div>
                       <Badge variant="outline" className="mt-1 rounded-full text-[9px] uppercase">{item.maintenance_type}</Badge>
                     </td>
+                    <td className="px-6 py-4">
+                      <Badge className={cn(
+                        "rounded-full text-[10px] font-bold",
+                        item.invoice_status === 'Déposée' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                      )}>
+                        <Receipt size={10} className="mr-1" /> {item.invoice_status || 'Non déposée'}
+                      </Badge>
+                    </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-1">
+                        {isSec && item.invoice_status !== 'Déposée' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="rounded-full text-[10px] font-bold border-green-200 text-green-600 hover:bg-green-50"
+                            onClick={() => handleValidateInvoice(item.id)}
+                          >
+                            <CheckCircle size={12} className="mr-1" /> Valider Facture
+                          </Button>
+                        )}
+                        
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -151,6 +190,7 @@ const InterventionsPage: React.FC = () => {
                         >
                           <FileText size={16} />
                         </Button>
+                        
                         {canEdit && (
                           <>
                             <Button 

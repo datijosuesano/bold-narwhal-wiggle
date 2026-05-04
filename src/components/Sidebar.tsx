@@ -43,21 +43,25 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, signOut, hasRole } = useAuth();
 
-  // Définition des accès par menu
+  // DÉFINITION STRICTE DES ACCÈS
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
+    
+    // SECTION TECHNIQUE (Cachée pour le Stock)
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical'] },
-    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['any'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical', 'secretaire'] },
-    { to: "/documentation", icon: <Library size={20} />, label: "Documentation", roles: ['any'] },
-    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire de stock', 'technicien biomedical'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+    { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical'] },
+    
+    // SECTION STOCK (Cachée pour les Techniciens et Secrétariat)
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire de stock'] },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire de stock'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outillage Technique", roles: ['admin', 'technicien biomedical'] },
+    
+    // SECTION ADMINISTRATIVE
+    { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
-    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
     { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+    { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
   ];
   
   return (
