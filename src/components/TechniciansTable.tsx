@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit2, MessageCircle, Trash2 } from 'lucide-react';
+import { Edit2, MessageCircle, Trash2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -28,6 +28,7 @@ interface TechniciansTableProps {
   onEdit: (tech: Technician) => void;
   onShowTasks: (tech: Technician) => void;
   onDelete: (tech: Technician) => void;
+  canManage?: boolean;
 }
 
 const getStatusBadge = (status: Technician['status']) => {
@@ -38,7 +39,7 @@ const getStatusBadge = (status: Technician['status']) => {
   }
 };
 
-const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks, onDelete }) => {
+const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks, onDelete, canManage = false }) => {
   
   const handleWhatsApp = (tech: Technician) => {
     const cleanNumber = tech.phone.replace(/\D/g, '');
@@ -71,7 +72,7 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                     </Avatar>
                     <div>
                       <div className="font-medium text-foreground">{tech.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{tech.id}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{tech.id.substring(0, 8)}</div>
                     </div>
                   </div>
                 </TableCell>
@@ -98,30 +99,44 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 rounded-full text-green-600 hover:bg-green-50"
-                      onClick={() => handleWhatsApp(tech)}
-                      title="WhatsApp"
+                      className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
+                      onClick={() => onShowTasks(tech)}
+                      title="Voir détails"
                     >
-                      <MessageCircle size={18} />
+                      <Eye size={18} />
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
-                      onClick={() => onEdit(tech)}
-                      title="Modifier"
-                    >
-                      <Edit2 size={16} />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
-                      onClick={() => onDelete(tech)}
-                      title="Supprimer"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
+                    
+                    {canManage && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full text-green-600 hover:bg-green-50"
+                          onClick={() => handleWhatsApp(tech)}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle size={18} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent"
+                          onClick={() => onEdit(tech)}
+                          title="Modifier"
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
+                          onClick={() => onDelete(tech)}
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

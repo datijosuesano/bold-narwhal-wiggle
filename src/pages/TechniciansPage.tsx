@@ -11,8 +11,12 @@ import EditTechnicianForm from '@/components/EditTechnicianForm';
 import TechnicianTasksDialog from '@/components/TechnicianTasksDialog';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TechniciansPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole(['admin']); // Seul l'admin gère l'équipe
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTasksOpen, setIsTasksOpen] = useState(false);
@@ -36,7 +40,6 @@ const TechniciansPage: React.FC = () => {
         const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
         return {
           id: p.id,
-          // Si le nom est vide, on affiche l'email pour identifier l'utilisateur
           name: fullName || p.email || 'Utilisateur sans nom',
           specialty: p.specialite || (p.role === 'user' ? 'Nouveau compte' : 'Non défini'),
           status: p.status || 'Available',
@@ -63,6 +66,7 @@ const TechniciansPage: React.FC = () => {
   }, [technicians, searchTerm]);
 
   const handleEdit = (tech: Technician) => {
+    if (!isAdmin) return;
     setSelectedTech(tech);
     setIsEditOpen(true);
   };
@@ -73,6 +77,7 @@ const TechniciansPage: React.FC = () => {
   };
 
   const handleDeleteClick = (tech: Technician) => {
+    if (!isAdmin) return;
     setSelectedTech(tech);
     setIsDeleteOpen(true);
   };
@@ -104,23 +109,25 @@ const TechniciansPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Utilisateurs & Équipe</h1>
-            <p className="text-lg text-muted-foreground">Identifiez les nouveaux inscrits et assignez leurs rôles.</p>
+            <p className="text-lg text-muted-foreground">Consultez les membres de l'équipe technique.</p>
           </div>
         </div>
         
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Ajouter un Intervenant</DialogTitle>
-            </DialogHeader>
-            <CreateTechnicianForm onSuccess={() => { setIsCreateOpen(false); fetchTechnicians(); }} />
-          </DialogContent>
-        </Dialog>
+        {isAdmin && (
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
+                <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px] rounded-xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold">Ajouter un Intervenant</DialogTitle>
+              </DialogHeader>
+              <CreateTechnicianForm onSuccess={() => { setIsCreateOpen(false); fetchTechnicians(); }} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card className="shadow-lg">
@@ -128,7 +135,9 @@ const TechniciansPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>Liste des comptes</CardTitle>
-              <CardDescription>Les nouveaux utilisateurs apparaissent ici via leur email. Cliquez sur Modifier pour finaliser leur profil.</CardDescription>
+              <CardDescription>
+                {isAdmin ? "Cliquez sur Modifier pour finaliser un profil." : "Liste des collaborateurs en lecture seule."}
+              </CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -153,38 +162,43 @@ const TechniciansPage: React.FC = () => {
               onEdit={handleEdit}
               onShowTasks={handleShowTasks}
               onDelete={handleDeleteClick}
+              canManage={isAdmin}
             />
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Gérer l'utilisateur</DialogTitle>
-            <DialogDescription>Assignez une spécialité et définissez le niveau d'accès.</DialogDescription>
-          </DialogHeader>
-          {selectedTech && (
-            <EditTechnicianForm 
-              technician={selectedTech} 
-              onSuccess={() => { setIsEditOpen(false); fetchTechnicians(); }} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {isAdmin && (
+        <>
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="sm:max-w-[500px] rounded-xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold">Gérer l'utilisateur</DialogTitle>
+                <DialogDescription>Assignez une spécialité et définissez le niveau d'accès.</DialogDescription>
+              </DialogHeader>
+              {selectedTech && (
+                <EditTechnicianForm 
+                  technician={selectedTech} 
+                  onSuccess={() => { setIsEditOpen(false); fetchTechnicians(); }} 
+                />
+              )}
+            </DialogContent>
+          </Dialog>
 
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent className="rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le compte ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action retirera définitivement l'accès à cet utilisateur.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">Supprimer</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <AlertDialogContent className="rounded-xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer le compte ?</AlertDialogTitle>
+                <AlertDialogDescription>Cette action retirera définitivement l'accès à cet utilisateur.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">Supprimer</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
 
       <TechnicianTasksDialog 
         technician={selectedTech} 
