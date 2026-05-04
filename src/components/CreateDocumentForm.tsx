@@ -48,6 +48,15 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { user } = useAuth();
 
+  const form = useForm<DocFormValues>({
+    resolver: zodResolver(DocSchema),
+    defaultValues: {
+      name: "",
+      category: "Manuel Technique",
+      asset_id: "",
+    },
+  });
+
   useEffect(() => {
     const fetchAssets = async () => {
       try {
