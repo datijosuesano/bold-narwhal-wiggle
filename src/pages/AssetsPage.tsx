@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import CreateAssetForm from "@/components/CreateAssetForm";
 import EditAssetForm from "@/components/EditAssetForm";
 import AssetDetailView from "@/components/AssetDetailView";
@@ -127,10 +128,10 @@ const AssetsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
           <DialogHeader><DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle></DialogHeader>
-          {selectedAsset && <EditAssetForm asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost}} onSuccess={() => { setIsEditModalOpen(false); fetchAssets(); }} />}
+          {selectedAsset && <EditAssetForm asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost}} onSuccess={() => { setIsEditOpen(false); fetchAssets(); }} />}
         </DialogContent>
       </Dialog>
     </div>
