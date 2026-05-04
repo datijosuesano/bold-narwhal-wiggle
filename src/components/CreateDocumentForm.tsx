@@ -26,6 +26,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 const DocSchema = z.object({
   name: z.string().min(3, "Titre requis"),
@@ -59,11 +60,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
     };
     fetchAssets();
   }, []);
-
-  const form = useForm<DocFormValues>({
-    resolver: zodResolver(DocSchema),
-    defaultValues: { name: "", category: "Manuel Technique", asset_id: "" },
-  });
 
   const onSubmit = async (data: DocFormValues) => {
     if (!user) {
