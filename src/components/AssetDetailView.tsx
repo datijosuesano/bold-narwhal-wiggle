@@ -11,6 +11,7 @@ import AssetLifeSheet from './AssetLifeSheet';
 import AddPastInterventionForm from './AddPastInterventionForm';
 import AssetDocuments from './AssetDocuments';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Asset {
   id: string;
@@ -35,6 +36,9 @@ interface AssetDetailViewProps {
 }
 
 const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
+  const { hasRole } = useAuth();
+  const canEdit = hasRole(['admin', 'technicien biomedical']);
+
   const [activeTab, setActiveTab] = useState('details');
   const [isActionOpen, setIsActionOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -87,15 +91,17 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
           </TabsList>
           
           <div className="flex gap-2">
-            <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 rounded-xl text-white"><PlusCircle size={16} className="mr-2" /> Action</Button>
-              </DialogTrigger>
-              <DialogContent className="rounded-xl">
-                <DialogHeader><DialogTitle>Enregistrer une action</DialogTitle></DialogHeader>
-                <AddPastInterventionForm assetId={asset.id} onSuccess={() => { setIsActionOpen(false); setRefreshTrigger(prev => prev + 1); }} />
-              </DialogContent>
-            </Dialog>
+            {canEdit && (
+              <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-green-600 hover:bg-green-700 rounded-xl text-white"><PlusCircle size={16} className="mr-2" /> Action</Button>
+                </DialogTrigger>
+                <DialogContent className="rounded-xl">
+                  <DialogHeader><DialogTitle>Enregistrer une action</DialogTitle></DialogHeader>
+                  <AddPastInterventionForm assetId={asset.id} onSuccess={() => { setIsActionOpen(false); setRefreshTrigger(prev => prev + 1); }} />
+                </DialogContent>
+              </Dialog>
+            )}
             <Button onClick={() => window.print()} variant="outline" className="rounded-xl"><Printer size={16} /></Button>
           </div>
         </div>

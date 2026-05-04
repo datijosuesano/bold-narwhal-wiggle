@@ -7,8 +7,12 @@ import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
 import PlanningStats from "@/components/PlanningStats"; 
 import DraftsList from "@/components/DraftsList";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PlanningPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const canEdit = hasRole(['admin', 'technicien biomedical']);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,21 +48,27 @@ const PlanningPage: React.FC = () => {
           </div>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Programmer</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg rounded-xl">
-            <DialogHeader>
-              <DialogTitle>Programmer une Intervention</DialogTitle>
-            </DialogHeader>
-            <CreateWorkOrderForm onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} />
-          </DialogContent>
-        </Dialog>
+        {canEdit && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 rounded-xl"><Plus className="mr-2 h-4 w-4" /> Programmer</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg rounded-xl">
+              <DialogHeader>
+                <DialogTitle>Programmer une Intervention</DialogTitle>
+              </DialogHeader>
+              <CreateWorkOrderForm onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-4">
-        <div className="lg:col-span-1"><DraftsList onSchedule={() => setIsModalOpen(true)} /></div>
+        <div className="lg:col-span-1">
+          <DraftsList onSchedule={() => {
+            if (canEdit) setIsModalOpen(true);
+          }} />
+        </div>
         <div className="lg:col-span-3 space-y-8">
           <PlanningStats events={events} />
           <CalendarView events={events} onCompleteEvent={() => fetchEvents()} />

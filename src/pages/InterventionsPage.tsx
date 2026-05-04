@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import AddPastInterventionForm from '@/components/AddPastInterventionForm';
 import CreateReportForm from '@/components/CreateReportForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Intervention {
   id: string;
@@ -28,6 +29,9 @@ interface Intervention {
 }
 
 const InterventionsPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const canEdit = hasRole(['admin', 'technicien biomedical']);
+
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,17 +85,19 @@ const InterventionsPage: React.FC = () => {
           </div>
         </div>
         
-        <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700 rounded-xl shadow-md">
-              <Plus className="mr-2 h-4 w-4" /> Enregistrer Intervention
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg rounded-xl">
-            <DialogHeader><DialogTitle>Nouvelle Intervention</DialogTitle></DialogHeader>
-            <AddPastInterventionForm onSuccess={() => { setIsLogOpen(false); fetchInterventions(); }} />
-          </DialogContent>
-        </Dialog>
+        {canEdit && (
+          <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700 rounded-xl shadow-md">
+                <Plus className="mr-2 h-4 w-4" /> Enregistrer Intervention
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg rounded-xl">
+              <DialogHeader><DialogTitle>Nouvelle Intervention</DialogTitle></DialogHeader>
+              <AddPastInterventionForm onSuccess={() => { setIsLogOpen(false); fetchInterventions(); }} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="relative max-w-md">
@@ -145,24 +151,28 @@ const InterventionsPage: React.FC = () => {
                         >
                           <FileText size={16} />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-amber-600 hover:bg-amber-50"
-                          onClick={() => { setSelectedIntervention(item); setIsEditOpen(true); }}
-                          title="Modifier"
-                        >
-                          <Edit2 size={16} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-red-500 hover:bg-red-50"
-                          onClick={() => { setSelectedIntervention(item); setIsDeleteOpen(true); }}
-                          title="Supprimer"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+                        {canEdit && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                              onClick={() => { setSelectedIntervention(item); setIsEditOpen(true); }}
+                              title="Modifier"
+                            >
+                              <Edit2 size={16} />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-500 hover:bg-red-50"
+                              onClick={() => { setSelectedIntervention(item); setIsDeleteOpen(true); }}
+                              title="Supprimer"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
