@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, role, isLoading, hasRole } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -16,8 +16,19 @@ const ProtectedRoute: React.FC = () => {
   }
 
   if (!user) {
-    // Redirection vers login avec l'URL de retour en mémoire
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // SÉCURITÉ : Redirection si un Gestionnaire de Stock tente d'accéder aux modules techniques
+  const techRoutes = ['/work-orders', '/interventions', '/assets', '/planning'];
+  if (role === 'gestionnaire de stock' && techRoutes.includes(location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
+
+  // SÉCURITÉ : Redirection si un Technicien tente d'accéder au Stock
+  const stockRoutes = ['/inventory', '/reagents'];
+  if (role === 'technicien biomedical' && stockRoutes.includes(location.pathname)) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

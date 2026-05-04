@@ -43,22 +43,27 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const isMobile = useIsMobile();
   const { user, role, specialty, signOut, hasRole } = useAuth();
 
-  // Définition des accès par rôle
+  // DÉFINITION STRICTE DES ACCÈS
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['any'] },
+    
+    // Maintenance & Équipements : Interdit au Gestionnaire de Stock
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/assets", icon: <Factory size={20} />, label: "Parc Équipements", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical'] },
+    
+    // Stock : Uniquement Admin et Gestionnaire de Stock
     { to: "/inventory", icon: <Box size={20} />, label: "Pièces de Rechange", roles: ['admin', 'gestionnaire de stock'] },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire de stock'] },
+    
+    // Administratif
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats Maintenance", roles: ['admin', 'secretaire'] },
     { to: "/reports", icon: <FileText size={20} />, label: "Rapports & Audits", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe Technique", roles: ['admin'] },
   ];
   
-  // On affiche la spécialité en priorité (ex: Gestionnaire de Stock), sinon le rôle (ex: Admin)
   const displayFunction = specialty || (role === 'admin' ? 'Administrateur' : 'Utilisateur');
 
   return (
