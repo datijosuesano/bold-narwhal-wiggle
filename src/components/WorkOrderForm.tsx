@@ -73,14 +73,12 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch Assets with more info
       const { data: assetData } = await supabase
         .from('assets')
         .select('id, name, serial_number, location')
         .order('name');
       setAssets(assetData || []);
       
-      // Fetch Technicians
       const { data: techData } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')

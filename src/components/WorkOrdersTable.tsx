@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Eye, Loader2, Edit2, Trash2, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -60,6 +60,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger, onEdi
     switch (status) {
       case 'Terminé': return <Badge className="bg-green-600 rounded-full">Terminé</Badge>;
       case 'En cours': return <Badge className="bg-blue-500 rounded-full">En cours</Badge>;
+      case 'En attente de pièce': return <Badge className="bg-amber-500 text-white rounded-full flex items-center gap-1"><Clock size={10} /> En attente pièce</Badge>;
       case 'Annulé': return <Badge variant="secondary" className="rounded-full">Annulé</Badge>;
       default: return <Badge variant="outline" className="rounded-full">Ouvert</Badge>;
     }

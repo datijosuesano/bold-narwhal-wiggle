@@ -23,5 +23,5 @@ export const TYPES_MAINTENANCE = ["Préventive", "Corrective", "Curative", "Pall
 export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
 
 // Statuts des Ordres de Travail
-export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "Terminé", "Annulé"] as const;
+export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "En attente de pièce", "Terminé", "Annulé"] as const;
 export const WORK_ORDER_STATUS = STATUTS_WORK_ORDER;
