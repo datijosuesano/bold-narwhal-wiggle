@@ -20,10 +20,8 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirection stable : on attend que l'état d'authentification soit chargé
   useEffect(() => {
     if (!isLoading && user) {
-      // Utilisation de replace: true pour éviter de revenir en arrière sur le login
       navigate("/", { replace: true });
     }
   }, [user, isLoading, navigate]);
@@ -33,16 +31,21 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         showError(`Erreur: ${error.message}`);
-      } else {
+      } else if (data.user) {
+        // ENREGISTREMENT DE L'HEURE DE CONNEXION
+        await supabase
+          .from('profiles')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', data.user.id);
+
         showSuccess("Connexion réussie !");
-        // La redirection vers "/" sera déclenchée par le useEffect au changement d'état
       }
     } catch (err) {
       showError("Une erreur s'est produite lors de la connexion.");
@@ -51,7 +54,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // Affichage d'un spinner pendant que Supabase vérifie la session existante
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -60,7 +62,6 @@ const LoginPage: React.FC = () => {
     );
   }
 
-  // Si l'utilisateur est déjà présent, on ne rend rien (le useEffect redirige)
   if (user) return null;
 
   return (

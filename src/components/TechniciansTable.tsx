@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit2, MessageCircle, Trash2, Eye } from 'lucide-react';
+import { Edit2, MessageCircle, Trash2, Eye, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 export interface Technician {
   id: string;
@@ -21,6 +23,7 @@ export interface Technician {
   activeOrders: number;
   phone: string;
   email: string;
+  last_login?: string | null;
 }
 
 interface TechniciansTableProps {
@@ -54,7 +57,7 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
           <TableRow>
             <TableHead className="font-semibold">Technicien</TableHead>
             <TableHead className="font-semibold">Spécialité</TableHead>
-            <TableHead className="font-semibold">Statut</TableHead>
+            <TableHead className="font-semibold">Dernière Connexion</TableHead>
             <TableHead className="font-semibold text-center">OT Actifs</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
@@ -72,7 +75,7 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                     </Avatar>
                     <div>
                       <div className="font-medium text-foreground">{tech.name}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{tech.id.substring(0, 8)}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{tech.email}</div>
                     </div>
                   </div>
                 </TableCell>
@@ -81,7 +84,18 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                     {tech.specialty}
                   </Badge>
                 </TableCell>
-                <TableCell>{getStatusBadge(tech.status)}</TableCell>
+                <TableCell>
+                  {tech.last_login ? (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold">{format(new Date(tech.last_login), 'dd/MM/yyyy', { locale: fr })}</span>
+                      <span className="text-[10px] text-blue-600 flex items-center">
+                        <Clock size={10} className="mr-1" /> {format(new Date(tech.last_login), 'HH:mm')}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Jamais connecté</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-center">
                   <button 
                     onClick={() => onShowTasks(tech)}

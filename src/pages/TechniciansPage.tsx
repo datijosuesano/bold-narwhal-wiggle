@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const TechniciansPage: React.FC = () => {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole(['admin']); // Seul l'admin gère l'équipe
+  const isAdmin = hasRole(['admin']);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -31,7 +31,7 @@ const TechniciansPage: React.FC = () => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('last_login', { ascending: false });
 
     if (error) {
       showError("Erreur lors du chargement des profils.");
@@ -45,7 +45,8 @@ const TechniciansPage: React.FC = () => {
           status: p.status || 'Available',
           activeOrders: 0,
           phone: p.telephone || 'N/A',
-          email: p.email || 'N/A'
+          email: p.email || 'N/A',
+          last_login: p.last_login
         };
       });
       setTechnicians(mapped);
@@ -123,6 +124,7 @@ const TechniciansPage: React.FC = () => {
             <DialogContent className="sm:max-w-[500px] rounded-xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold">Ajouter un Intervenant</DialogTitle>
+                <DialogDescription>Procédure d'invitation de nouveaux membres.</DialogDescription>
               </DialogHeader>
               <CreateTechnicianForm onSuccess={() => { setIsCreateOpen(false); fetchTechnicians(); }} />
             </DialogContent>
