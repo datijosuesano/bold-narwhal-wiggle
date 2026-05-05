@@ -5,7 +5,7 @@ import { FlaskConical, Plus, Search, AlertTriangle, Loader2, Calendar, Hash, His
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import CreateReagentForm from '@/components/CreateReagentForm';
 import ReagentStockAdjustment from '@/components/ReagentStockAdjustment';
 import ReagentHistoryDialog from '@/components/ReagentHistoryDialog';
@@ -78,6 +78,7 @@ const ReagentsPage: React.FC = () => {
           <DialogContent className="sm:max-w-[500px] rounded-xl">
             <DialogHeader>
               <DialogTitle>Ajouter un nouveau Réactif</DialogTitle>
+              <DialogDescription>Saisissez les informations du produit pour l'ajouter à l'inventaire.</DialogDescription>
             </DialogHeader>
             <CreateReagentForm onSuccess={() => { setIsCreateOpen(false); fetchReagents(); }} />
           </DialogContent>

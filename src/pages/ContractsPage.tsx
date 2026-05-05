@@ -82,6 +82,7 @@ const ContractsPage: React.FC = () => {
         <DialogContent className="max-w-2xl rounded-xl">
           <DialogHeader>
             <DialogTitle>Détails du Contrat</DialogTitle>
+            <DialogDescription>Consultez les clauses, les dates et les coûts associés à ce contrat.</DialogDescription>
           </DialogHeader>
           {selectedContract && (
             <ContractDetailView 
@@ -103,6 +104,7 @@ const ContractsPage: React.FC = () => {
         <DialogContent className="rounded-xl">
           <DialogHeader>
             <DialogTitle>Modifier le Contrat</DialogTitle>
+            <DialogDescription>Mettez à jour les informations contractuelles.</DialogDescription>
           </DialogHeader>
           {selectedContract && (
             <EditContractForm 
@@ -122,7 +124,10 @@ const ContractsPage: React.FC = () => {
       {/* Création */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="rounded-xl">
-          <DialogHeader><DialogTitle>Nouveau Contrat</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Nouveau Contrat</DialogTitle>
+            <DialogDescription>Enregistrez un nouvel accord de maintenance.</DialogDescription>
+          </DialogHeader>
           <CreateContractForm 
             existingContracts={contracts.map(c => c.clinic)} 
             onSuccess={() => { setIsCreateOpen(false); fetchContracts(); }} 
@@ -135,6 +140,7 @@ const ContractsPage: React.FC = () => {
         <DialogContent className="max-w-4xl rounded-xl">
           <DialogHeader>
             <DialogTitle>Modèle de Contrat de Maintenance</DialogTitle>
+            <DialogDescription>Éditeur visuel pour générer un document de contrat standard.</DialogDescription>
           </DialogHeader>
           <ContractTemplateEditor />
         </DialogContent>

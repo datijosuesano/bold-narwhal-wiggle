@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -107,7 +107,10 @@ const WorkOrdersPage: React.FC = () => {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg rounded-2xl">
-              <DialogHeader><DialogTitle className="text-2xl font-black">Nouvel Ordre de Travail</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black">Nouvel Ordre de Travail</DialogTitle>
+                <DialogDescription>Créez une nouvelle demande d'intervention technique.</DialogDescription>
+              </DialogHeader>
               <WorkOrderForm onSuccess={() => { setIsCreateOpen(false); fetchData(); }} />
             </DialogContent>
           </Dialog>
@@ -183,7 +186,10 @@ const WorkOrdersPage: React.FC = () => {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl">
-          <DialogHeader><DialogTitle className="text-2xl font-black">Modifier l'OT</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Modifier l'OT</DialogTitle>
+            <DialogDescription>Mettez à jour les détails de cet ordre de travail.</DialogDescription>
+          </DialogHeader>
           {selectedOT && <WorkOrderForm initialData={selectedOT} onSuccess={() => { setIsEditOpen(false); fetchData(); }} />}
         </DialogContent>
       </Dialog>
