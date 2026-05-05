@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Loader2, Edit2, Trash2, AlertCircle, Clock } from 'lucide-react';
+import { Eye, Loader2, Edit2, Trash2, AlertCircle, Clock, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface WorkOrder {
   id: string;
@@ -21,6 +23,7 @@ interface WorkOrder {
   priority: string;
   status: string;
   due_date: string;
+  created_at: string;
   maintenance_type: string;
 }
 
@@ -92,6 +95,7 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger, onEdi
           <TableRow>
             <TableHead className="font-semibold">Titre</TableHead>
             <TableHead className="font-semibold">Priorité</TableHead>
+            <TableHead className="font-semibold">Ouvert le</TableHead>
             <TableHead className="font-semibold">Statut</TableHead>
             <TableHead className="font-semibold">Échéance</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
@@ -99,15 +103,26 @@ const WorkOrdersTable: React.FC<WorkOrdersTableProps> = ({ refreshTrigger, onEdi
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-600" /></TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-600" /></TableCell></TableRow>
           ) : workOrders.length === 0 ? (
-            <TableRow><TableCell colSpan={5} className="text-center py-16 text-muted-foreground italic">Aucun ordre de travail.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="text-center py-16 text-muted-foreground italic">Aucun ordre de travail.</TableCell></TableRow>
           ) : workOrders.map((ot) => (
             <TableRow key={ot.id} className="hover:bg-accent/50 transition-colors">
               <TableCell className="font-bold">{ot.title}</TableCell>
               <TableCell>{getPriorityBadge(ot.priority)}</TableCell>
+              <TableCell className="text-xs">
+                <div className="flex items-center">
+                  <Calendar size={12} className="mr-1 text-muted-foreground" />
+                  {format(new Date(ot.created_at), 'dd/MM/yyyy')}
+                </div>
+              </TableCell>
               <TableCell>{getStatusBadge(ot.status)}</TableCell>
-              <TableCell className="text-sm">{ot.due_date}</TableCell>
+              <TableCell className="text-sm">
+                <div className="flex items-center">
+                  <Clock size={12} className="mr-1 text-muted-foreground" />
+                  {ot.due_date}
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-blue-600" onClick={() => onEdit(ot)}>

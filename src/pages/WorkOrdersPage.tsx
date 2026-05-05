@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User } from "lucide-react";
+import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
@@ -12,6 +12,8 @@ import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
 import { PRIORITES, STATUTS_WORK_ORDER } from "@/utils/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const WorkOrdersPage: React.FC = () => {
   const { hasRole } = useAuth();
@@ -137,6 +139,7 @@ const WorkOrdersPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">Priorité</th>
                   <th className="px-6 py-4">Objet / Équipement</th>
+                  <th className="px-6 py-4">Ouvert le</th>
                   <th className="px-6 py-4">Technicien</th>
                   <th className="px-6 py-4">Échéance</th>
                   <th className="px-6 py-4">Statut</th>
@@ -145,7 +148,7 @@ const WorkOrdersPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="text-center py-20"><Loader2 className="animate-spin mx-auto text-blue-600 h-10 w-10" /></td></tr>
+                  <tr><td colSpan={7} className="text-center py-20"><Loader2 className="animate-spin mx-auto text-blue-600 h-10 w-10" /></td></tr>
                 ) : filteredOTs.map((ot) => (
                   <tr key={ot.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
@@ -158,9 +161,20 @@ const WorkOrdersPage: React.FC = () => {
                       <div className="text-[10px] text-blue-600 font-black uppercase">{ot.assets?.name || 'Inconnu'}</div>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="flex items-center text-xs font-medium text-slate-600">
+                        <Calendar size={12} className="mr-1 text-slate-400" />
+                        {format(new Date(ot.created_at), 'dd/MM/yyyy', { locale: fr })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       <span className="text-xs font-medium text-slate-700">{ot.technician_name || "Non assigné"}</span>
                     </td>
-                    <td className="px-6 py-4 text-xs font-bold">{ot.due_date}</td>
+                    <td className="px-6 py-4 text-xs font-bold">
+                      <div className="flex items-center">
+                        <Clock size={12} className="mr-1 text-slate-400" />
+                        {ot.due_date}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="rounded-full text-[9px] font-black uppercase">{ot.status}</Badge>
                     </td>
@@ -185,7 +199,7 @@ const WorkOrdersPage: React.FC = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl">
+        <DialogContent className="sm:max-w-[600px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black">Modifier l'OT</DialogTitle>
             <DialogDescription>Mettez à jour les détails de cet ordre de travail.</DialogDescription>
