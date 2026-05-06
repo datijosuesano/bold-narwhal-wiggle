@@ -16,6 +16,7 @@ import InventoryPage from "./pages/InventoryPage";
 import ToolsPage from "./pages/ToolsPage";
 import InterventionsPage from "./pages/InterventionsPage";
 import DocumentationPage from "./pages/DocumentationPage";
+import ClientPortal from "./pages/ClientPortal";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -38,6 +39,7 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="/portal" element={<ClientPortal />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />
                 <Route path="/interventions" element={<InterventionsPage />} />
