@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { UploadCloud, Link as LinkIcon, FileText, ImageIcon, Trash2, Loader2, ExternalLink, PlusCircle } from "lucide-react";
+import { UploadCloud, Link as LinkIcon, FileText, ImageIcon, Trash2, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
   const [showLinkInput, setShowLinkInput] = useState(false);
 
   const fetchAttachments = async () => {
+    if (!interventionId) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('intervention_attachments')
@@ -39,7 +40,7 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
     setIsLoading(false);
   };
 
-  useEffect(() => { if (interventionId) fetchAttachments(); }, [interventionId]);
+  useEffect(() => { fetchAttachments(); }, [interventionId]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'pdf') => {
     try {
@@ -50,14 +51,16 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
       const fileExt = file.name.split(".").pop();
       const fileName = `${interventionId}/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
 
+      // 1. Upload vers Storage
       const { error: uploadError } = await supabase.storage
-        .from("asset-documents") // On réutilise le même bucket par simplicité
+        .from("asset-documents")
         .upload(`interventions/${fileName}`, file);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(`interventions/${fileName}`);
 
+      // 2. Enregistrement en Base de Données
       const { error: dbError } = await supabase.from('intervention_attachments').insert({
         intervention_id: interventionId,
         user_id: userId,
@@ -67,10 +70,12 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
       });
 
       if (dbError) throw dbError;
-      showSuccess("Fichier ajouté !");
+      
+      showSuccess("Fichier enregistré !");
       fetchAttachments();
     } catch (error: any) {
-      showError(error.message);
+      console.error("Erreur upload:", error);
+      showError(`Erreur: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -97,10 +102,6 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
 
   const handleDelete = async (id: string, url: string) => {
     try {
-      if (url.includes('supabase.co/storage')) {
-        const path = url.split('asset-documents/')[1];
-        if (path) await supabase.storage.from('asset-documents').remove([path]);
-      }
       await supabase.from('intervention_attachments').delete().eq('id', id);
       setAttachments(prev => prev.filter(a => a.id !== id));
       showSuccess("Supprimé.");
@@ -128,7 +129,7 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
 
       {showLinkInput && (
         <div className="bg-slate-50 p-3 rounded-xl space-y-2 border animate-in fade-in zoom-in-95 duration-200">
-          <Input placeholder="Nom du lien (ex: Vidéo test)" value={linkName} onChange={e => setLinkName(e.target.value)} className="h-8 text-xs rounded-lg" />
+          <Input placeholder="Nom du lien" value={linkName} onChange={e => setLinkName(e.target.value)} className="h-8 text-xs rounded-lg" />
           <div className="flex gap-2">
             <Input placeholder="https://..." value={linkUrl} onChange={e => setLinkUrl(e.target.value)} className="h-8 text-xs rounded-lg flex-1" />
             <Button size="sm" onClick={handleAddLink} disabled={!linkUrl} className="h-8 rounded-lg bg-purple-600">Ajouter</Button>
@@ -136,7 +137,7 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
         </div>
       )}
 
-      {isUploading && <div className="flex items-center justify-center py-2 text-[10px] text-blue-600 font-bold uppercase animate-pulse"><Loader2 className="animate-spin mr-2 h-3 w-3" /> Envoi en cours...</div>}
+      {isUploading && <div className="flex items-center justify-center py-2 text-[10px] text-blue-600 font-bold uppercase animate-pulse"><Loader2 className="animate-spin mr-2 h-3 w-3" /> Enregistrement...</div>}
 
       <div className="grid gap-2">
         {attachments.map(att => (
@@ -150,7 +151,6 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
               </div>
               <div className="max-w-[150px] sm:max-w-xs">
                 <p className="text-xs font-bold text-slate-700 truncate">{att.name}</p>
-                <Badge variant="outline" className="text-[8px] uppercase px-1 h-3">{att.file_type}</Badge>
               </div>
             </div>
             <div className="flex gap-1">

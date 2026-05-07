@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -34,7 +34,7 @@ interface Intervention {
 const InterventionsPage: React.FC = () => {
   const { hasRole, role } = useAuth();
   const canEdit = hasRole(['admin', 'technicien biomedical']);
-  const isSec = role === 'secretaire';
+  const isSec = role === 'secretaire' || role === 'admin';
 
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,8 +70,10 @@ const InterventionsPage: React.FC = () => {
       })
       .eq('id', id);
 
-    if (error) showError("Erreur lors de la mise à jour.");
-    else {
+    if (error) {
+      console.error("Erreur statut:", error);
+      showError(`Erreur: ${error.message}`);
+    } else {
       showSuccess(`Statut mis à jour : ${status}`);
       fetchInterventions();
     }
@@ -88,6 +90,15 @@ const InterventionsPage: React.FC = () => {
     setIsDeleteOpen(false);
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Facture déposée': return <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full"><CheckCircle2 size={10} className="mr-1" /> Déposée</Badge>;
+      case 'Sous garantie': return <Badge className="bg-blue-100 text-blue-700 border-blue-200 rounded-full"><ShieldCheck size={10} className="mr-1" /> Garantie</Badge>;
+      case 'Sous contrat': return <Badge className="bg-purple-100 text-purple-700 border-purple-200 rounded-full"><ShieldAlert size={10} className="mr-1" /> Contrat</Badge>;
+      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200 rounded-full"><XCircle size={10} className="mr-1" /> Non déposée</Badge>;
+    }
+  };
+
   const filteredInterventions = interventions.filter(item =>
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.assets?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,7 +112,7 @@ const InterventionsPage: React.FC = () => {
           <div className="p-3 bg-green-100 rounded-2xl"><Wrench className="h-8 w-8 text-green-600" /></div>
           <div>
             <h1 className="text-4xl font-extrabold text-primary tracking-tight">Interventions</h1>
-            <p className="text-lg text-muted-foreground">Journal historique et suivi facturation.</p>
+            <p className="text-lg text-muted-foreground">Journal historique et suivi administratif.</p>
           </div>
         </div>
         
@@ -139,7 +150,7 @@ const InterventionsPage: React.FC = () => {
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Équipement & Site</th>
                   <th className="px-6 py-4">Objet</th>
-                  <th className="px-6 py-4">Facture</th>
+                  <th className="px-6 py-4">Statut Admin</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -162,12 +173,7 @@ const InterventionsPage: React.FC = () => {
                       <Badge variant="outline" className="mt-1 rounded-full text-[9px] uppercase">{item.maintenance_type}</Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge className={cn(
-                        "rounded-full text-[10px] font-bold",
-                        item.invoice_status === 'Facture déposée' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                      )}>
-                        <Receipt size={10} className="mr-1" /> {item.invoice_status || 'Facture non déposée'}
-                      </Badge>
+                      {getStatusBadge(item.invoice_status)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1">
@@ -179,21 +185,21 @@ const InterventionsPage: React.FC = () => {
                                 size="sm" 
                                 className="rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
                               >
-                                Valider facture <ChevronDown size={12} className="ml-1" />
+                                Changer Statut <ChevronDown size={12} className="ml-1" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-xl">
-                              <DropdownMenuItem 
-                                className="text-green-600 font-bold cursor-pointer"
-                                onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture déposée')}
-                              >
+                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture déposée')} className="text-green-600 font-bold cursor-pointer">
                                 <CheckCircle2 size={14} className="mr-2" /> Facture déposée
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-red-600 font-bold cursor-pointer"
-                                onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture non déposée')}
-                              >
-                                <XCircle size={14} className="mr-2" /> Facture non déposée
+                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous garantie')} className="text-blue-600 font-bold cursor-pointer">
+                                <ShieldCheck size={14} className="mr-2" /> Sous garantie
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous contrat')} className="text-purple-600 font-bold cursor-pointer">
+                                <ShieldAlert size={14} className="mr-2" /> Sous contrat
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture non déposée')} className="text-red-600 font-bold cursor-pointer">
+                                <XCircle size={14} className="mr-2" /> Non déposée
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
