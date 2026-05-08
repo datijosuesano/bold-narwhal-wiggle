@@ -36,10 +36,12 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            {/* Route publique pour le scan QR Code */}
+            <Route path="/portal" element={<ClientPortal />} />
+            
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
-                <Route path="/portal" element={<ClientPortal />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />
                 <Route path="/interventions" element={<InterventionsPage />} />
