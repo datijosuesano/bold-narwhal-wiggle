@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle, FileCode } from 'lucide-react';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle, QrCode } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import AssetLifeSheet from './AssetLifeSheet';
 import AddPastInterventionForm from './AddPastInterventionForm';
 import AssetDocuments from './AssetDocuments';
+import AssetQRCode from './AssetQRCode';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -84,10 +85,13 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex justify-between items-center mb-4">
-          <TabsList className="bg-muted p-1 rounded-xl">
+          <TabsList className="bg-muted p-1 rounded-xl overflow-x-auto">
             <TabsTrigger value="details" className="rounded-lg px-4">Détails</TabsTrigger>
             <TabsTrigger value="life-sheet" className="rounded-lg px-4">Fiche de Vie</TabsTrigger>
-            <TabsTrigger value="documents" className="rounded-lg px-4">Docs Tech</TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-lg px-4">Docs</TabsTrigger>
+            <TabsTrigger value="qrcode" className="rounded-lg px-4 flex items-center gap-2">
+              <QrCode size={14} /> Étiquette
+            </TabsTrigger>
           </TabsList>
           
           <div className="flex gap-2">
@@ -102,7 +106,6 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
                 </DialogContent>
               </Dialog>
             )}
-            <Button onClick={() => window.print()} variant="outline" className="rounded-xl"><Printer size={16} /></Button>
           </div>
         </div>
 
@@ -136,8 +139,7 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
                   <span className="text-muted-foreground italic font-normal text-sm">Non renseigné</span>
                 )}
               </CardContent>
-            </Card>
-          </div>
+            </div>
 
           <Card className="shadow-md">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground flex items-center"><FileText size={16} className="mr-2" /> Description / Notes</CardTitle></CardHeader>
@@ -165,6 +167,14 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
 
         <TabsContent value="documents">
           <AssetDocuments assetId={asset.id} />
+        </TabsContent>
+
+        <TabsContent value="qrcode">
+          <AssetQRCode 
+            assetId={asset.id} 
+            assetName={asset.name} 
+            serialNumber={asset.serialNumber} 
+          />
         </TabsContent>
       </Tabs>
     </div>
