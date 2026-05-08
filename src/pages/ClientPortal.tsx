@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
+import { cn } from "@/lib/utils";
 
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
