@@ -139,7 +139,8 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
                   <span className="text-muted-foreground italic font-normal text-sm">Non renseigné</span>
                 )}
               </CardContent>
-            </div>
+            </Card>
+          </div>
 
           <Card className="shadow-md">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground flex items-center"><FileText size={16} className="mr-2" /> Description / Notes</CardTitle></CardHeader>
