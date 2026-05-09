@@ -3,39 +3,41 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory } from 'lucide-react';
+import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from "@/lib/utils";
+import { useAuth } from '@/contexts/AuthContext';
 
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
   const assetIdFromUrl = searchParams.get('assetId');
+  const { user, role } = useAuth();
 
-  const [step, setStep] = useState<'scan' | 'form' | 'success'>('scan');
+  const [step, setStep] = useState<'scan' | 'form' | 'success' | 'unauthorized'>('scan');
   const [isLoading, setIsLoading] = useState(false);
   const [asset, setAsset] = useState<any>(null);
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<"Moyenne" | "Critique">("Moyenne");
 
-  // Si un assetId est présent dans l'URL, on charge l'équipement immédiatement
   useEffect(() => {
-    if (assetIdFromUrl) {
+    if (assetIdFromUrl && user) {
       fetchAsset(assetIdFromUrl);
     }
-  }, [assetIdFromUrl]);
+  }, [assetIdFromUrl, user]);
 
   const fetchAsset = async (id: string) => {
     setIsLoading(true);
+    // RLS will automatically filter out assets the user shouldn't see
     const { data, error } = await supabase
       .from('assets')
       .select('id, name, location, serial_number')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      showError("Équipement introuvable ou QR code invalide.");
-      setStep('scan');
+    if (error || !data) {
+      console.error("Asset fetch error or not found:", error);
+      setStep('unauthorized');
     } else {
       setAsset(data);
       setStep('form');
@@ -50,18 +52,18 @@ const ClientPortal: React.FC = () => {
     }
 
     setIsLoading(true);
-    // On crée un Ordre de Travail (OT) automatique
     const { error } = await supabase.from('work_orders').insert({
       title: `PANNE SIGNALÉE : ${asset.name}`,
       description: description,
       asset_id: asset.id,
       priority: priority,
       status: 'Ouvert',
-      maintenance_type: 'Corrective'
+      maintenance_type: 'Corrective',
+      user_id: user?.id
     });
 
     if (error) {
-      showError("Erreur lors de l'envoi du signalement.");
+      showError("Erreur lors de l'envoi du signalement. Vérifiez vos permissions.");
     } else {
       showSuccess("Signalement envoyé à l'équipe technique !");
       setStep('success');
@@ -74,6 +76,23 @@ const ClientPortal: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
         <p className="text-muted-foreground font-medium">Identification de l'appareil...</p>
+      </div>
+    );
+  }
+
+  if (step === 'unauthorized') {
+    return (
+      <div className="max-w-md mx-auto pt-10 px-4 text-center space-y-6">
+        <div className="mx-auto w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center shadow-sm">
+          <ShieldAlert size={40} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900">ACCÈS REFUSÉ</h2>
+          <p className="text-muted-foreground">Cet équipement n'appartient pas à votre établissement ou vous n'avez pas les droits pour le consulter.</p>
+        </div>
+        <Button onClick={() => window.location.href = '/portal'} variant="outline" className="w-full rounded-xl h-12 border-slate-200">
+          Retour au portail
+        </Button>
       </div>
     );
   }

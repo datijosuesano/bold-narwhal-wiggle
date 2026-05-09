@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,17 +17,17 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-  // URL finale générée pour le QR Code
   const portalUrl = `${baseUrl}/portal?assetId=${assetId}`;
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Use a safer approach by setting textContent via script in the new window
     printWindow.document.write(`
       <html>
         <head>
-          <title>Étiquette QR - ${assetName}</title>
+          <title>Étiquette QR</title>
           <style>
             body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
             .label { border: 2px solid #000; padding: 20px; text-align: center; width: 250px; border-radius: 10px; }
@@ -38,14 +38,19 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
         </head>
         <body>
           <div class="label">
-            <div class="title">${assetName}</div>
-            <div class="subtitle">S/N: ${serialNumber}</div>
+            <div class="title" id="print-title"></div>
+            <div class="subtitle" id="print-subtitle"></div>
             <div id="qr-container"></div>
             <div class="footer">SCANNEZ POUR DÉCLARER UNE PANNE</div>
           </div>
           <script>
+            // Securely set text content to prevent XSS
+            document.getElementById('print-title').textContent = ${JSON.stringify(assetName)};
+            document.getElementById('print-subtitle').textContent = "S/N: " + ${JSON.stringify(serialNumber)};
+            
             const svg = window.opener.document.getElementById('asset-qr-${assetId}').outerHTML;
             document.getElementById('qr-container').innerHTML = svg;
+            
             window.print();
             window.onafterprint = () => window.close();
           </script>
