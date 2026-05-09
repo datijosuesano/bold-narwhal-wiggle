@@ -12,93 +12,107 @@ import { useAuth } from '@/contexts/AuthContext';
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
   const assetIdFromUrl = searchParams.get('assetId');
-  const { user, role } = useAuth();
+  const { user } = useAuth();
 
-  const [step, setStep] = useState<'scan' | 'form' | 'success' | 'unauthorized'>('scan');
+  const [step, setStep] = useState<'loading' | 'scan' | 'form' | 'success' | 'error'>('loading');
   const [isLoading, setIsLoading] = useState(false);
   const [asset, setAsset] = useState<any>(null);
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<"Moyenne" | "Critique">("Moyenne");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    if (assetIdFromUrl && user) {
+    if (assetIdFromUrl) {
       fetchAsset(assetIdFromUrl);
+    } else {
+      setStep('scan');
     }
-  }, [assetIdFromUrl, user]);
+  }, [assetIdFromUrl]);
 
   const fetchAsset = async (id: string) => {
     setIsLoading(true);
-    // RLS will automatically filter out assets the user shouldn't see
-    const { data, error } = await supabase
-      .from('assets')
-      .select('id, name, location, serial_number')
-      .eq('id', id)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('assets')
+        .select('id, name, location, serial_number')
+        .eq('id', id)
+        .maybeSingle();
 
-    if (error || !data) {
-      console.error("Asset fetch error or not found:", error);
-      setStep('unauthorized');
-    } else {
-      setAsset(data);
-      setStep('form');
+      if (error) throw error;
+
+      if (!data) {
+        setErrorMessage("Cet équipement n'existe pas dans notre base de données.");
+        setStep('error');
+      } else {
+        setAsset(data);
+        setStep('form');
+      }
+    } catch (err: any) {
+      console.error("Erreur fetch asset:", err);
+      setErrorMessage("Impossible de récupérer les informations de l'appareil. Vérifiez votre connexion.");
+      setStep('error');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSubmit = async () => {
-    if (!description) {
-      showError("Veuillez décrire le problème.");
+    if (!description.trim()) {
+      showError("Veuillez décrire le problème rencontré.");
       return;
     }
 
     setIsLoading(true);
-    const { error } = await supabase.from('work_orders').insert({
-      title: `PANNE SIGNALÉE : ${asset.name}`,
-      description: description,
-      asset_id: asset.id,
-      priority: priority,
-      status: 'Ouvert',
-      maintenance_type: 'Corrective',
-      user_id: user?.id
-    });
+    try {
+      const { error } = await supabase.from('work_orders').insert({
+        title: `PANNE SIGNALÉE : ${asset.name}`,
+        description: description,
+        asset_id: asset.id,
+        priority: priority,
+        status: 'Ouvert',
+        maintenance_type: 'Corrective',
+        user_id: user?.id || null // Optionnel si non connecté
+      });
 
-    if (error) {
-      showError("Erreur lors de l'envoi du signalement. Vérifiez vos permissions.");
-    } else {
-      showSuccess("Signalement envoyé à l'équipe technique !");
+      if (error) throw error;
+
+      showSuccess("Signalement envoyé !");
       setStep('success');
+    } catch (err: any) {
+      showError("Erreur lors de l'envoi. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  if (isLoading && step === 'scan') {
+  if (step === 'loading' || (isLoading && step === 'form')) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[80vh]">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-        <p className="text-muted-foreground font-medium">Identification de l'appareil...</p>
+        <p className="text-muted-foreground font-medium">Chargement en cours...</p>
       </div>
     );
   }
 
-  if (step === 'unauthorized') {
+  if (step === 'error') {
     return (
-      <div className="max-w-md mx-auto pt-10 px-4 text-center space-y-6">
-        <div className="mx-auto w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center shadow-sm">
+      <div className="max-w-md mx-auto pt-20 px-4 text-center space-y-6">
+        <div className="mx-auto w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center">
           <ShieldAlert size={40} />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-slate-900">ACCÈS REFUSÉ</h2>
-          <p className="text-muted-foreground">Cet équipement n'appartient pas à votre établissement ou vous n'avez pas les droits pour le consulter.</p>
+          <h2 className="text-2xl font-black text-slate-900 uppercase">Erreur de Scan</h2>
+          <p className="text-muted-foreground">{errorMessage}</p>
         </div>
-        <Button onClick={() => window.location.href = '/portal'} variant="outline" className="w-full rounded-xl h-12 border-slate-200">
-          Retour au portail
+        <Button onClick={() => setStep('scan')} variant="outline" className="w-full rounded-xl h-12 border-slate-200">
+          Réessayer le scan
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-6 pt-4 px-4">
+    <div className="max-w-md mx-auto space-y-6 pt-4 px-4 pb-10">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-black text-blue-700">PORTAIL SERVICE</h1>
         <p className="text-muted-foreground font-medium">Déclaration rapide de panne</p>
@@ -114,9 +128,9 @@ const ClientPortal: React.FC = () => {
               <CardTitle>Scanner l'équipement</CardTitle>
               <CardDescription>Utilisez l'appareil photo pour scanner le code QR collé sur l'appareil.</CardDescription>
             </div>
-            <Button className="w-full bg-blue-600 rounded-xl h-12 font-bold">
-              Ouvrir le scanner
-            </Button>
+            <p className="text-xs text-amber-600 font-medium bg-amber-50 p-3 rounded-lg">
+              Note : Si vous voyez cette page après avoir scanné, l'ID de l'appareil est manquant dans le lien.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -177,7 +191,7 @@ const ClientPortal: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h2 className="text-3xl font-black text-slate-900">C'EST ENVOYÉ !</h2>
-            <p className="text-muted-foreground font-medium">L'équipe technique a été notifiée et interviendra dans les plus brefs délais.</p>
+            <p className="text-muted-foreground font-medium px-6">L'équipe technique a été notifiée et interviendra dans les plus brefs délais.</p>
           </div>
           <Button onClick={() => window.location.href = '/portal'} variant="outline" className="rounded-xl h-12 px-8 border-slate-200">
             Terminer
