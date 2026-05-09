@@ -19,6 +19,11 @@ const ProtectedRoute: React.FC = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Allow access to portal for any authenticated user
+  if (location.pathname === '/portal') {
+    return <Outlet />;
+  }
+
   // REDIRECTION SPÉCIFIQUE CLIENT (Services Hospitaliers)
   if (role === 'client' && location.pathname !== '/portal') {
     return <Navigate to="/portal" replace />;

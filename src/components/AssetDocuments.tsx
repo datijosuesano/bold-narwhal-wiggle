@@ -32,7 +32,6 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
   const fetchDocuments = async () => {
     if (!assetId) return;
     setIsLoading(true);
-    // On filtre explicitement par asset_id
     const { data, error } = await supabase
       .from('asset_documents')
       .select('*')
@@ -53,7 +52,12 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
     try {
       if (url.includes('supabase.co/storage')) {
         const path = url.split('asset-documents/')[1];
-        if (path) await supabase.storage.from('asset-documents').remove([path]);
+        if (path) {
+          // Use Edge Function for secure storage deletion
+          await supabase.functions.invoke('delete-storage-file', {
+            body: { bucket: 'asset-documents', path: path, recordId: id, tableName: 'asset_documents' }
+          });
+        }
       }
       const { error } = await supabase.from('asset_documents').delete().eq('id', id);
       if (error) throw error;

@@ -50,7 +50,12 @@ const DocumentationPage: React.FC = () => {
     try {
       if (url.includes('supabase.co/storage')) {
         const path = url.split('asset-documents/')[1];
-        if (path) await supabase.storage.from('asset-documents').remove([path]);
+        if (path) {
+          // Use Edge Function for secure storage deletion
+          await supabase.functions.invoke('delete-storage-file', {
+            body: { bucket: 'asset-documents', path: path, recordId: id, tableName: 'asset_documents' }
+          });
+        }
       }
       await supabase.from('asset_documents').delete().eq('id', id);
       showSuccess("Document supprimé.");

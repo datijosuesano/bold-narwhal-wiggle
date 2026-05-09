@@ -25,6 +25,7 @@ const TechniciansPage: React.FC = () => {
   const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchTechnicians = async () => {
     setIsLoading(true);
@@ -85,19 +86,25 @@ const TechniciansPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (selectedTech) {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', selectedTech.id);
+      setIsDeleting(true);
+      try {
+        // Use Edge Function to delete both auth user and profile
+        const { data, error } = await supabase.functions.invoke('delete-user', {
+          body: { userId: selectedTech.id }
+        });
 
-      if (error) {
-        showError("Erreur lors de la suppression.");
-      } else {
-        showSuccess(`Profil supprimé.`);
+        if (error) throw error;
+        
+        showSuccess(`Profil et compte utilisateur supprimés.`);
         fetchTechnicians();
+      } catch (err: any) {
+        console.error("Delete error:", err);
+        showError(`Erreur: ${err.message}`);
+      } finally {
+        setIsDeleting(false);
+        setIsDeleteOpen(false);
+        setSelectedTech(null);
       }
-      setIsDeleteOpen(false);
-      setSelectedTech(null);
     }
   };
 
@@ -191,11 +198,14 @@ const TechniciansPage: React.FC = () => {
             <AlertDialogContent className="rounded-xl">
               <AlertDialogHeader>
                 <AlertDialogTitle>Supprimer le compte ?</AlertDialogTitle>
-                <AlertDialogDescription>Cette action retirera définitivement l'accès à cet utilisateur.</AlertDialogDescription>
+                <AlertDialogDescription>Cette action retirera définitivement l'accès à cet utilisateur et supprimera son compte d'authentification.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">Supprimer</AlertDialogAction>
+                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl" disabled={isDeleting}>
+                  {isDeleting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                  Supprimer
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

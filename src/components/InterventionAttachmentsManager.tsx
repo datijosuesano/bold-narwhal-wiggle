@@ -102,6 +102,15 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
 
   const handleDelete = async (id: string, url: string) => {
     try {
+      if (url.includes('supabase.co/storage')) {
+        const path = url.split('asset-documents/')[1];
+        if (path) {
+          // Use Edge Function for secure storage deletion
+          await supabase.functions.invoke('delete-storage-file', {
+            body: { bucket: 'asset-documents', path: path, recordId: id, tableName: 'intervention_attachments' }
+          });
+        }
+      }
       await supabase.from('intervention_attachments').delete().eq('id', id);
       setAttachments(prev => prev.filter(a => a.id !== id));
       showSuccess("Supprimé.");
