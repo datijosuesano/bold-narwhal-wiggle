@@ -48,19 +48,17 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
 
   useEffect(() => { fetchDocuments(); }, [assetId]);
 
-  const handleDelete = async (id: string, url: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      if (url.includes('supabase.co/storage')) {
-        const path = url.split('asset-documents/')[1];
-        if (path) {
-          // Use Edge Function for secure storage deletion
-          await supabase.functions.invoke('delete-storage-file', {
-            body: { bucket: 'asset-documents', path: path, recordId: id, tableName: 'asset_documents' }
-          });
-        }
-      }
+      // Use Edge Function for secure storage deletion
+      // The function will look up the path and verify ownership server-side
+      await supabase.functions.invoke('delete-storage-file', {
+        body: { recordId: id, tableName: 'asset_documents' }
+      });
+
       const { error } = await supabase.from('asset_documents').delete().eq('id', id);
       if (error) throw error;
+      
       showSuccess("Document supprimé.");
       fetchDocuments();
     } catch (err) {
@@ -89,7 +87,7 @@ const AssetDocuments: React.FC<AssetDocumentsProps> = ({ assetId }) => {
                 <Button variant="ghost" size="icon" asChild className="rounded-full text-blue-600">
                   <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download size={18} /></a>
                 </Button>
-                <Button variant="ghost" size="icon" className="rounded-full text-red-500" onClick={() => handleDelete(doc.id, doc.file_url)}>
+                <Button variant="ghost" size="icon" className="rounded-full text-red-500" onClick={() => handleDelete(doc.id)}>
                   <Trash2 size={16} />
                 </Button>
               </div>

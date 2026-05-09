@@ -17,6 +17,8 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
+  // Sanitize assetId for use in DOM ID to prevent attribute injection
+  const safeAssetId = assetId.replace(/[^a-zA-Z0-9-]/g, '');
   const portalUrl = `${baseUrl}/portal?assetId=${assetId}`;
 
   const handlePrint = () => {
@@ -24,6 +26,7 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
     if (!printWindow) return;
 
     // Use a safer approach by setting textContent via script in the new window
+    // and using JSON.stringify for all interpolated variables.
     printWindow.document.write(`
       <html>
         <head>
@@ -48,8 +51,12 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
             document.getElementById('print-title').textContent = ${JSON.stringify(assetName)};
             document.getElementById('print-subtitle').textContent = "S/N: " + ${JSON.stringify(serialNumber)};
             
-            const svg = window.opener.document.getElementById('asset-qr-${assetId}').outerHTML;
-            document.getElementById('qr-container').innerHTML = svg;
+            // Safely clone the SVG element from the opener window
+            const assetId = ${JSON.stringify(safeAssetId)};
+            const svgElement = window.opener.document.getElementById('asset-qr-' + assetId);
+            if (svgElement) {
+              document.getElementById('qr-container').appendChild(svgElement.cloneNode(true));
+            }
             
             window.print();
             window.onafterprint = () => window.close();
@@ -86,7 +93,7 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
 
       <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200 relative group">
         <QRCodeSVG 
-          id={`asset-qr-${assetId}`}
+          id={`asset-qr-${safeAssetId}`}
           value={portalUrl} 
           size={180}
           level="H"

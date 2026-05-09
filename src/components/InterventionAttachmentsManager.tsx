@@ -100,17 +100,14 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
     finally { setIsUploading(false); }
   };
 
-  const handleDelete = async (id: string, url: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      if (url.includes('supabase.co/storage')) {
-        const path = url.split('asset-documents/')[1];
-        if (path) {
-          // Use Edge Function for secure storage deletion
-          await supabase.functions.invoke('delete-storage-file', {
-            body: { bucket: 'asset-documents', path: path, recordId: id, tableName: 'intervention_attachments' }
-          });
-        }
-      }
+      // Use Edge Function for secure storage deletion
+      // The function will look up the path and verify ownership server-side
+      await supabase.functions.invoke('delete-storage-file', {
+        body: { recordId: id, tableName: 'intervention_attachments' }
+      });
+
       await supabase.from('intervention_attachments').delete().eq('id', id);
       setAttachments(prev => prev.filter(a => a.id !== id));
       showSuccess("Supprimé.");
@@ -166,7 +163,7 @@ const InterventionAttachmentsManager: React.FC<InterventionAttachmentsManagerPro
               <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" asChild>
                 <a href={att.file_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} /></a>
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => handleDelete(att.id, att.file_url)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => handleDelete(att.id)}>
                 <Trash2 size={12} />
               </Button>
             </div>
