@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, ClipboardList, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, ClipboardList, Calendar as CalendarIcon, User } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -126,6 +126,18 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+        {initialData?.reporter_name && (
+          <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center gap-3 mb-2">
+            <div className="bg-blue-600 p-2 rounded-lg text-white">
+              <User size={16} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase text-blue-600 leading-none">Signalé par</p>
+              <p className="text-sm font-bold text-slate-900">{initialData.reporter_name}</p>
+            </div>
+          </div>
+        )}
+
         <FormField
           control={form.control}
           name="title"

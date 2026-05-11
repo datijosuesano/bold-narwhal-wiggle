@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Factory, AlertTriangle, FlaskConical, Clock, Users, TrendingUp, ClipboardList } from "lucide-react";
+import { Wrench, Factory, AlertTriangle, FlaskConical, Clock, Users, TrendingUp, ClipboardList, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,8 @@ const DashboardPage: React.FC = () => {
     overdueOrders: 0,
     brokenAssets: 0,
     criticalReagents: 0,
+    reportedBreakdowns: 0, // Nouveau
     ordersByPriority: { Critique: 0, Élevée: 0, Moyenne: 0, Faible: 0 },
-    interventionsByTech: [] as { name: string, count: number }[]
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,7 +48,14 @@ const DashboardPage: React.FC = () => {
           .select('current_stock, min_stock');
         const critical = reagents?.filter(r => r.current_stock <= r.min_stock).length || 0;
 
-        // 4. Work orders par priorité
+        // 4. Pannes signalées via portail (reporter_name non nul et statut ouvert)
+        const { count: reported } = await supabase
+          .from('work_orders')
+          .select('*', { count: 'exact', head: true })
+          .not('reporter_name', 'is', null)
+          .eq('status', 'Ouvert');
+
+        // 5. Work orders par priorité
         const { data: priorities } = await supabase
           .from('work_orders')
           .select('priority');
@@ -62,8 +69,8 @@ const DashboardPage: React.FC = () => {
           overdueOrders: overdue || 0,
           brokenAssets: broken || 0,
           criticalReagents: critical,
+          reportedBreakdowns: reported || 0,
           ordersByPriority: priorityCounts,
-          interventionsByTech: [] 
         });
       } catch (error) {
         console.error("Erreur Dashboard:", error);
@@ -77,18 +84,26 @@ const DashboardPage: React.FC = () => {
 
   const kpis = [
     {
+      title: "Alertes Portail",
+      value: stats.reportedBreakdowns,
+      icon: <Bell className="h-5 w-5 text-red-600 animate-bounce" />,
+      color: "border-l-red-600 bg-red-50/30",
+      path: "/reported-breakdowns",
+      description: "Pannes à valider"
+    },
+    {
       title: "OT en Retard",
       value: stats.overdueOrders,
-      icon: <Clock className="h-5 w-5 text-red-600" />,
-      color: "border-l-red-600",
+      icon: <Clock className="h-5 w-5 text-amber-600" />,
+      color: "border-l-amber-600",
       path: "/work-orders",
       description: "Échéance dépassée"
     },
     {
       title: "Équipements HS",
       value: stats.brokenAssets,
-      icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
-      color: "border-l-amber-500",
+      icon: <AlertTriangle className="h-5 w-5 text-slate-500" />,
+      color: "border-l-slate-500",
       path: "/assets",
       description: "Hors service"
     },
@@ -99,14 +114,6 @@ const DashboardPage: React.FC = () => {
       color: "border-l-purple-500",
       path: "/reagents",
       description: "Réactifs à commander"
-    },
-    {
-      title: "Priorité Critique",
-      value: stats.ordersByPriority.Critique,
-      icon: <TrendingUp className="h-5 w-5 text-red-800" />,
-      color: "border-l-red-900",
-      path: "/work-orders",
-      description: "Urgences signalées"
     }
   ];
 
