@@ -34,11 +34,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* ROUTES PUBLIQUES (Accessibles sans connexion) */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/portal" element={<ClientPortal />} />
             
+            {/* ROUTES PROTÉGÉES (Connexion requise) */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/portal" element={<ClientPortal />} />
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
@@ -55,6 +57,7 @@ const App = () => (
                 <Route path="/documentation" element={<DocumentationPage />} />
               </Route>
             </Route>
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

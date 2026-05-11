@@ -7,6 +7,11 @@ const ProtectedRoute: React.FC = () => {
   const { user, role, isLoading } = useAuth();
   const location = useLocation();
 
+  // Ne pas rediriger si on est sur le portail public
+  if (location.pathname === '/portal') {
+    return <Outlet />;
+  }
+
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
@@ -19,20 +24,9 @@ const ProtectedRoute: React.FC = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Allow access to portal for any authenticated user
-  if (location.pathname === '/portal') {
-    return <Outlet />;
-  }
-
   // REDIRECTION SPÉCIFIQUE CLIENT (Services Hospitaliers)
   if (role === 'client' && location.pathname !== '/portal') {
     return <Navigate to="/portal" replace />;
-  }
-
-  // RESTRICTIONS TECHNIQUES
-  const techRoutes = ['/planning', '/inventory', '/reagents', '/tools'];
-  if (role === 'secretaire' && techRoutes.includes(location.pathname)) {
-    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
