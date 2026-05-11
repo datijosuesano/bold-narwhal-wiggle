@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Shield, FileText, QrCode, Hammer, BookOpen } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Shield, FileText, QrCode, Hammer, BookOpen, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -19,6 +19,9 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     // Dashboard
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     
+    // Alertes directes
+    { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+
     // Parc & Technique
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },

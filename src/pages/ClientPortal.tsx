@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory, ShieldAlert } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory, ShieldAlert, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ const ClientPortal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [asset, setAsset] = useState<any>(null);
   const [description, setDescription] = useState("");
+  const [reporterName, setReporterName] = useState("");
   const [priority, setPriority] = useState<"Moyenne" | "Critique">("Moyenne");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -49,7 +51,7 @@ const ClientPortal: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Erreur fetch asset:", err);
-      setErrorMessage("Impossible de récupérer les informations de l'appareil. Vérifiez votre connexion.");
+      setErrorMessage("Impossible de récupérer les informations de l'appareil.");
       setStep('error');
     } finally {
       setIsLoading(false);
@@ -57,6 +59,10 @@ const ClientPortal: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!reporterName.trim()) {
+      showError("Veuillez indiquer votre nom.");
+      return;
+    }
     if (!description.trim()) {
       showError("Veuillez décrire le problème rencontré.");
       return;
@@ -67,11 +73,12 @@ const ClientPortal: React.FC = () => {
       const { error } = await supabase.from('work_orders').insert({
         title: `PANNE SIGNALÉE : ${asset.name}`,
         description: description,
+        reporter_name: reporterName,
         asset_id: asset.id,
         priority: priority,
         status: 'Ouvert',
         maintenance_type: 'Corrective',
-        user_id: user?.id || null // Optionnel si non connecté
+        user_id: user?.id || null
       });
 
       if (error) throw error;
@@ -128,9 +135,6 @@ const ClientPortal: React.FC = () => {
               <CardTitle>Scanner l'équipement</CardTitle>
               <CardDescription>Utilisez l'appareil photo pour scanner le code QR collé sur l'appareil.</CardDescription>
             </div>
-            <p className="text-xs text-amber-600 font-medium bg-amber-50 p-3 rounded-lg">
-              Note : Si vous voyez cette page après avoir scanné, l'ID de l'appareil est manquant dans le lien.
-            </p>
           </CardContent>
         </Card>
       )}
@@ -149,6 +153,18 @@ const ClientPortal: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <label className="text-xs font-black uppercase text-slate-500 flex items-center">
+                <User size={14} className="mr-1" /> Votre Nom / Service
+              </label>
+              <Input 
+                placeholder="Ex: Dr. Martin / Bloc 2" 
+                className="rounded-xl h-11 bg-slate-50 border-none focus-visible:ring-blue-500"
+                value={reporterName}
+                onChange={(e) => setReporterName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <label className="text-xs font-black uppercase text-slate-500">Urgence de l'intervention</label>
               <div className="grid grid-cols-2 gap-2">
                 <Button 
@@ -163,15 +179,17 @@ const ClientPortal: React.FC = () => {
                 >Critique</Button>
               </div>
             </div>
+
             <div className="space-y-2">
               <label className="text-xs font-black uppercase text-slate-500">Description du problème</label>
               <Textarea 
-                placeholder="Ex: L'écran ne s'allume plus, bruit anormal..." 
-                className="rounded-xl min-h-[120px] bg-slate-50 border-none focus-visible:ring-blue-500" 
+                placeholder="Ex: L'écran ne s'allume plus, fuite d'eau..." 
+                className="rounded-xl min-h-[100px] bg-slate-50 border-none focus-visible:ring-blue-500" 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+
             <Button 
               onClick={handleSubmit} 
               disabled={isLoading}

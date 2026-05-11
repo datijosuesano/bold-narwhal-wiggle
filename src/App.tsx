@@ -16,6 +16,7 @@ import InventoryPage from "./pages/InventoryPage";
 import ToolsPage from "./pages/ToolsPage";
 import InterventionsPage from "./pages/InterventionsPage";
 import DocumentationPage from "./pages/DocumentationPage";
+import ReportedBreakdownsPage from "./pages/ReportedBreakdownsPage";
 import ClientPortal from "./pages/ClientPortal";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
+                <Route path="/reported-breakdowns" element={<ReportedBreakdownsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />
                 <Route path="/interventions" element={<InterventionsPage />} />
                 <Route path="/planning" element={<PlanningPage />} />
