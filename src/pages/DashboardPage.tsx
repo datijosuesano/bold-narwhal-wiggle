@@ -16,78 +16,96 @@ const DashboardPage: React.FC = () => {
     overdueOrders: 0,
     brokenAssets: 0,
     criticalReagents: 0,
-    reportedBreakdowns: 0, // Nouveau
+    reportedBreakdowns: 0,
     ordersByPriority: { Critique: 0, Élevée: 0, Moyenne: 0, Faible: 0 },
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!user) return;
-      setIsLoading(true);
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      // 1. Work orders en retard
+      const { count: overdue } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .lt('due_date', today)
+        .neq('status', 'Terminé');
+
+      // 2. Assets non-opérationnels
+      const { count: broken } = await supabase
+        .from('assets')
+        .select('*', { count: 'exact', head: true })
+        .neq('status', 'Opérationnel');
+
+      // 3. Réactifs en stock critique
+      const { data: reagents } = await supabase
+        .from('lab_reagents')
+        .select('current_stock, min_stock');
+      const critical = reagents?.filter(r => r.current_stock <= r.min_stock).length || 0;
+
+      // 4. Pannes signalées via portail
+      const { count: reported } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .not('reporter_name', 'is', null)
+        .eq('status', 'Ouvert');
+
+      // 5. Work orders par priorité
+      const { data: priorities } = await supabase
+        .from('work_orders')
+        .select('priority');
       
-      const today = new Date().toISOString().split('T')[0];
+      const priorityCounts = (priorities || []).reduce((acc: any, curr) => {
+        acc[curr.priority] = (acc[curr.priority] || 0) + 1;
+        return acc;
+      }, { Critique: 0, Élevée: 0, Moyenne: 0, Faible: 0 });
 
-      try {
-        // 1. Work orders en retard
-        const { count: overdue } = await supabase
-          .from('work_orders')
-          .select('*', { count: 'exact', head: true })
-          .lt('due_date', today)
-          .neq('status', 'Terminé');
+      setStats({
+        overdueOrders: overdue || 0,
+        brokenAssets: broken || 0,
+        criticalReagents: critical,
+        reportedBreakdowns: reported || 0,
+        ordersByPriority: priorityCounts,
+      });
+    } catch (error) {
+      console.error("Erreur Dashboard:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        // 2. Assets non-opérationnels
-        const { count: broken } = await supabase
-          .from('assets')
-          .select('*', { count: 'exact', head: true })
-          .neq('status', 'Opérationnel');
-
-        // 3. Réactifs en stock critique
-        const { data: reagents } = await supabase
-          .from('lab_reagents')
-          .select('current_stock, min_stock');
-        const critical = reagents?.filter(r => r.current_stock <= r.min_stock).length || 0;
-
-        // 4. Pannes signalées via portail (reporter_name non nul et statut ouvert)
-        const { count: reported } = await supabase
-          .from('work_orders')
-          .select('*', { count: 'exact', head: true })
-          .not('reporter_name', 'is', null)
-          .eq('status', 'Ouvert');
-
-        // 5. Work orders par priorité
-        const { data: priorities } = await supabase
-          .from('work_orders')
-          .select('priority');
-        
-        const priorityCounts = (priorities || []).reduce((acc: any, curr) => {
-          acc[curr.priority] = (acc[curr.priority] || 0) + 1;
-          return acc;
-        }, { Critique: 0, Élevée: 0, Moyenne: 0, Faible: 0 });
-
-        setStats({
-          overdueOrders: overdue || 0,
-          brokenAssets: broken || 0,
-          criticalReagents: critical,
-          reportedBreakdowns: reported || 0,
-          ordersByPriority: priorityCounts,
-        });
-      } catch (error) {
-        console.error("Erreur Dashboard:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchDashboardData();
+
+    // ABONNEMENT TEMPS RÉEL POUR LE DASHBOARD
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'work_orders' },
+        () => fetchDashboardData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'assets' },
+        () => fetchDashboardData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const kpis = [
     {
       title: "Alertes Portail",
       value: stats.reportedBreakdowns,
-      icon: <Bell className="h-5 w-5 text-red-600 animate-bounce" />,
-      color: "border-l-red-600 bg-red-50/30",
+      icon: <Bell className={cn("h-5 w-5 text-red-600", stats.reportedBreakdowns > 0 && "animate-bounce")} />,
+      color: stats.reportedBreakdowns > 0 ? "border-l-red-600 bg-red-50/30" : "border-l-slate-200",
       path: "/reported-breakdowns",
       description: "Pannes à valider"
     },
