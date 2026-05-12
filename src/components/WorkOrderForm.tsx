@@ -92,8 +92,8 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
     if (!user) return;
     setIsLoading(true);
     
-    const payload = {
-      user_id: user.id,
+    // On prépare le payload de base
+    const payload: any = {
       asset_id: data.asset_id,
       title: data.title,
       description: data.description,
@@ -106,10 +106,18 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
 
     let error;
     if (initialData?.id) {
-      const { error: updateError } = await supabase.from('work_orders').update(payload).eq('id', initialData.id);
+      // MISE À JOUR : On ne touche pas au user_id original (qui peut être null si portail public)
+      const { error: updateError } = await supabase
+        .from('work_orders')
+        .update(payload)
+        .eq('id', initialData.id);
       error = updateError;
     } else {
-      const { error: insertError } = await supabase.from('work_orders').insert(payload);
+      // CRÉATION : On définit le créateur
+      payload.user_id = user.id;
+      const { error: insertError } = await supabase
+        .from('work_orders')
+        .insert(payload);
       error = insertError;
     }
     
@@ -119,6 +127,7 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({ initialData, onSuccess })
       showSuccess(initialData ? "Ordre de travail mis à jour !" : "Ordre de travail créé !");
       onSuccess();
     } else {
+      console.error("Erreur enregistrement OT:", error);
       showError(`Erreur : ${error.message}`);
     }
   };

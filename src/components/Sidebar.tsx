@@ -13,9 +13,6 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const { role, specialty, signOut, hasRole } = useAuth();
 
   const navItems = [
-    // Portail Client (Uniquement pour le rôle client)
-    { to: "/portal", icon: <QrCode size={20} />, label: "Déclarer Panne", roles: ['client'] },
-    
     // Dashboard
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     
