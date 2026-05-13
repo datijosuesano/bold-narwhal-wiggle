@@ -17,6 +17,7 @@ import ToolsPage from "./pages/ToolsPage";
 import InterventionsPage from "./pages/InterventionsPage";
 import DocumentationPage from "./pages/DocumentationPage";
 import ReportedBreakdownsPage from "./pages/ReportedBreakdownsPage";
+import StatisticsPage from "./pages/StatisticsPage";
 import ClientPortal from "./pages/ClientPortal";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
@@ -35,12 +36,10 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* ROUTES PUBLIQUES (Accessibles sans connexion) */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/portal" element={<ClientPortal />} />
             
-            {/* ROUTES PROTÉGÉES (Connexion requise) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
@@ -57,6 +56,7 @@ const App = () => (
                 <Route path="/reagents" element={<ReagentsPage />} />
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/documentation" element={<DocumentationPage />} />
+                <Route path="/statistics" element={<StatisticsPage />} />
               </Route>
             </Route>
             

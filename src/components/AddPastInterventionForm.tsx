@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -54,19 +54,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const { user } = useAuth();
   const [savedInterventionId, setSavedInterventionId] = useState<string | null>(initialData?.id || null);
 
-  const form = useForm<InterventionFormValues>({
-    resolver: zodResolver(InterventionSchema),
-    defaultValues: {
-      title: initialData?.title || "",
-      description: initialData?.description || "",
-      maintenance_type: initialData?.maintenance_type || "Préventive",
-      asset_id: assetId || initialData?.asset_id || "",
-      technician_id: initialData?.technician_id || "",
-      intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
-      parts_replaced: initialData?.parts_replaced || false,
-    },
-  });
-
   useEffect(() => {
     const fetchData = async () => {
       const { data: assetList } = await supabase.from('assets').select('id, name, serial_number, location').order('name');
@@ -80,7 +67,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
   const onSubmit = async (data: InterventionFormValues) => {
     if (!user) {
-      showError("Vous devez être connecté pour enregistrer une intervention.");
+      showError("Vous devez être connecté.");
       return;
     }
 
@@ -107,10 +94,9 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
         const { data: newIntervention, error } = await supabase.from('interventions').insert(payload).select('id').single();
         if (error) throw error;
         setSavedInterventionId(newIntervention.id);
-        showSuccess("Intervention enregistrée ! Vous pouvez maintenant ajouter des documents.");
+        showSuccess("Intervention enregistrée !");
       }
     } catch (err: any) {
-      console.error("Erreur enregistrement intervention:", err);
       showError(`Erreur : ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -119,92 +105,108 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
   return (
     <div className="space-y-6">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[85vh] overflow-y-auto pr-2 custom-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.control} name="asset_id" render={({ field }) => (
+      {!savedInterventionId ? (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="asset_id" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Équipement</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl h-auto py-2"><SelectValue placeholder="Choisir" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {assets.map(a => (
+                        <SelectItem key={a.id} value={a.id} className="py-2">
+                          <div className="flex flex-col text-left">
+                            <span className="font-bold text-xs">{a.name}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase">SN: {a.serial_number || 'N/A'} • {a.location}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="technician_id" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Technicien</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
+                    <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem>
-                <FormLabel>Équipement</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!!initialData || !!savedInterventionId}>
-                  <FormControl><SelectTrigger className="rounded-xl h-auto py-2"><SelectValue placeholder="Choisir" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    {assets.map(a => (
-                      <SelectItem key={a.id} value={a.id} className="py-2">
-                        <div className="flex flex-col text-left">
-                          <span className="font-bold text-xs">{a.name}</span>
-                          <span className="text-[9px] text-muted-foreground uppercase">SN: {a.serial_number || 'N/A'} • {a.location}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Objet de l'intervention</FormLabel>
+                <FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="technician_id" render={({ field }) => (
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="intervention_date" render={({ field }) => (
+                <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="maintenance_type" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Préventive">Préventive</SelectItem>
+                      <SelectItem value="Corrective">Corrective</SelectItem>
+                      <SelectItem value="Curative">Curative</SelectItem>
+                      <SelectItem value="Améliorative">Améliorative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem>
-                <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Technicien</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!!savedInterventionId}>
-                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
-                  <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
-                </Select>
+                <FormLabel>Détails des travaux</FormLabel>
+                <FormControl><Textarea placeholder="Actions menées..." {...field} className="rounded-xl h-24 resize-none" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-          </div>
 
-          <FormField control={form.control} name="title" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Objet de l'intervention</FormLabel>
-              <FormControl><Input placeholder="Ex: Réparation pompe" {...field} className="rounded-xl" disabled={!!savedInterventionId} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.control} name="intervention_date" render={({ field }) => (
-              <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" disabled={!!savedInterventionId} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="maintenance_type" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!!savedInterventionId}>
-                  <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="Préventive">Préventive</SelectItem>
-                    <SelectItem value="Corrective">Corrective</SelectItem>
-                    <SelectItem value="Curative">Curative</SelectItem>
-                    <SelectItem value="Améliorative">Améliorative</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-          </div>
-
-          <FormField control={form.control} name="description" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Détails des travaux</FormLabel>
-              <FormControl><Textarea placeholder="Actions menées..." {...field} className="rounded-xl h-24 resize-none" disabled={!!savedInterventionId} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-
-          {!savedInterventionId ? (
             <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 font-bold shadow-lg" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
-              {initialData ? "Sauvegarder les modifications" : "Enregistrer et continuer"}
+              Enregistrer et continuer
             </Button>
-          ) : (
-            <div className="animate-in fade-in slide-in-from-bottom-4">
-              <InterventionAttachmentsManager interventionId={savedInterventionId} userId={user?.id} />
-              <Button variant="outline" className="w-full mt-6 rounded-xl border-slate-200" onClick={onSuccess}>
-                Terminer
-              </Button>
+          </form>
+        </Form>
+      ) : (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex items-center gap-4">
+            <div className="bg-green-600 p-2 rounded-full text-white">
+              <CheckCircle2 size={24} />
             </div>
-          )}
-        </form>
-      </Form>
+            <div>
+              <p className="text-sm font-bold text-green-800">Intervention enregistrée avec succès !</p>
+              <p className="text-xs text-green-600">Vous pouvez maintenant joindre des documents ou photos.</p>
+            </div>
+          </div>
+
+          <InterventionAttachmentsManager interventionId={savedInterventionId} userId={user?.id} />
+          
+          <Button 
+            type="button" 
+            variant="default" 
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-12 font-bold" 
+            onClick={onSuccess}
+          >
+            Terminer la saisie
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
