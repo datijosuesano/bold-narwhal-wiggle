@@ -3,7 +3,7 @@ import { Plus, Search, Eye, Edit2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import CreateAssetForm from "@/components/CreateAssetForm";
 import EditAssetForm from "@/components/EditAssetForm";
@@ -63,7 +63,10 @@ const AssetsPage: React.FC = () => {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg rounded-xl">
-              <DialogHeader><DialogTitle className="text-2xl font-bold">Nouvel Équipement</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold">Nouvel Équipement</DialogTitle>
+                <DialogDescription>Enregistrez un nouvel appareil médical dans l'inventaire.</DialogDescription>
+              </DialogHeader>
               <CreateAssetForm onSuccess={() => { setIsCreateModalOpen(false); fetchAssets(); }} />
             </DialogContent>
           </Dialog>
@@ -128,14 +131,20 @@ const AssetsPage: React.FC = () => {
 
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-          <DialogHeader><DialogTitle>Aperçu de l'Équipement</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Aperçu de l'Équipement</DialogTitle>
+            <DialogDescription>Consultez les détails techniques et l'historique de cet appareil.</DialogDescription>
+          </DialogHeader>
           {selectedAsset && <AssetDetailView asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost, expiryDate: selectedAsset.expiry_date ? new Date(selectedAsset.expiry_date) : null}} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
-          <DialogHeader><DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle>
+            <DialogDescription>Mettez à jour les informations de l'appareil sélectionné.</DialogDescription>
+          </DialogHeader>
           {selectedAsset && <EditAssetForm asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost, expiryDate: selectedAsset.expiry_date ? new Date(selectedAsset.expiry_date) : null}} onSuccess={() => { setIsEditOpen(false); fetchAssets(); }} />}
         </DialogContent>
       </Dialog>

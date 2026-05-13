@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -124,7 +124,10 @@ const InterventionsPage: React.FC = () => {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg rounded-xl">
-              <DialogHeader><DialogTitle>Nouvelle Intervention</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Nouvelle Intervention</DialogTitle>
+                <DialogDescription>Saisissez les détails de l'action technique réalisée.</DialogDescription>
+              </DialogHeader>
               <AddPastInterventionForm onSuccess={() => { setIsLogOpen(false); fetchInterventions(); }} />
             </DialogContent>
           </Dialog>
@@ -250,7 +253,10 @@ const InterventionsPage: React.FC = () => {
       {/* Dialog Modification */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
-          <DialogHeader><DialogTitle>Modifier l'intervention</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Modifier l'intervention</DialogTitle>
+            <DialogDescription>Mettez à jour les informations de l'intervention sélectionnée.</DialogDescription>
+          </DialogHeader>
           {selectedIntervention && (
             <AddPastInterventionForm 
               initialData={selectedIntervention} 
@@ -263,7 +269,10 @@ const InterventionsPage: React.FC = () => {
       {/* Dialog Générer Rapport */}
       <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
         <DialogContent className="sm:max-w-lg rounded-xl">
-          <DialogHeader><DialogTitle>Générer un Rapport Administratif</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Générer un Rapport Administratif</DialogTitle>
+            <DialogDescription>Créez un document officiel basé sur cette intervention.</DialogDescription>
+          </DialogHeader>
           {selectedIntervention && (
             <CreateReportForm 
               initialData={{

@@ -22,7 +22,7 @@ interface Report {
   technician: string;
   date: Date;
   status: 'Draft' | 'Finalized';
-  content: string; // Ajout du champ contenu
+  content: string;
 }
 
 const ReportsPage: React.FC = () => {
@@ -237,8 +237,12 @@ const ReportsPage: React.FC = () => {
       {/* Aperçu PDF */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Aperçu du Rapport</DialogTitle>
+            <DialogDescription>Visualisation du document PDF généré.</DialogDescription>
+          </DialogHeader>
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm">
-            <DialogTitle className="text-lg font-bold">Aperçu du Rapport</DialogTitle>
+            <h3 className="text-lg font-bold">Aperçu du Rapport</h3>
             <Button onClick={handleDownload} className="bg-blue-600 rounded-xl">
               <Download size={18} className="mr-2" /> Télécharger PDF
             </Button>
