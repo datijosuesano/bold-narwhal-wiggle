@@ -17,7 +17,7 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-  // Sanitize assetId for use in DOM ID to prevent attribute injection
+  // Sanitize assetId for use in DOM ID
   const safeAssetId = assetId.replace(/[^a-zA-Z0-9-]/g, '');
   const portalUrl = `${baseUrl}/portal?assetId=${assetId}`;
 
@@ -25,46 +25,62 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({ assetId, assetName, serialNum
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    // Use a safer approach by setting textContent via script in the new window
-    // and using JSON.stringify for all interpolated variables.
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Étiquette QR</title>
-          <style>
-            body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .label { border: 2px solid #000; padding: 20px; text-align: center; width: 250px; border-radius: 10px; }
-            .title { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
-            .subtitle { font-size: 12px; color: #666; margin-bottom: 15px; }
-            .footer { font-size: 10px; margin-top: 10px; font-weight: bold; color: #2563eb; }
-          </style>
-        </head>
-        <body>
-          <div class="label">
-            <div class="title" id="print-title"></div>
-            <div class="subtitle" id="print-subtitle"></div>
-            <div id="qr-container"></div>
-            <div class="footer">SCANNEZ POUR DÉCLARER UNE PANNE</div>
-          </div>
-          <script>
-            // Securely set text content to prevent XSS
-            document.getElementById('print-title').textContent = ${JSON.stringify(assetName)};
-            document.getElementById('print-subtitle').textContent = "S/N: " + ${JSON.stringify(serialNumber)};
-            
-            // Safely clone the SVG element from the opener window
-            const assetId = ${JSON.stringify(safeAssetId)};
-            const svgElement = window.opener.document.getElementById('asset-qr-' + assetId);
-            if (svgElement) {
-              document.getElementById('qr-container').appendChild(svgElement.cloneNode(true));
-            }
-            
-            window.print();
-            window.onafterprint = () => window.close();
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    const doc = printWindow.document;
+    doc.title = "Étiquette QR";
+
+    // 1. Add styles securely
+    const style = doc.createElement('style');
+    style.textContent = `
+      body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+      .label { border: 2px solid #000; padding: 20px; text-align: center; width: 250px; border-radius: 10px; }
+      .title { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
+      .subtitle { font-size: 12px; color: #666; margin-bottom: 15px; }
+      .footer { font-size: 10px; margin-top: 10px; font-weight: bold; color: #2563eb; }
+      #qr-container svg { width: 100%; height: auto; }
+    `;
+    doc.head.appendChild(style);
+
+    // 2. Create structure using DOM APIs (prevents XSS)
+    const label = doc.createElement('div');
+    label.className = 'label';
+
+    const titleDiv = doc.createElement('div');
+    titleDiv.className = 'title';
+    titleDiv.textContent = assetName;
+    label.appendChild(titleDiv);
+
+    const subtitleDiv = doc.createElement('div');
+    subtitleDiv.className = 'subtitle';
+    subtitleDiv.textContent = `S/N: ${serialNumber}`;
+    label.appendChild(subtitleDiv);
+
+    const qrContainer = doc.createElement('div');
+    qrContainer.id = 'qr-container';
+    
+    // Safely clone the SVG element from the current document
+    const svgElement = document.getElementById(`asset-qr-${safeAssetId}`);
+    if (svgElement) {
+      qrContainer.appendChild(doc.importNode(svgElement, true));
+    }
+    label.appendChild(qrContainer);
+
+    const footerDiv = doc.createElement('div');
+    footerDiv.className = 'footer';
+    footerDiv.textContent = 'SCANNEZ POUR DÉCLARER UNE PANNE';
+    label.appendChild(footerDiv);
+
+    doc.body.appendChild(label);
+
+    // 3. Print and handle window closure
+    printWindow.print();
+    
+    // Use onafterprint to close the window after the print dialog is dismissed
+    printWindow.onafterprint = () => printWindow.close();
+    
+    // Fallback for browsers that don't support onafterprint or block it
+    setTimeout(() => {
+      if (!printWindow.closed) printWindow.close();
+    }, 500);
   };
 
   return (
