@@ -24,7 +24,7 @@ const RegisterPage: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [specialty, setSpecialty] = useState('');
-  const [role, setRole] = useState('user');
+  const [accountType, setAccountType] = useState('staff');
   const [siteName, setSiteName] = useState('');
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [showPassword, setShowPassword] = useState(false);
@@ -40,7 +40,7 @@ const RegisterPage: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === 'client' && !siteName) {
+    if (accountType === 'client' && !siteName) {
       showError("Veuillez sélectionner votre site d'affectation.");
       return;
     }
@@ -48,6 +48,8 @@ const RegisterPage: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      // SECURITY FIX: We no longer send the 'role' field in metadata.
+      // The database trigger 'handle_new_user' will automatically assign the default 'user' role.
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -55,9 +57,8 @@ const RegisterPage: React.FC = () => {
           data: {
             first_name: firstName,
             last_name: lastName,
-            specialite: specialty || (role === 'client' ? 'Client Hospitalier' : 'Non défini'),
-            role: role,
-            site_name: role === 'client' ? siteName : null,
+            specialite: specialty || (accountType === 'client' ? 'Client Hospitalier' : 'Non défini'),
+            site_name: accountType === 'client' ? siteName : null,
           }
         }
       });
@@ -105,18 +106,18 @@ const RegisterPage: React.FC = () => {
 
             <div className="space-y-2">
               <Label>Type de compte</Label>
-              <Select onValueChange={setRole} value={role}>
+              <Select onValueChange={setAccountType} value={accountType}>
                 <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Sélectionnez votre rôle" />
+                  <SelectValue placeholder="Sélectionnez votre profil" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Technicien / Staff</SelectItem>
+                  <SelectItem value="staff">Technicien / Staff</SelectItem>
                   <SelectItem value="client">Client (Service Hospitalier)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {role === 'client' ? (
+            {accountType === 'client' ? (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                 <Label className="flex items-center"><MapPin size={14} className="mr-1 text-blue-600" /> Votre Établissement</Label>
                 <Select onValueChange={setSiteName} value={siteName}>
