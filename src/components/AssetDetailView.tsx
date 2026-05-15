@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle, QrCode } from 'lucide-react';
-import { format } from 'date-fns';
+import { Factory, MapPin, Calendar, DollarSign, Hash, Tag, User, Printer, PlusCircle, FileText, AlertTriangle, QrCode, TrendingUp, Activity } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,18 +44,53 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
   const [isActionOpen, setIsActionOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [assigneeName, setAssigneeName] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    breakdownCount: 0,
+    totalCost: 0,
+    lastIntervention: null as Date | null,
+    frequency: 0, // jours moyens entre interventions
+  });
   
   useEffect(() => {
-    const fetchAssignee = async () => {
+    const fetchData = async () => {
+      // 1. Fetch Assignee
       if (asset.assigned_to) {
         const { data } = await supabase.from('profiles').select('first_name, last_name').eq('id', asset.assigned_to).single();
         if (data) setAssigneeName(`${data.first_name} ${data.last_name}`);
-      } else {
-        setAssigneeName(null);
+      }
+
+      // 2. Fetch Interventions for Stats
+      const { data: invs } = await supabase
+        .from('interventions')
+        .select('intervention_date, total_cost, maintenance_type')
+        .eq('asset_id', asset.id)
+        .order('intervention_date', { ascending: false });
+
+      if (invs && invs.length > 0) {
+        const breakdowns = invs.filter(i => i.maintenance_type === 'Corrective' || i.maintenance_type === 'Curative').length;
+        const totalCost = invs.reduce((acc, curr) => acc + (Number(curr.total_cost) || 0), 0);
+        const lastDate = new Date(invs[0].intervention_date);
+        
+        // Calcul fréquence (si plus d'une intervention)
+        let freq = 0;
+        if (invs.length > 1) {
+          const firstDate = new Date(invs[invs.length - 1].intervention_date);
+          const daysDiff = differenceInDays(lastDate, firstDate);
+          freq = Math.round(daysDiff / (invs.length - 1));
+        }
+
+        setStats({
+          breakdownCount: breakdowns,
+          totalCost: totalCost,
+          lastIntervention: lastDate,
+          frequency: freq
+        });
       }
     };
-    fetchAssignee();
-  }, [asset.assigned_to]);
+    fetchData();
+  }, [asset.id, asset.assigned_to, refreshTrigger]);
+
+  const isUnreliable = useMemo(() => stats.breakdownCount >= 3, [stats.breakdownCount]);
 
   const getStatusStyle = (status: Asset['status']) => {
     switch (status) {
@@ -83,15 +118,25 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
         </span>
       </div>
 
+      {isUnreliable && (
+        <Card className="bg-red-50 border-red-200 text-red-800">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-6 w-6 text-red-600 animate-pulse" />
+            <div>
+              <p className="font-bold">Alerte Fiabilité : Équipement Critique</p>
+              <p className="text-xs">Cet appareil a subi {stats.breakdownCount} pannes majeures. Envisager un remplacement ou une révision complète.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex justify-between items-center mb-4">
           <TabsList className="bg-muted p-1 rounded-xl overflow-x-auto">
             <TabsTrigger value="details" className="rounded-lg px-4">Détails</TabsTrigger>
+            <TabsTrigger value="analysis" className="rounded-lg px-4">Analyse</TabsTrigger>
             <TabsTrigger value="life-sheet" className="rounded-lg px-4">Fiche de Vie</TabsTrigger>
             <TabsTrigger value="documents" className="rounded-lg px-4">Docs</TabsTrigger>
-            <TabsTrigger value="qrcode" className="rounded-lg px-4 flex items-center gap-2">
-              <QrCode size={14} /> Étiquette
-            </TabsTrigger>
           </TabsList>
           
           <div className="flex gap-2">
@@ -150,16 +195,39 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
               </p>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          <Card className="shadow-md">
-            <CardHeader><CardTitle className="text-lg">Fiche Technique</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center space-x-3"><Hash size={16} className="text-blue-500" /> <p><b>S/N:</b> {asset.serialNumber}</p></div>
-              <div className="flex items-center space-x-3"><Tag size={16} className="text-blue-500" /> <p><b>Modèle:</b> {asset.brand} {asset.model}</p></div>
-              <div className="flex items-center space-x-3"><MapPin size={16} className="text-blue-500" /> <p><b>Site:</b> {asset.location}</p></div>
-              <div className="flex items-center space-x-3"><Calendar size={16} className="text-blue-500" /> <p><b>Mis en service:</b> {format(asset.commissioningDate, 'dd/MM/yyyy')}</p></div>
-            </CardContent>
-          </Card>
+        <TabsContent value="analysis" className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-slate-50 border-none shadow-sm">
+              <CardContent className="p-4 text-center">
+                <Activity className="mx-auto h-5 w-5 text-red-500 mb-2" />
+                <p className="text-[10px] font-black uppercase text-slate-400">Pannes</p>
+                <p className="text-2xl font-black">{stats.breakdownCount}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-50 border-none shadow-sm">
+              <CardContent className="p-4 text-center">
+                <TrendingUp className="mx-auto h-5 w-5 text-blue-500 mb-2" />
+                <p className="text-[10px] font-black uppercase text-slate-400">Fréquence</p>
+                <p className="text-2xl font-black">{stats.frequency} <span className="text-xs font-normal">j</span></p>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-50 border-none shadow-sm">
+              <CardContent className="p-4 text-center">
+                <DollarSign className="mx-auto h-5 w-5 text-green-500 mb-2" />
+                <p className="text-[10px] font-black uppercase text-slate-400">Coût Total</p>
+                <p className="text-xl font-black">{stats.totalCost.toLocaleString()} F</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-50 border-none shadow-sm">
+              <CardContent className="p-4 text-center">
+                <Calendar className="mx-auto h-5 w-5 text-purple-500 mb-2" />
+                <p className="text-[10px] font-black uppercase text-slate-400">Dernière</p>
+                <p className="text-xs font-bold">{stats.lastIntervention ? format(stats.lastIntervention, 'dd/MM/yy') : '---'}</p>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
         
         <TabsContent value="life-sheet">
@@ -168,14 +236,6 @@ const AssetDetailView: React.FC<AssetDetailViewProps> = ({ asset }) => {
 
         <TabsContent value="documents">
           <AssetDocuments assetId={asset.id} />
-        </TabsContent>
-
-        <TabsContent value="qrcode">
-          <AssetQRCode 
-            assetId={asset.id} 
-            assetName={asset.name} 
-            serialNumber={asset.serialNumber} 
-          />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, CheckCircle2 } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2, PenTool } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,8 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOfflineManager } from "@/hooks/useOfflineManager";
+import SignaturePad from "./SignaturePad";
 import InterventionAttachmentsManager from "./InterventionAttachmentsManager";
 
 const InterventionSchema = z.object({
@@ -36,7 +38,7 @@ const InterventionSchema = z.object({
   asset_id: z.string().min(1, "Veuillez sélectionner un équipement."),
   technician_id: z.string().min(1, "Le technicien est requis."),
   intervention_date: z.string().min(1, "La date est requise."),
-  parts_replaced: z.boolean().default(false),
+  total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
 });
 
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
@@ -51,8 +53,25 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const [isLoading, setIsLoading] = React.useState(false);
   const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string}[]>([]);
   const [technicians, setTechnicians] = useState<{id: string, first_name: string, last_name: string}[]>([]);
-  const { user } = useAuth();
+  const [showSignature, setShowSignature] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [savedInterventionId, setSavedInterventionId] = useState<string | null>(initialData?.id || null);
+  
+  const { user } = useAuth();
+  const { isOnline, saveOfflineIntervention } = useOfflineManager();
+
+  const form = useForm<InterventionFormValues>({
+    resolver: zodResolver(InterventionSchema),
+    defaultValues: {
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      maintenance_type: initialData?.maintenance_type || "Corrective",
+      asset_id: assetId || initialData?.asset_id || "",
+      technician_id: initialData?.technician_id || user?.id || "",
+      intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
+      total_cost: initialData?.total_cost || 0,
+    },
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,8 +90,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       return;
     }
 
-    setIsLoading(true);
-
     const payload = {
       user_id: user.id,
       technician_id: data.technician_id,
@@ -81,9 +98,17 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       description: data.description,
       maintenance_type: data.maintenance_type as any,
       intervention_date: data.intervention_date,
-      parts_replaced: data.parts_replaced,
+      total_cost: data.total_cost,
+      client_signature_url: signatureUrl,
     };
 
+    if (!isOnline) {
+      saveOfflineIntervention(payload);
+      onSuccess();
+      return;
+    }
+
+    setIsLoading(true);
     try {
       if (initialData?.id) {
         const { error } = await supabase.from('interventions').update(payload).eq('id', initialData.id);
@@ -125,7 +150,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="technician_id" render={({ field }) => (
@@ -135,7 +159,6 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                     <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
                     <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <FormMessage />
                 </FormItem>
               )} />
             </div>
@@ -150,22 +173,10 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="intervention_date" render={({ field }) => (
-                <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
               )} />
-              <FormField control={form.control} name="maintenance_type" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="Préventive">Préventive</SelectItem>
-                      <SelectItem value="Corrective">Corrective</SelectItem>
-                      <SelectItem value="Curative">Curative</SelectItem>
-                      <SelectItem value="Améliorative">Améliorative</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+              <FormField control={form.control} name="total_cost" render={({ field }) => (
+                <FormItem><FormLabel>Coût estimé (F)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
               )} />
             </div>
 
@@ -177,9 +188,28 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
               </FormItem>
             )} />
 
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 font-bold shadow-lg" disabled={isLoading}>
+            <div className="pt-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full rounded-xl border-dashed border-blue-300 text-blue-600"
+                onClick={() => setShowSignature(!showSignature)}
+              >
+                <PenTool size={16} className="mr-2" /> 
+                {signatureUrl ? "Signature enregistrée" : "Faire signer le client"}
+              </Button>
+              
+              {showSignature && (
+                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border animate-in fade-in zoom-in-95">
+                  <p className="text-xs font-bold uppercase text-slate-500 mb-2">Signature du client</p>
+                  <SignaturePad onSave={(url) => { setSignatureUrl(url); setShowSignature(false); showSuccess("Signature capturée !"); }} />
+                </div>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-12 font-bold shadow-lg" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
-              Enregistrer et continuer
+              {isOnline ? "Enregistrer l'intervention" : "Enregistrer Hors Ligne"}
             </Button>
           </form>
         </Form>
@@ -190,8 +220,8 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
               <CheckCircle2 size={24} />
             </div>
             <div>
-              <p className="text-sm font-bold text-green-800">Intervention enregistrée avec succès !</p>
-              <p className="text-xs text-green-600">Vous pouvez maintenant joindre des documents ou photos.</p>
+              <p className="text-sm font-bold text-green-800">Intervention enregistrée !</p>
+              <p className="text-xs text-green-600">Vous pouvez maintenant joindre des documents.</p>
             </div>
           </div>
 
