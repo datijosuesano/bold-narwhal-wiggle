@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Eye, Edit2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Loader2, Filter } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CreateAssetForm from "@/components/CreateAssetForm";
 import EditAssetForm from "@/components/EditAssetForm";
 import AssetDetailView from "@/components/AssetDetailView";
@@ -16,27 +17,36 @@ const AssetsPage: React.FC = () => {
   const canEdit = hasRole(['admin', 'technicien biomedical']);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState<string>("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [equipments, setEquipments] = useState<any[]>([]);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchAssets = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.from('assets').select('*').order('name');
-      if (error) throw error;
-      setEquipments(data || []);
+      const [assetsRes, clientsRes] = await Promise.all([
+        supabase.from('assets').select('*').order('name'),
+        supabase.from('clients').select('id, name').order('name')
+      ]);
+
+      if (assetsRes.error) throw assetsRes.error;
+      if (clientsRes.error) throw clientsRes.error;
+
+      setEquipments(assetsRes.data || []);
+      setClients(clientsRes.data || []);
     } catch (err: any) {
-      console.error("Erreur chargement assets:", err);
+      console.error("Erreur chargement données:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchAssets(); }, [user]);
+  useEffect(() => { fetchData(); }, [user]);
 
   const filteredEquipments = useMemo(() => {
     const lowerCaseSearch = searchTerm.toLowerCase();
@@ -44,9 +54,13 @@ const AssetsPage: React.FC = () => {
       const name = (item.name || "").toLowerCase();
       const location = (item.location || "").toLowerCase();
       const sn = (item.serial_number || "").toLowerCase();
-      return name.includes(lowerCaseSearch) || location.includes(lowerCaseSearch) || sn.includes(lowerCaseSearch);
+      
+      const matchesSearch = name.includes(lowerCaseSearch) || location.includes(lowerCaseSearch) || sn.includes(lowerCaseSearch);
+      const matchesClient = selectedClient === "all" || item.location === selectedClient;
+      
+      return matchesSearch && matchesClient;
     });
-  }, [equipments, searchTerm]);
+  }, [equipments, searchTerm, selectedClient]);
 
   return (
     <div className="space-y-8">
@@ -67,7 +81,7 @@ const AssetsPage: React.FC = () => {
                 <DialogTitle className="text-2xl font-bold">Nouvel Équipement</DialogTitle>
                 <DialogDescription>Enregistrez un nouvel appareil médical dans l'inventaire.</DialogDescription>
               </DialogHeader>
-              <CreateAssetForm onSuccess={() => { setIsCreateModalOpen(false); fetchAssets(); }} />
+              <CreateAssetForm onSuccess={() => { setIsCreateModalOpen(false); fetchData(); }} />
             </DialogContent>
           </Dialog>
         )}
@@ -75,10 +89,32 @@ const AssetsPage: React.FC = () => {
       
       <Card className="shadow-lg">
         <CardContent className="p-0">
-          <div className="p-4 border-b">
-            <div className="relative max-w-md">
+          <div className="p-4 border-b flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input placeholder="Rechercher par nom, site ou S/N..." className="pl-10 rounded-xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input 
+                placeholder="Rechercher par nom ou S/N..." 
+                className="pl-10 rounded-xl" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+              />
+            </div>
+            
+            <div className="w-full md:w-64">
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="rounded-xl">
+                  <div className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Filtrer par client" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les clients</SelectItem>
+                  {clients.map(client => (
+                    <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
@@ -145,7 +181,7 @@ const AssetsPage: React.FC = () => {
             <DialogTitle className="text-2xl font-bold">Modifier l'Équipement</DialogTitle>
             <DialogDescription>Mettez à jour les informations de l'appareil sélectionné.</DialogDescription>
           </DialogHeader>
-          {selectedAsset && <EditAssetForm asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost, expiryDate: selectedAsset.expiry_date ? new Date(selectedAsset.expiry_date) : null}} onSuccess={() => { setIsEditOpen(false); fetchAssets(); }} />}
+          {selectedAsset && <EditAssetForm asset={{...selectedAsset, serialNumber: selectedAsset.serial_number, commissioningDate: new Date(selectedAsset.commissioning_date), purchaseCost: selectedAsset.purchase_cost, expiryDate: selectedAsset.expiry_date ? new Date(selectedAsset.expiry_date) : null}} onSuccess={() => { setIsEditOpen(false); fetchData(); }} />}
         </DialogContent>
       </Dialog>
     </div>
