@@ -6,11 +6,14 @@ export const useOfflineManager = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
-      syncData();
+      await syncData();
     };
-    const handleOffline = () => setIsOnline(false);
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -22,28 +25,64 @@ export const useOfflineManager = () => {
   }, []);
 
   const syncData = async () => {
-    const pending = JSON.parse(localStorage.getItem('pending_interventions') || '[]');
-    if (pending.length === 0) return;
+    const pending = JSON.parse(
+      localStorage.getItem('pending_interventions') || '[]'
+    );
 
-    showSuccess(`Synchronisation de ${pending.length} intervention(s)...`);
+    if (!pending.length) return;
+
+    let failedItems = [];
+
+    showSuccess(
+      `Synchronisation de ${pending.length} intervention(s)...`
+    );
 
     for (const item of pending) {
-      const { error } = await supabase.from('interventions').insert(item);
+      const { error } = await supabase
+        .from('interventions')
+        .insert(item);
+
       if (error) {
-        showError("Erreur de synchro pour une intervention.");
+        failedItems.push(item);
       }
     }
 
-    localStorage.removeItem('pending_interventions');
-    showSuccess("Toutes les données sont à jour !");
+    // On conserve uniquement les échecs
+    localStorage.setItem(
+      'pending_interventions',
+      JSON.stringify(failedItems)
+    );
+
+    if (failedItems.length > 0) {
+      showError(
+        `${failedItems.length} intervention(s) non synchronisée(s)`
+      );
+    } else {
+      showSuccess("Toutes les données sont synchronisées !");
+    }
   };
 
   const saveOfflineIntervention = (data: any) => {
-    const pending = JSON.parse(localStorage.getItem('pending_interventions') || '[]');
-    pending.push(data);
-    localStorage.setItem('pending_interventions', JSON.stringify(pending));
-    showSuccess("Enregistré localement (Mode Offline)");
+    const pending = JSON.parse(
+      localStorage.getItem('pending_interventions') || '[]'
+    );
+
+    pending.push({
+      ...data,
+      savedAt: new Date().toISOString()
+    });
+
+    localStorage.setItem(
+      'pending_interventions',
+      JSON.stringify(pending)
+    );
+
+    showSuccess("Intervention enregistrée hors ligne");
   };
 
-  return { isOnline, saveOfflineIntervention };
+  return {
+    isOnline,
+    saveOfflineIntervention,
+    syncData
+  };
 };
