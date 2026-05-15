@@ -19,6 +19,7 @@ import DocumentationPage from "./pages/DocumentationPage";
 import ReportedBreakdownsPage from "./pages/ReportedBreakdownsPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import ClientPortal from "./pages/ClientPortal";
+import ProfilePage from "./pages/ProfilePage";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/documentation" element={<DocumentationPage />} />
                 <Route path="/statistics" element={<StatisticsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>
             

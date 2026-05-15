@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Shield, FileText, QrCode, Hammer, BookOpen, AlertTriangle, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Wrench, Factory, Menu, CalendarDays, ShieldCheck, Users, ClipboardList, Box, Building2, FlaskConical, LogOut, Shield, FileText, BookOpen, AlertTriangle, BarChart3, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -10,7 +10,7 @@ import { Badge } from "./ui/badge";
 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
-  const { role, specialty, signOut, hasRole } = useAuth();
+  const { role, signOut, hasRole } = useAuth();
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
@@ -28,6 +28,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/reports", icon: <FileText size={20} />, label: "Rapports", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/documentation", icon: <BookOpen size={20} />, label: "Documentation", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe", roles: ['admin'] },
+    { to: "/profile", icon: <User size={20} />, label: "Mon Profil", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
   ];
 
   return (
