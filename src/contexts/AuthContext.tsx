@@ -43,23 +43,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
-          const profile = await fetchProfile(currentSession.user.id);
-          setRole(profile.role);
-          setSpecialty(profile.specialty);
-        }
-      } catch (error) {
-        console.error("Auth init error:", error);
-      } finally {
-        setIsLoading(false);
+  const initializeAuth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+
+        const profile = await fetchProfile(session.user.id);
+        setRole(profile.role);
+        setSpecialty(profile.specialty);
       }
-    };
+    } catch (error) {
+      console.error("Auth init error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  initializeAuth();
+
+  const {
+    data: { subscription }
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+
+    setSession(session);
+    setUser(session?.user ?? null);
+
+    if (!session) {
+      setRole(null);
+      setSpecialty(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // Important : hors callback direct
+    setTimeout(async () => {
+      const profile = await fetchProfile(session.user.id);
+      setRole(profile.role);
+      setSpecialty(profile.specialty);
+      setIsLoading(false);
+    }, 0);
+
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
 
     initializeAuth();
 
