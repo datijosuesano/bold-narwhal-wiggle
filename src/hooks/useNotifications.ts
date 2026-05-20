@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   title: string;
   message: string;
@@ -14,7 +14,7 @@ export interface Notification {
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchNotifications = async () => {
@@ -26,7 +26,7 @@ export const useNotifications = () => {
       .limit(20);
     
     if (data) {
-      setNotifications(data as Notification[]);
+      setNotifications(data as AppNotification[]);
       setUnreadCount(data.filter(n => !n.is_read).length);
     }
   };
