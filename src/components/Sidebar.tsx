@@ -28,16 +28,18 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "./ui/badge";
+import { useSidebarCounts } from "@/hooks/useSidebarCounts";
 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
   const { role, signOut, hasRole } = useAuth();
+  const { chatCount, breakdownCount } = useSidebarCounts();
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
-    { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
+    { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'], badge: chatCount },
     { to: "/statistics", icon: <BarChart3 size={20} />, label: "Statistiques", roles: ['admin', 'technicien biomedical'] },
-    { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'] },
+    { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'], badge: breakdownCount },
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical', 'secretaire'] },
@@ -71,12 +73,17 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
               to={item.to}
               onClick={closeSheet}
               className={cn(
-                "flex items-center p-3 rounded-xl transition-all font-medium",
+                "flex items-center p-3 rounded-xl transition-all font-medium relative group",
                 location.pathname === item.to ? "bg-sidebar-primary text-white shadow-lg" : "text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
               <span className="mr-3">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge && item.badge > 0 ? (
+                <span className="bg-red-500 text-white text-[10px] font-black h-5 w-5 flex items-center justify-center rounded-full animate-in zoom-in duration-300">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              ) : null}
             </Link>
           ))}
       </nav>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,46 +31,57 @@ import ReagentsPage from "./pages/ReagentsPage";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/portal" element={<ClientPortal />} />
-            
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="/chat" element={<ChatPage />} />
-                <Route path="/assets" element={<AssetsPage />} />
-                <Route path="/reported-breakdowns" element={<ReportedBreakdownsPage />} />
-                <Route path="/work-orders" element={<WorkOrdersPage />} />
-                <Route path="/interventions" element={<InterventionsPage />} />
-                <Route path="/planning" element={<PlanningPage />} />
-                <Route path="/contracts" element={<ContractsPage />} />
-                <Route path="/technicians" element={<TechniciansPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/clients" element={<ClientsPage />} />
-                <Route path="/inventory" element={<InventoryPage />} />
-                <Route path="/reagents" element={<ReagentsPage />} />
-                <Route path="/tools" element={<ToolsPage />} />
-                <Route path="/documentation" element={<DocumentationPage />} />
-                <Route path="/statistics" element={<StatisticsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+const App = () => {
+  useEffect(() => {
+    // Demander l'autorisation de notification
+    if ("Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/portal" element={<ClientPortal />} />
+              
+              <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<MainLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="/chat" element={<ChatPage />} />
+                  <Route path="/assets" element={<AssetsPage />} />
+                  <Route path="/reported-breakdowns" element={<ReportedBreakdownsPage />} />
+                  <Route path="/work-orders" element={<WorkOrdersPage />} />
+                  <Route path="/interventions" element={<InterventionsPage />} />
+                  <Route path="/planning" element={<PlanningPage />} />
+                  <Route path="/contracts" element={<ContractsPage />} />
+                  <Route path="/technicians" element={<TechniciansPage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/clients" element={<ClientsPage />} />
+                  <Route path="/inventory" element={<InventoryPage />} />
+                  <Route path="/reagents" element={<ReagentsPage />} />
+                  <Route path="/tools" element={<ToolsPage />} />
+                  <Route path="/documentation" element={<DocumentationPage />} />
+                  <Route path="/statistics" element={<StatisticsPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                </Route>
               </Route>
-            </Route>
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
