@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, CheckCircle2, PenTool } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ const InterventionSchema = z.object({
   technician_id: z.string().min(1, "Le technicien est requis."),
   intervention_date: z.string().min(1, "La date est requise."),
   total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
+  intervention_place: z.enum(["Sur Site", "Atelier / Service Technique"]),
 });
 
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
@@ -70,6 +71,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       technician_id: initialData?.technician_id || user?.id || "",
       intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
       total_cost: initialData?.total_cost || 0,
+      intervention_place: initialData?.intervention_place || "Sur Site",
     },
   });
 
@@ -100,6 +102,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       intervention_date: data.intervention_date,
       total_cost: data.total_cost,
       client_signature_url: signatureUrl,
+      intervention_place: data.intervention_place,
     };
 
     if (!isOnline) {
@@ -152,12 +155,23 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                   </Select>
                 </FormItem>
               )} />
-              <FormField control={form.control} name="technician_id" render={({ field }) => (
+              <FormField control={form.control} name="intervention_place" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Technicien</FormLabel>
+                  <FormLabel>Lieu de l'action</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
-                    <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
+                    <FormControl>
+                      <SelectTrigger className="rounded-xl h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Sur Site">
+                        <div className="flex items-center"><MapPin size={14} className="mr-2 text-blue-600" /> Sur Site</div>
+                      </SelectItem>
+                      <SelectItem value="Atelier / Service Technique">
+                        <div className="flex items-center"><Warehouse size={14} className="mr-2 text-purple-600" /> Atelier / Service Technique</div>
+                      </SelectItem>
+                    </SelectContent>
                   </Select>
                 </FormItem>
               )} />
@@ -175,8 +189,14 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
               <FormField control={form.control} name="intervention_date" render={({ field }) => (
                 <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
               )} />
-              <FormField control={form.control} name="total_cost" render={({ field }) => (
-                <FormItem><FormLabel>Coût estimé (F)</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
+              <FormField control={form.control} name="technician_id" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Technicien</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
+                    <SelectContent>{technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FormItem>
               )} />
             </div>
 

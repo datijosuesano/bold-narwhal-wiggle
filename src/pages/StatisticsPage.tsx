@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, Calendar, BarChart3, PieChart, MapPin } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, Calendar, BarChart3, PieChart, MapPin, Warehouse } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInDays, format, subDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -16,23 +16,19 @@ const StatisticsPage: React.FC = () => {
     totalOTs: 0,
     bySite: [] as any[],
     byType: [] as any[],
+    byPlace: [] as any[],
   });
 
   const fetchStats = async () => {
     setIsLoading(true);
     try {
-      // 1. Récupérer les OTs et les Interventions
       const { data: ots } = await supabase.from('work_orders').select('created_at, status, asset_id');
-      const { data: interventions } = await supabase.from('interventions').select('intervention_date, created_at, maintenance_type, assets(location)');
+      const { data: interventions } = await supabase.from('interventions').select('intervention_date, created_at, maintenance_type, intervention_place, assets(location)');
 
       if (!ots || !interventions) return;
 
-      // 2. Calcul du temps de réaction moyen (Délai entre création OT et date Intervention)
-      // Note: Dans une GMAO réelle, on lierait l'OT à l'Intervention via une clé étrangère.
-      // Ici, on simule le calcul sur les interventions terminées.
       let totalDays = 0;
       let count = 0;
-
       interventions.forEach(inv => {
         const start = new Date(inv.created_at);
         const end = new Date(inv.intervention_date);
@@ -42,36 +38,34 @@ const StatisticsPage: React.FC = () => {
           count++;
         }
       });
-
       const avgReaction = count > 0 ? (totalDays / count).toFixed(1) : 0;
 
-      // 3. Taux de complétion
       const completed = ots.filter(ot => ot.status === 'Terminé').length;
       const rate = ots.length > 0 ? Math.round((completed / ots.length) * 100) : 0;
 
-      // 4. Répartition par site
       const siteMap = new Map();
+      const placeMap = new Map();
+      const typeMap = new Map();
+
       interventions.forEach(inv => {
         const site = inv.assets?.location || "Inconnu";
         siteMap.set(site, (siteMap.get(site) || 0) + 1);
-      });
-      const bySite = Array.from(siteMap.entries()).map(([name, value]) => ({ name, value }));
 
-      // 5. Répartition par type
-      const typeMap = new Map();
-      interventions.forEach(inv => {
+        const place = inv.intervention_place || "Sur Site";
+        placeMap.set(place, (placeMap.get(place) || 0) + 1);
+
         const type = inv.maintenance_type;
         typeMap.set(type, (typeMap.get(type) || 0) + 1);
       });
-      const byType = Array.from(typeMap.entries()).map(([name, value]) => ({ name, value }));
 
       setStats({
         avgReactionTime: Number(avgReaction),
         completionRate: rate,
         totalInterventions: interventions.length,
         totalOTs: ots.length,
-        bySite,
-        byType
+        bySite: Array.from(siteMap.entries()).map(([name, value]) => ({ name, value })),
+        byPlace: Array.from(placeMap.entries()).map(([name, value]) => ({ name, value })),
+        byType: Array.from(typeMap.entries()).map(([name, value]) => ({ name, value })),
       });
     } catch (error) {
       console.error("Erreur stats:", error);
@@ -82,7 +76,7 @@ const StatisticsPage: React.FC = () => {
 
   useEffect(() => { fetchStats(); }, []);
 
-  const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#2563eb', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
   if (isLoading) {
     return (
@@ -114,7 +108,6 @@ const StatisticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-blue-600">{stats.avgReactionTime} <span className="text-sm font-normal text-muted-foreground">jours</span></div>
-            <p className="text-[10px] text-muted-foreground mt-1">Délai moyen de prise en charge</p>
           </CardContent>
         </Card>
 
@@ -126,7 +119,6 @@ const StatisticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-green-600">{stats.completionRate}%</div>
-            <p className="text-[10px] text-muted-foreground mt-1">OT clôturés / OT ouverts</p>
           </CardContent>
         </Card>
 
@@ -138,7 +130,6 @@ const StatisticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-purple-600">{stats.totalInterventions}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Interventions réalisées au total</p>
           </CardContent>
         </Card>
 
@@ -150,32 +141,38 @@ const StatisticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-amber-600">{stats.totalOTs}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Ordres de travail émis</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* REPARTITION LIEU - NOUVEAU */}
         <Card className="shadow-xl border-none">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <MapPin size={20} className="text-blue-600" /> Interventions par Site
+              <Warehouse size={20} className="text-purple-600" /> Logistique d'Intervention
             </CardTitle>
-            <CardDescription>Volume de maintenance par établissement.</CardDescription>
+            <CardDescription>Répartition des travaux entre le Site et l'Atelier.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.bySite} layout="vertical" margin={{ left: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '10px', fontWeight: 'bold' }} />
-                <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {stats.bySite.map((entry, index) => (
+              <RePie>
+                <Pie
+                  data={stats.byPlace}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {stats.byPlace.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
-                </Bar>
-              </BarChart>
+                </Pie>
+                <Tooltip />
+              </RePie>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -183,7 +180,7 @@ const StatisticsPage: React.FC = () => {
         <Card className="shadow-xl border-none">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <PieChart size={20} className="text-purple-600" /> Mix de Maintenance
+              <PieChart size={20} className="text-blue-600" /> Mix de Maintenance
             </CardTitle>
             <CardDescription>Répartition Préventif vs Curatif.</CardDescription>
           </CardHeader>
@@ -201,7 +198,7 @@ const StatisticsPage: React.FC = () => {
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {stats.byType.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -210,6 +207,29 @@ const StatisticsPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-xl border-none">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <MapPin size={20} className="text-blue-600" /> Activité par Établissement
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.bySite} layout="vertical" margin={{ left: 40, right: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" hide />
+              <YAxis dataKey="name" type="category" width={120} style={{ fontSize: '10px', fontWeight: 'bold' }} />
+              <Tooltip cursor={{ fill: '#f1f5f9' }} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={25}>
+                {stats.bySite.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert, Warehouse } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -25,6 +25,7 @@ interface Intervention {
   asset_id: string;
   invoice_status: string;
   invoice_number: string;
+  intervention_place: string;
   assets: {
     name: string;
     location: string;
@@ -151,7 +152,7 @@ const InterventionsPage: React.FC = () => {
               <thead className="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground">
                 <tr>
                   <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Équipement & Site</th>
+                  <th className="px-6 py-4">Équipement & Lieu</th>
                   <th className="px-6 py-4">Objet</th>
                   <th className="px-6 py-4">Statut Admin</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -169,7 +170,16 @@ const InterventionsPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-foreground">{item.assets?.name}</div>
-                      <div className="text-xs text-muted-foreground flex items-center"><MapPin size={10} className="mr-1" /> {item.assets?.location}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] uppercase border-none",
+                          item.intervention_place === "Sur Site" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+                        )}>
+                          {item.intervention_place === "Sur Site" ? <MapPin size={8} className="mr-1" /> : <Warehouse size={8} className="mr-1" />}
+                          {item.intervention_place}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">• {item.assets?.location}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium line-clamp-1">{item.title}</div>
