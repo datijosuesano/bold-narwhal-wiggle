@@ -20,6 +20,7 @@ import ReportedBreakdownsPage from "./pages/ReportedBreakdownsPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import ClientPortal from "./pages/ClientPortal";
 import ProfilePage from "./pages/ProfilePage";
+import ChatPage from "./pages/ChatPage";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -44,6 +45,7 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="/chat" element={<ChatPage />} />
                 <Route path="/assets" element={<AssetsPage />} />
                 <Route path="/reported-breakdowns" element={<ReportedBreakdownsPage />} />
                 <Route path="/work-orders" element={<WorkOrdersPage />} />

@@ -19,7 +19,8 @@ import {
   AlertTriangle, 
   BarChart3, 
   User,
-  Hammer
+  Hammer,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
+    { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
     { to: "/statistics", icon: <BarChart3 size={20} />, label: "Statistiques", roles: ['admin', 'technicien biomedical'] },
     { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'] },
     { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
