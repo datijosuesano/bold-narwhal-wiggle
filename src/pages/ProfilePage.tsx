@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { User, Mail, Shield, Phone, Briefcase } from 'lucide-react';
+import { User, Mail, Shield, Phone, Briefcase, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import { Badge } from '@/components/ui/badge';
