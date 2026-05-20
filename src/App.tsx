@@ -33,12 +33,16 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
-    // Demander l'autorisation de notification de manière sécurisée
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (window.Notification.permission === "default") {
-        window.Notification.requestPermission();
+    // Demande de permission pour les notifications de manière sécurisée
+    const askPermission = async () => {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        const BrowserNotification = window.Notification;
+        if (BrowserNotification.permission === "default") {
+          await BrowserNotification.requestPermission();
+        }
       }
-    }
+    };
+    askPermission();
   }, []);
 
   return (

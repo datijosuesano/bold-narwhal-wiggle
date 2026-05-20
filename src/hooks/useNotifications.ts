@@ -26,8 +26,9 @@ export const useNotifications = () => {
       .limit(20);
     
     if (data) {
-      setNotifications(data as AppNotification[]);
-      setUnreadCount(data.filter(n => !n.is_read).length);
+      const items = data as AppNotification[];
+      setNotifications(items);
+      setUnreadCount(items.filter(n => !n.is_read).length);
     }
   };
 
@@ -40,9 +41,12 @@ export const useNotifications = () => {
     fetchNotifications();
 
     const channel = supabase
-      .channel('notifications-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` }, 
-      () => fetchNotifications())
+      .channel('notif-channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'notifications' 
+      }, () => fetchNotifications())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
