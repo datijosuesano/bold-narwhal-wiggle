@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert, Warehouse, Eye } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert, Warehouse, Eye, FileSpreadsheet, Clock } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -19,9 +19,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface Intervention {
   id: string;
+  rit_number?: string | null;
   title: string;
   maintenance_type: string;
   intervention_date: string;
+  start_date?: string | null;
+  end_date?: string | null;
   description: string;
   asset_id: string;
   invoice_status: string;
@@ -104,8 +107,27 @@ const InterventionsPage: React.FC = () => {
     }
   };
 
+  // Helper pour calculer et afficher la durée d'intervention d'une ligne
+  const getDurationString = (start?: string | null, end?: string | null) => {
+    if (!start || !end) return null;
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const diffMs = e - s;
+    if (isNaN(diffMs) || diffMs < 0) return null;
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}j ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins} min`;
+  };
+
   const filteredInterventions = interventions.filter(item =>
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.rit_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.assets?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.assets?.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -142,7 +164,7 @@ const InterventionsPage: React.FC = () => {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input 
-          placeholder="Rechercher par objet, site, équipement..." 
+          placeholder="Rechercher par objet, RIT, site, équipement..." 
           className="pl-10 rounded-xl" 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -155,9 +177,9 @@ const InterventionsPage: React.FC = () => {
             <table className="w-full text-left">
               <thead className="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">RIT & Date</th>
                   <th className="px-6 py-4">Équipement & Lieu</th>
-                  <th className="px-6 py-4">Objet</th>
+                  <th className="px-6 py-4">Objet / Durée</th>
                   <th className="px-6 py-4">Statut Admin</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -167,107 +189,125 @@ const InterventionsPage: React.FC = () => {
                   <tr><td colSpan={5} className="text-center py-20"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
                 ) : filteredInterventions.length === 0 ? (
                   <tr><td colSpan={5} className="text-center py-20 text-muted-foreground italic">Aucune intervention enregistrée.</td></tr>
-                ) : filteredInterventions.map(item => (
-                  <tr key={item.id} className="hover:bg-accent/50 transition-colors group">
-                    <td className="px-6 py-4 text-sm font-medium">
-                      <div className="flex items-center"><Calendar size={14} className="mr-2 text-muted-foreground" />{format(new Date(item.intervention_date), 'dd/MM/yyyy')}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-foreground">{item.assets?.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className={cn(
-                          "text-[9px] uppercase border-none",
-                          item.intervention_place === "Sur Site" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
-                        )}>
-                          {item.intervention_place === "Sur Site" ? <MapPin size={8} className="mr-1" /> : <Warehouse size={8} className="mr-1" />}
-                          {item.intervention_place}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">• {item.assets?.location}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium line-clamp-1">{item.title}</div>
-                      <Badge variant="outline" className="mt-1 rounded-full text-[9px] uppercase">{item.maintenance_type}</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(item.invoice_status)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        {isSec && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
-                              >
-                                Changer Statut <ChevronDown size={12} className="ml-1" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="rounded-xl">
-                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture déposée')} className="text-green-600 font-bold cursor-pointer">
-                                <CheckCircle2 size={14} className="mr-2" /> Facture déposée
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous garantie')} className="text-blue-600 font-bold cursor-pointer">
-                                <ShieldCheck size={14} className="mr-2" /> Sous garantie
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous contrat')} className="text-purple-600 font-bold cursor-pointer">
-                                <ShieldAlert size={14} className="mr-2" /> Sous contrat
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture non déposée')} className="text-red-600 font-bold cursor-pointer">
-                                <XCircle size={14} className="mr-2" /> Non déposée
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-blue-600 hover:bg-blue-50"
-                          onClick={() => { setSelectedIntervention(item); setIsDetailOpen(true); }}
-                          title="Voir Détails"
-                        >
-                          <Eye size={16} />
-                        </Button>
+                ) : filteredInterventions.map(item => {
+                  const duration = getDurationString(item.start_date, item.end_date);
+                  return (
+                    <tr key={item.id} className="hover:bg-accent/50 transition-colors group">
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <div className="flex flex-col">
+                          <span className="font-mono text-xs font-black text-blue-600 flex items-center gap-1">
+                            <FileSpreadsheet size={12} /> {item.rit_number || "RIT --"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground mt-1 flex items-center">
+                            <Calendar size={12} className="mr-1 text-muted-foreground" />
+                            {format(new Date(item.intervention_date), 'dd/MM/yyyy')}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-foreground">{item.assets?.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className={cn(
+                            "text-[9px] uppercase border-none",
+                            item.intervention_place === "Sur Site" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+                          )}>
+                            {item.intervention_place === "Sur Site" ? <MapPin size={8} className="mr-1" /> : <Warehouse size={8} className="mr-1" />}
+                            {item.intervention_place}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">• {item.assets?.location}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium line-clamp-1">{item.title}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="rounded-full text-[9px] uppercase">{item.maintenance_type}</Badge>
+                          {duration && (
+                            <Badge variant="secondary" className="rounded-full text-[9px] bg-slate-100 text-slate-800 font-bold flex items-center">
+                              <Clock size={10} className="mr-1 text-slate-600" /> {duration}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getStatusBadge(item.invoice_status)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          {isSec && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
+                                >
+                                  Changer Statut <ChevronDown size={12} className="ml-1" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture déposée')} className="text-green-600 font-bold cursor-pointer">
+                                  <CheckCircle2 size={14} className="mr-2" /> Facture déposée
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous garantie')} className="text-blue-600 font-bold cursor-pointer">
+                                  <ShieldCheck size={14} className="mr-2" /> Sous garantie
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Sous contrat')} className="text-purple-600 font-bold cursor-pointer">
+                                  <ShieldAlert size={14} className="mr-2" /> Sous contrat
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateInvoiceStatus(item.id, 'Facture non déposée')} className="text-red-600 font-bold cursor-pointer">
+                                  <XCircle size={14} className="mr-2" /> Non déposée
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                            onClick={() => { setSelectedIntervention(item); setIsDetailOpen(true); }}
+                            title="Voir Détails"
+                          >
+                            <Eye size={16} />
+                          </Button>
 
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-slate-500 hover:bg-slate-50"
-                          onClick={() => { setSelectedIntervention(item); setIsReportOpen(true); }}
-                          title="Générer Rapport"
-                        >
-                          <FileText size={16} />
-                        </Button>
-                        
-                        {canEdit && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-amber-600 hover:bg-amber-50"
-                              onClick={() => { setSelectedIntervention(item); setIsEditOpen(true); }}
-                              title="Modifier"
-                            >
-                              <Edit2 size={16} />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-red-500 hover:bg-red-50"
-                              onClick={() => { setSelectedIntervention(item); setIsDeleteOpen(true); }}
-                              title="Supprimer"
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:bg-slate-50"
+                            onClick={() => { setSelectedIntervention(item); setIsReportOpen(true); }}
+                            title="Générer Rapport"
+                          >
+                            <FileText size={16} />
+                          </Button>
+                          
+                          {canEdit && (
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                                onClick={() => { setSelectedIntervention(item); setIsEditOpen(true); }}
+                                title="Modifier"
+                              >
+                                <Edit2 size={16} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-500 hover:bg-red-50"
+                                onClick={() => { setSelectedIntervention(item); setIsDeleteOpen(true); }}
+                                title="Supprimer"
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

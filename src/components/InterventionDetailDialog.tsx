@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Wrench, Calendar, MapPin, Warehouse, PackageOpen, 
-  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert 
+  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Clock, FileSpreadsheet
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -17,9 +17,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Intervention {
   id: string;
+  rit_number?: string | null;
   title: string;
   maintenance_type: string;
   intervention_date: string;
+  start_date?: string | null;
+  end_date?: string | null;
   description: string;
   asset_id: string;
   invoice_status: string;
@@ -58,7 +61,6 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
   useEffect(() => {
     const fetchTech = async () => {
       if (!intervention) return;
-      // Fetch technician info from intervention's user_id or technician_id
       const { data } = await supabase
         .from('profiles')
         .select('first_name, last_name')
@@ -74,6 +76,29 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
     }
   }, [isOpen, intervention]);
 
+  // Calculateur de durée
+  const durationString = React.useMemo(() => {
+    if (!intervention?.start_date || !intervention?.end_date) return null;
+    const start = new Date(intervention.start_date).getTime();
+    const end = new Date(intervention.end_date).getTime();
+    const diffMs = end - start;
+    if (isNaN(diffMs) || diffMs < 0) return null;
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      const remainingHours = hours % 24;
+      return `${days}j ${remainingHours}h ${mins}min`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${mins}min`;
+    }
+    return `${mins} min`;
+  }, [intervention]);
+
   if (!intervention) return null;
 
   return (
@@ -87,8 +112,10 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
             )}>
               {intervention.intervention_place === "Sur Site" ? <MapPin size={24} /> : <Warehouse size={24} />}
             </div>
-            <div className="text-left">
-              <DialogTitle className="text-xl font-bold leading-tight">{intervention.title}</DialogTitle>
+            <div className="text-left flex-1">
+              <DialogTitle className="text-xl font-bold leading-tight flex items-center gap-2">
+                {intervention.title}
+              </DialogTitle>
               <DialogDescription className="text-xs mt-0.5">
                 {intervention.intervention_place} • {intervention.assets?.location}
               </DialogDescription>
@@ -97,6 +124,25 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* Nouveau Badge RIT prominent */}
+          <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+            <div className="flex items-center gap-2 text-blue-800">
+              <FileSpreadsheet size={16} />
+              <span className="text-xs font-black uppercase tracking-wider">Rapport officiel</span>
+            </div>
+            <Badge className="bg-blue-600 text-white font-bold text-sm px-3 py-1 rounded-lg">
+              {intervention.rit_number || "RIT SANS NUMÉRO"}
+            </Badge>
+          </div>
+
+          {/* Durée Calculée Prominente */}
+          {durationString && (
+            <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between shadow">
+              <span className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5"><Clock size={14} /> Durée de l'intervention</span>
+              <strong className="text-base font-black text-green-400">{durationString}</strong>
+            </div>
+          )}
+
           {/* Main Info */}
           <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50/50 p-4 rounded-xl border">
             <div>
@@ -118,6 +164,24 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
               <p className="font-bold text-slate-700 text-xs mt-1">{techName || "Non spécifié"}</p>
             </div>
           </div>
+
+          {/* Heures précises */}
+          {(intervention.start_date || intervention.end_date) && (
+            <div className="text-xs space-y-1 p-3 border rounded-xl bg-slate-50/20">
+              {intervention.start_date && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider">Heure d'arrivée / début :</span>
+                  <span className="font-bold text-slate-800">{format(new Date(intervention.start_date), 'dd/MM/yyyy HH:mm')}</span>
+                </div>
+              )}
+              {intervention.end_date && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold uppercase tracking-wider">Heure de clôture / fin :</span>
+                  <span className="font-bold text-slate-800">{format(new Date(intervention.end_date), 'dd/MM/yyyy HH:mm')}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Workshop accessories received */}
           {intervention.intervention_place === "Atelier / Service Technique" && (

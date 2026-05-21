@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse, PackageOpen } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse, PackageOpen, FileSpreadsheet, Clock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,15 +32,24 @@ import SignaturePad from "./SignaturePad";
 import InterventionAttachmentsManager from "./InterventionAttachmentsManager";
 
 const InterventionSchema = z.object({
+  rit_number: z.string().min(1, "Le numéro RIT est requis (ex: RIT 1234)."),
   title: z.string().min(5, "Le titre doit contenir au moins 5 caractères."),
   description: z.string().min(10, "Veuillez décrire l'action menée (10 car. min)."),
   maintenance_type: z.string().min(1, "Le type est requis"),
   asset_id: z.string().min(1, "Veuillez sélectionner un équipement."),
   technician_id: z.string().min(1, "Le technicien est requis."),
-  intervention_date: z.string().min(1, "La date est requise."),
+  start_date: z.string().min(1, "La date de début est requise."),
+  end_date: z.string().min(1, "La date de fin est requise."),
   total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
   intervention_place: z.enum(["Sur Site", "Atelier / Service Technique"]),
   accessories_received: z.string().optional().default(""),
+}).refine((data) => {
+  const start = new Date(data.start_date).getTime();
+  const end = new Date(data.end_date).getTime();
+  return end >= start;
+}, {
+  message: "La date de fin doit être postérieure ou égale à la date de début.",
+  path: ["end_date"],
 });
 
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
@@ -62,15 +71,26 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   const { user } = useAuth();
   const { isOnline, saveOfflineIntervention } = useOfflineManager();
 
+  // Helper pour formater une date ISO en datetime-local
+  const formatForInput = (isoString?: string) => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
+      rit_number: initialData?.rit_number || "",
       title: initialData?.title || "",
       description: initialData?.description || "",
       maintenance_type: initialData?.maintenance_type || "Corrective",
       asset_id: assetId || initialData?.asset_id || "",
       technician_id: initialData?.technician_id || user?.id || "",
-      intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
+      start_date: formatForInput(initialData?.start_date) || formatForInput(new Date().toISOString()),
+      end_date: formatForInput(initialData?.end_date) || formatForInput(new Date().toISOString()),
       total_cost: initialData?.total_cost || 0,
       intervention_place: initialData?.intervention_place || "Sur Site",
       accessories_received: initialData?.accessories_received || "",
@@ -78,6 +98,31 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
   });
 
   const watchPlace = form.watch("intervention_place");
+  const watchStartDate = form.watch("start_date");
+  const watchEndDate = form.watch("end_date");
+
+  // Calcul dynamique de la durée
+  const calculatedDuration = React.useMemo(() => {
+    if (!watchStartDate || !watchEndDate) return null;
+    const start = new Date(watchStartDate).getTime();
+    const end = new Date(watchEndDate).getTime();
+    const diffMs = end - start;
+    if (isNaN(diffMs) || diffMs < 0) return null;
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      const remainingHours = hours % 24;
+      return `${days}j ${remainingHours}h ${mins}min`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${mins}min`;
+    }
+    return `${mins} min`;
+  }, [watchStartDate, watchEndDate]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,10 +145,13 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       user_id: user.id,
       technician_id: data.technician_id,
       asset_id: data.asset_id,
+      rit_number: data.rit_number,
       title: data.title,
       description: data.description,
       maintenance_type: data.maintenance_type as any,
-      intervention_date: data.intervention_date,
+      start_date: new Date(data.start_date).toISOString(),
+      end_date: new Date(data.end_date).toISOString(),
+      intervention_date: new Date(data.start_date).toISOString().split('T')[0], // pour compatibilité historique
       total_cost: data.total_cost,
       client_signature_url: signatureUrl,
       intervention_place: data.intervention_place,
@@ -141,6 +189,27 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       {!savedInterventionId ? (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+            {initialData?.reporter_name && (
+              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center gap-3 mb-2">
+                <div className="bg-blue-600 p-2 rounded-lg text-white">
+                  <User size={16} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-blue-600 leading-none">Signalé par</p>
+                  <p className="text-sm font-bold text-slate-900">{initialData.reporter_name}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Nouveau champ Numéro de Rapport RIT */}
+            <FormField control={form.control} name="rit_number" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5"><FileSpreadsheet size={16} className="text-blue-600" /> Numéro de Rapport d'Intervention (RIT)</FormLabel>
+                <FormControl><Input placeholder="Ex: RIT 2045" {...field} className="rounded-xl border-blue-200 font-bold focus-visible:ring-blue-500" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="asset_id" render={({ field }) => (
                 <FormItem>
@@ -202,9 +271,47 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
               </FormItem>
             )} />
 
+            {/* Nouveaux champs pour dates/heures de début et fin */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="intervention_date" render={({ field }) => (
-                <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
+              <FormField control={form.control} name="start_date" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Début de l'intervention</FormLabel>
+                  <FormControl><Input type="datetime-local" {...field} className="rounded-xl" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="end_date" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fin de l'intervention</FormLabel>
+                  <FormControl><Input type="datetime-local" {...field} className="rounded-xl" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            {/* Aperçu de la durée calculée */}
+            {calculatedDuration && (
+              <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center gap-2.5 text-blue-800 text-xs font-semibold animate-in fade-in duration-300">
+                <Clock size={16} className="text-blue-600" />
+                <span>Durée estimée d'intervention : <strong className="text-sm font-black text-blue-900">{calculatedDuration}</strong></span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="maintenance_type" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type de Maintenance</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Corrective">Corrective</SelectItem>
+                      <SelectItem value="Préventive">Préventive</SelectItem>
+                      <SelectItem value="Curative">Curative</SelectItem>
+                      <SelectItem value="Palliative">Palliative</SelectItem>
+                      <SelectItem value="Améliorative">Améliorative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
               )} />
               <FormField control={form.control} name="technician_id" render={({ field }) => (
                 <FormItem>
