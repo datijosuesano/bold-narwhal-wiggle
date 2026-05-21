@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert, Warehouse } from 'lucide-react';
+import { Wrench, Plus, Search, CheckCircle2, Loader2, Calendar, MapPin, Edit2, Trash2, FileText, Receipt, ChevronDown, XCircle, ShieldCheck, ShieldAlert, Warehouse, Eye } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import AddPastInterventionForm from '@/components/AddPastInterventionForm';
 import CreateReportForm from '@/components/CreateReportForm';
+import InterventionDetailDialog from '@/components/InterventionDetailDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Intervention {
@@ -26,6 +27,8 @@ interface Intervention {
   invoice_status: string;
   invoice_number: string;
   intervention_place: string;
+  accessories_received?: string | null;
+  client_signature_url?: string | null;
   assets: {
     name: string;
     location: string;
@@ -45,6 +48,7 @@ const InterventionsPage: React.FC = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
 
@@ -222,6 +226,16 @@ const InterventionsPage: React.FC = () => {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                          onClick={() => { setSelectedIntervention(item); setIsDetailOpen(true); }}
+                          title="Voir Détails"
+                        >
+                          <Eye size={16} />
+                        </Button>
+
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-500 hover:bg-slate-50"
                           onClick={() => { setSelectedIntervention(item); setIsReportOpen(true); }}
                           title="Générer Rapport"
                         >
@@ -259,6 +273,13 @@ const InterventionsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog Détails complets de l'intervention */}
+      <InterventionDetailDialog 
+        intervention={selectedIntervention} 
+        isOpen={isDetailOpen} 
+        onClose={() => setIsDetailOpen(false)} 
+      />
 
       {/* Dialog Modification */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
