@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse, PackageOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,7 @@ const InterventionSchema = z.object({
   intervention_date: z.string().min(1, "La date est requise."),
   total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
   intervention_place: z.enum(["Sur Site", "Atelier / Service Technique"]),
+  accessories_received: z.string().optional().default(""),
 });
 
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
@@ -72,8 +73,11 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       intervention_date: initialData?.intervention_date || new Date().toISOString().split('T')[0],
       total_cost: initialData?.total_cost || 0,
       intervention_place: initialData?.intervention_place || "Sur Site",
+      accessories_received: initialData?.accessories_received || "",
     },
   });
+
+  const watchPlace = form.watch("intervention_place");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,6 +107,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       total_cost: data.total_cost,
       client_signature_url: signatureUrl,
       intervention_place: data.intervention_place,
+      accessories_received: data.intervention_place === "Atelier / Service Technique" ? (data.accessories_received || null) : null,
     };
 
     if (!isOnline) {
@@ -176,6 +181,18 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                 </FormItem>
               )} />
             </div>
+
+            {watchPlace === "Atelier / Service Technique" && (
+              <FormField control={form.control} name="accessories_received" render={({ field }) => (
+                <FormItem className="animate-in slide-in-from-top-2 duration-300">
+                  <FormLabel className="flex items-center gap-1.5"><PackageOpen size={14} className="text-purple-600" /> Accessoires reçus avec l'appareil</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Câble d'alimentation, capteur SpO2, housse..." {...field} className="rounded-xl border-purple-200 focus-visible:ring-purple-500" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            )}
 
             <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem>
