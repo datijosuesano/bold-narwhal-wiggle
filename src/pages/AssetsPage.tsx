@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
@@ -8,8 +10,6 @@ import {
   Filter,
   QrCode
 } from 'lucide-react';
-
-import QRCode from "react-qr-code";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +37,7 @@ import {
 import CreateAssetForm from "@/components/CreateAssetForm";
 import EditAssetForm from "@/components/EditAssetForm";
 import AssetDetailView from "@/components/AssetDetailView";
+import AssetQRCode from "@/components/AssetQRCode";
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -448,30 +449,11 @@ const AssetsPage: React.FC = () => {
           </DialogHeader>
 
           {selectedAsset && (
-            <div className="flex flex-col items-center space-y-6 py-6">
-
-              <div className="bg-white p-4 rounded-xl shadow">
-                <QRCode
-                  value={`${window.location.origin}/request/${selectedAsset.id}`}
-                  size={220}
-                />
-              </div>
-
-              <div className="text-center">
-                <p className="font-bold text-lg">
-                  {selectedAsset.name}
-                </p>
-
-                <p className="text-xs text-muted-foreground uppercase">
-                  S/N: {selectedAsset.serial_number || 'N/A'}
-                </p>
-
-                <p className="text-sm text-slate-500 mt-2">
-                  {selectedAsset.location || 'Non localisé'}
-                </p>
-              </div>
-
-            </div>
+            <AssetQRCode
+              assetId={selectedAsset.id}
+              assetName={selectedAsset.name}
+              serialNumber={selectedAsset.serial_number || 'N/A'}
+            />
           )}
 
         </DialogContent>
