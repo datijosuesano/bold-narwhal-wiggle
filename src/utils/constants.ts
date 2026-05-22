@@ -25,3 +25,27 @@ export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
 // Statuts des Ordres de Travail
 export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "En attente de pièce", "Terminé", "Annulé"] as const;
 export const WORK_ORDER_STATUS = STATUTS_WORK_ORDER;
+
+/**
+ * Formate un rôle utilisateur en français
+ */
+export const formatRole = (role: string | null): string => {
+  if (!role) return "Utilisateur";
+  switch (role.toLowerCase()) {
+    case 'admin':
+    case 'administrateur':
+      return 'Administrateur';
+    case 'technicien biomedical':
+      return 'Technicien Biomédical';
+    case 'gestionnaire de stock':
+      return 'Gestionnaire de Stock';
+    case 'secretaire':
+      return 'Secrétaire';
+    case 'user':
+      return 'Collaborateur';
+    case 'client':
+      return 'Client Hospitalier';
+    default:
+      return role;
+  }
+};

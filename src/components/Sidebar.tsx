@@ -29,6 +29,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "./ui/badge";
 import { useSidebarCounts } from "@/hooks/useSidebarCounts";
+import { formatRole } from "@/utils/constants";
 
 const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) => {
   const location = useLocation();
@@ -60,7 +61,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
       <div className="flex flex-col items-center mb-6">
         <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
         <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase py-1 px-3">
-          <Shield size={10} className="mr-1" /> {role}
+          <Shield size={10} className="mr-1" /> {formatRole(role)}
         </Badge>
       </div>
 

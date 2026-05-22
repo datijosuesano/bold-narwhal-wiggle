@@ -62,7 +62,7 @@ interface AddPastInterventionFormProps {
 
 const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ assetId, initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string}[]>([]);
+  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string, brand: string | null}[]>([]);
   const [technicians, setTechnicians] = useState<{id: string, first_name: string, last_name: string}[]>([]);
   const [showSignature, setShowSignature] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
@@ -126,7 +126,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: assetList } = await supabase.from('assets').select('id, name, serial_number, location').order('name');
+      const { data: assetList } = await supabase.from('assets').select('id, name, serial_number, location, brand').order('name');
       setAssets(assetList || []);
 
       const { data: techList } = await supabase.from('profiles').select('id, first_name, last_name').order('last_name');
@@ -220,7 +220,9 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
                       {assets.map(a => (
                         <SelectItem key={a.id} value={a.id} className="py-2">
                           <div className="flex flex-col text-left">
-                            <span className="font-bold text-xs">{a.name}</span>
+                            <span className="font-bold text-xs">
+                              {a.name} {a.brand ? `(${a.brand})` : ""}
+                            </span>
                             <span className="text-[9px] text-muted-foreground uppercase">SN: {a.serial_number || 'N/A'} • {a.location}</span>
                           </div>
                         </SelectItem>

@@ -4,6 +4,7 @@ import { User, Mail, Shield, Phone, Briefcase, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import { Badge } from '@/components/ui/badge';
+import { formatRole } from '@/utils/constants';
 
 const ProfilePage: React.FC = () => {
   const { user, role, specialty } = useAuth();
@@ -32,7 +33,7 @@ const ProfilePage: React.FC = () => {
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">{user?.email?.split('@')[0]}</h3>
                 <Badge className="mt-1 bg-blue-500/20 text-blue-400 border-blue-500/30 rounded-full uppercase text-[10px]">
-                  <Shield size={10} className="mr-1" /> {role}
+                  <Shield size={10} className="mr-1" /> {formatRole(role)}
                 </Badge>
               </div>
               

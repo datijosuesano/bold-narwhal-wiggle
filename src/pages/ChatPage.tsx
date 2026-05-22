@@ -9,6 +9,7 @@ import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatRole } from '@/utils/constants';
 
 interface Profile {
   id: string;
@@ -169,7 +170,7 @@ const ChatPage: React.FC = () => {
                 <div className="text-left flex-1 truncate">
                   <p className="text-sm font-bold truncate">{p.first_name} {p.last_name}</p>
                   <p className={cn("text-[9px] uppercase font-medium", selectedRecipient?.id === p.id ? "text-blue-100" : "text-slate-500")}>
-                    {p.role}
+                    {formatRole(p.role)}
                   </p>
                 </div>
               </button>

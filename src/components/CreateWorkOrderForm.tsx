@@ -48,7 +48,7 @@ interface CreateWorkOrderFormProps {
 
 const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string}[]>([]);
+  const [assets, setAssets] = useState<{id: string, name: string, serial_number: string, location: string, brand: string | null}[]>([]);
   const [isAssetsLoading, setIsAssetsLoading] = useState(true);
   const { user } = useAuth();
 
@@ -60,6 +60,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
       maintenanceType: "Préventive",
       priority: "Moyenne",
       assetId: "",
+      dueDate: new Date(), // Pre-set to current day!
     },
   });
 
@@ -68,7 +69,7 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
       setIsAssetsLoading(true);
       const { data } = await supabase
         .from('assets')
-        .select('id, name, serial_number, location')
+        .select('id, name, serial_number, location, brand')
         .order('name');
       setAssets(data || []);
       setIsAssetsLoading(false);
@@ -167,7 +168,9 @@ const CreateWorkOrderForm: React.FC<CreateWorkOrderFormProps> = ({ onSuccess }) 
                   {assets.map(a => (
                     <SelectItem key={a.id} value={a.id} className="py-2">
                       <div className="flex flex-col">
-                        <span className="font-bold">{a.name}</span>
+                        <span className="font-bold">
+                          {a.name} {a.brand ? `(${a.brand})` : ""}
+                        </span>
                         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                           SN: {a.serial_number || 'N/A'} • Site: {a.location}
                         </span>
