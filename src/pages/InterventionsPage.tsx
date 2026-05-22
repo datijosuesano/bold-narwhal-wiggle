@@ -35,6 +35,7 @@ interface Intervention {
   assets: {
     name: string;
     location: string;
+    brand?: string | null;
   } | null;
 }
 
@@ -59,7 +60,7 @@ const InterventionsPage: React.FC = () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('interventions')
-      .select('*, assets(name, location)')
+      .select('*, assets(name, location, brand)')
       .order('intervention_date', { ascending: false });
 
     if (error) showError("Erreur lors du chargement de l'historique.");
@@ -205,7 +206,14 @@ const InterventionsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-foreground">{item.assets?.name}</div>
+                        <div className="font-bold text-foreground">
+                          {item.assets?.name}
+                          {item.assets?.brand && (
+                            <span className="text-xs font-medium text-slate-500 ml-1.5 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {item.assets.brand}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline" className={cn(
                             "text-[9px] uppercase border-none",

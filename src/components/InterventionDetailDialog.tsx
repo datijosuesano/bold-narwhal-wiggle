@@ -33,6 +33,7 @@ interface Intervention {
   assets: {
     name: string;
     location: string;
+    brand?: string | null;
   } | null;
 }
 
@@ -147,7 +148,12 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
           <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50/50 p-4 rounded-xl border">
             <div>
               <p className="text-[10px] font-black uppercase text-slate-400">Équipement</p>
-              <p className="font-bold text-slate-800">{intervention.assets?.name || 'Inconnu'}</p>
+              <p className="font-bold text-slate-800">
+                {intervention.assets?.name}
+                {intervention.assets?.brand && (
+                  <span className="text-xs font-medium text-slate-500 ml-1">({intervention.assets.brand})</span>
+                )}
+              </p>
             </div>
             <div>
               <p className="text-[10px] font-black uppercase text-slate-400">Date d'intervention</p>
