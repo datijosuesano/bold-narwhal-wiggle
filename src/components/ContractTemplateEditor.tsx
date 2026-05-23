@@ -65,9 +65,14 @@ const ContractTemplateEditor: React.FC = () => {
     <div className="space-y-6 max-h-[85vh] overflow-y-auto pr-4 custom-scrollbar">
       {/* Conteneur d'action - Masqué lors de l'impression */}
       <div className="flex justify-between items-center gap-2 mb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-3 border-b print:hidden">
-        <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
-          <CheckCircle2 size={14} className="text-blue-600" /> Les bordures d'édition bleues disparaissent à l'impression.
-        </p>
+        <div className="flex flex-col">
+          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+            <CheckCircle2 size={14} className="text-blue-600" /> Les bordures d'édition bleues disparaissent à l'impression.
+          </p>
+          <p className="text-[11px] text-blue-600 font-bold mt-1">
+            💡 Astuce : Dans la fenêtre qui s'ouvre, changez la Destination par "Enregistrer au format PDF" pour l'exporter.
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 rounded-xl">
             <Save size={16} className="mr-2" /> Enregistrer les modifications
