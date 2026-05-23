@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory, ShieldAlert, User } from 'lucide-react';
+import { QrCode, Send, CheckCircle2, Loader2, AlertTriangle, Factory, ShieldAlert, User, Camera, Video, Film, Image as ImageIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from "@/lib/utils";
@@ -22,6 +22,11 @@ const ClientPortal: React.FC = () => {
   const [reporterName, setReporterName] = useState("");
   const [priority, setPriority] = useState<"Moyenne" | "Critique">("Moyenne");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Nouveaux états pour le média (Photo / Vidéo)
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   useEffect(() => {
     if (assetIdFromUrl) {
@@ -58,6 +63,46 @@ const ClientPortal: React.FC = () => {
     }
   };
 
+  const handleMediaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0) return;
+      setIsUploadingMedia(true);
+
+      const file = event.target.files[0];
+      const isVideo = file.type.startsWith('video/');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `portal-${Date.now()}.${fileExt}`;
+      const filePath = `portal-uploads/${fileName}`;
+
+      // Envoi du fichier vers le bucket public de Supabase
+      const { error: uploadError } = await supabase.storage
+        .from("asset-documents")
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Récupération de l'URL publique
+      const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(filePath);
+
+      setMediaUrl(urlData.publicUrl);
+      setMediaType(isVideo ? 'video' : 'image');
+      showSuccess(isVideo ? "Vidéo chargée avec succès !" : "Photo chargée avec succès !");
+    } catch (error: any) {
+      console.error("Media upload error:", error);
+      showError("Impossible de charger le fichier média.");
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const removeMedia = () => {
+    setMediaUrl(null);
+    setMediaType(null);
+  };
+
   const handleSubmit = async () => {
     if (!reporterName.trim()) {
       showError("Veuillez indiquer votre nom.");
@@ -69,10 +114,17 @@ const ClientPortal: React.FC = () => {
     }
 
     setIsLoading(true);
+
+    // Si un média a été chargé, on intègre son URL au début de la description
+    let finalDescription = description;
+    if (mediaUrl) {
+      finalDescription = `[Médias de la panne: ${mediaUrl}]\n\n${description}`;
+    }
+
     try {
       const { error } = await supabase.from('work_orders').insert({
         title: `PANNE SIGNALÉE : ${asset.name}`,
-        description: description,
+        description: finalDescription,
         reporter_name: reporterName,
         asset_id: asset.id,
         priority: priority,
@@ -190,10 +242,58 @@ const ClientPortal: React.FC = () => {
               />
             </div>
 
+            {/* Nouveau module de téléversement photo / vidéo */}
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase text-slate-500 block">Preuve Visuelle (Photo / Vidéo)</label>
+              
+              {mediaUrl ? (
+                <div className="relative border rounded-2xl overflow-hidden bg-slate-100 aspect-video flex items-center justify-center group">
+                  {mediaType === 'video' ? (
+                    <video src={mediaUrl} controls className="w-full h-full object-contain" />
+                  ) : (
+                    <img src={mediaUrl} alt="Panne" className="w-full h-full object-contain" />
+                  )}
+                  <Button 
+                    variant="destructive" 
+                    size="icon" 
+                    className="absolute top-2 right-2 rounded-full h-8 w-8"
+                    onClick={removeMedia}
+                  >
+                    <X size={16} />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-2xl hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition-all bg-slate-50/50">
+                  {isUploadingMedia ? (
+                    <div className="flex flex-col items-center text-blue-600 font-bold text-xs">
+                      <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                      Envoi du média...
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-muted-foreground text-center px-4">
+                      <div className="flex gap-2 mb-1 text-slate-400">
+                        <Camera size={20} />
+                        <Video size={20} />
+                      </div>
+                      <span className="text-xs font-bold text-slate-600">Ajouter une photo / vidéo</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">Capturer l'état de l'écran ou de l'appareil</span>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*,video/*" 
+                    onChange={handleMediaUpload} 
+                    disabled={isUploadingMedia} 
+                  />
+                </label>
+              )}
+            </div>
+
             <Button 
               onClick={handleSubmit} 
-              disabled={isLoading}
-              className="w-full bg-blue-600 h-14 rounded-2xl font-black text-lg shadow-lg"
+              disabled={isLoading || isUploadingMedia}
+              className="w-full bg-blue-600 h-14 rounded-2xl font-black text-lg shadow-lg mt-2"
             >
               {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2" />} 
               ENVOYER L'ALERTE

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, User, MapPin, Clock, CheckCircle2, Loader2, Search, Eye, Filter, ArrowUpDown } from 'lucide-react';
+import { AlertTriangle, User, MapPin, Clock, CheckCircle2, Loader2, Search, Eye, Filter, Film, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -61,6 +61,20 @@ const ReportedBreakdownsPage: React.FC = () => {
   const handleTakeAction = (report: any) => {
     setSelectedReport(report);
     setIsEditOpen(true);
+  };
+
+  // Helper pour extraire l'URL du média encodée dans la description
+  const extractMediaFromDescription = (description: string) => {
+    if (!description) return { url: null, cleanDesc: "", isVideo: false };
+    
+    const match = description.match(/\[Médias de la panne:\s*(https?:\/\/[^\]]+)\]/);
+    if (match) {
+      const url = match[1];
+      const cleanDesc = description.replace(/\[Médias de la panne:\s*https?:\/\/[^\]]+\]\s*/g, '');
+      const isVideo = url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.webm') || url.includes('video');
+      return { url, cleanDesc, isVideo };
+    }
+    return { url: null, cleanDesc: description, isVideo: false };
   };
 
   const filteredReports = useMemo(() => {
@@ -127,63 +141,85 @@ const ReportedBreakdownsPage: React.FC = () => {
         <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-blue-600" /></div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {filteredReports.length > 0 ? filteredReports.map(report => (
-            <Card key={report.id} className={cn(
-              "rounded-2xl shadow-sm border-l-4 transition-all hover:shadow-md group",
-              report.status === 'Ouvert' ? "border-l-red-500 bg-red-50/10" : "border-l-green-500"
-            )}>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={report.priority === 'Critique' ? 'destructive' : 'outline'} className="rounded-full uppercase text-[9px] font-black">
-                        {report.priority}
+          {filteredReports.length > 0 ? filteredReports.map(report => {
+            const { url, cleanDesc, isVideo } = extractMediaFromDescription(report.description);
+            return (
+              <Card key={report.id} className={cn(
+                "rounded-2xl shadow-sm border-l-4 transition-all hover:shadow-md group flex flex-col justify-between overflow-hidden",
+                report.status === 'Ouvert' ? "border-l-red-500 bg-red-50/10" : "border-l-green-500"
+              )}>
+                <div>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={report.priority === 'Critique' ? 'destructive' : 'outline'} className="rounded-full uppercase text-[9px] font-black">
+                            {report.priority}
+                          </Badge>
+                          {new Date(report.created_at).getTime() > Date.now() - 3600000 && (
+                            <Badge className="bg-blue-600 text-white rounded-full text-[8px] animate-pulse">NOUVEAU</Badge>
+                          )}
+                          {url && (
+                            <Badge className="bg-purple-600 text-white rounded-full text-[8px] flex items-center gap-1">
+                              {isVideo ? <Film size={10} /> : <ImageIcon size={10} />}
+                              Média joint
+                            </Badge>
+                          )}
+                        </div>
+                        <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors">{report.assets?.name}</CardTitle>
+                      </div>
+                      <Badge className={cn(
+                        "rounded-full text-[10px] font-black uppercase",
+                        report.status === 'Ouvert' ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+                      )}>
+                        {report.status}
                       </Badge>
-                      {new Date(report.created_at).getTime() > Date.now() - 3600000 && (
-                        <Badge className="bg-blue-600 text-white rounded-full text-[8px] animate-pulse">NOUVEAU</Badge>
-                      )}
                     </div>
-                    <CardTitle className="text-xl font-bold group-hover:text-blue-600 transition-colors">{report.assets?.name}</CardTitle>
-                  </div>
-                  <Badge className={cn(
-                    "rounded-full text-[10px] font-black uppercase",
-                    report.status === 'Ouvert' ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
-                  )}>
-                    {report.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-inner space-y-3">
-                  <p className="text-sm italic text-slate-700 leading-relaxed">"{report.description}"</p>
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-50 text-[11px] font-black uppercase text-slate-500">
-                    <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-lg">
-                      <User size={12} className="mr-1.5" /> {report.reporter_name}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Intégration visuelle du média envoyé par le client */}
+                    {url && (
+                      <div className="border rounded-xl overflow-hidden bg-black aspect-video max-h-48 w-full flex items-center justify-center">
+                        {isVideo ? (
+                          <video src={url} controls className="w-full h-full object-contain" />
+                        ) : (
+                          <img src={url} alt="Aperçu panne" className="w-full h-full object-contain" />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="p-4 bg-white rounded-xl border border-slate-100 shadow-inner space-y-3">
+                      <p className="text-sm italic text-slate-700 leading-relaxed">"{cleanDesc}"</p>
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-50 text-[11px] font-black uppercase text-slate-500">
+                        <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-lg">
+                          <User size={12} className="mr-1.5" /> {report.reporter_name}
+                        </div>
+                        <div className="flex items-center text-slate-400">
+                          <Clock size={12} className="mr-1.5" /> {format(new Date(report.created_at), 'dd/MM/yy HH:mm', { locale: fr })}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center text-slate-400">
-                      <Clock size={12} className="mr-1.5" /> {format(new Date(report.created_at), 'dd/MM/yy HH:mm', { locale: fr })}
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center text-muted-foreground font-medium">
+                        <MapPin size={14} className="mr-1.5 text-red-400" /> {report.assets?.location}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400">SN: {report.assets?.serial_number || 'N/A'}</div>
                     </div>
-                  </div>
+                  </CardContent>
                 </div>
 
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center text-muted-foreground font-medium">
-                    <MapPin size={14} className="mr-1.5 text-red-400" /> {report.assets?.location}
-                  </div>
-                  <div className="text-[10px] font-mono text-slate-400">SN: {report.assets?.serial_number || 'N/A'}</div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
+                <div className="px-6 pb-6">
                   <Button 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-xl h-11 font-bold shadow-lg transition-transform active:scale-95"
+                    className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl h-11 font-bold shadow-lg transition-transform active:scale-95"
                     onClick={() => handleTakeAction(report)}
                   >
                     <Eye size={18} className="mr-2" /> Gérer l'alerte
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )) : (
+              </Card>
+            );
+          }) : (
             <div className="col-span-full text-center py-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
               <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                 <CheckCircle2 className="h-10 w-10 text-green-400" />
