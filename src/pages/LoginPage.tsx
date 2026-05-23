@@ -73,7 +73,7 @@ const LoginPage: React.FC = () => {
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
           <CardTitle className="text-3xl font-black text-slate-900 tracking-tight">
-            GMAO DYAD
+            BIOPULSE
           </CardTitle>
           <CardDescription>
             Connectez-vous pour accéder à votre espace de gestion

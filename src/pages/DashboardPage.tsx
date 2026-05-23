@@ -88,7 +88,7 @@ const DashboardPage: React.FC = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">GMAO BIOMÉDICALE</h1>
+          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">BIOPULSE</h1>
           <p className="text-lg text-muted-foreground">Performance du service technique</p>
         </div>
         <NotificationBell />

@@ -59,7 +59,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   return (
     <div className="flex flex-col h-full p-4 space-y-4">
       <div className="flex flex-col items-center mb-6">
-        <div className="text-2xl font-black text-sidebar-primary-foreground">GMAO Dyad</div>
+        <div className="text-2xl font-black text-sidebar-primary-foreground">BioPulse</div>
         <Badge className="mt-2 bg-sidebar-accent text-[10px] rounded-full uppercase py-1 px-3">
           <Shield size={10} className="mr-1" /> {formatRole(role)}
         </Badge>
