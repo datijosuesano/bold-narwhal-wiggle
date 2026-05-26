@@ -99,7 +99,7 @@ const ReportsPage: React.FC = () => {
   };
 
   const handleDownload = () => {
-    showSuccess("Téléchargement du PDF lancé...");
+    window.print();
   };
   
   const filteredReports = useMemo(() => {
@@ -241,13 +241,16 @@ const ReportsPage: React.FC = () => {
             <DialogTitle>Aperçu du Rapport</DialogTitle>
             <DialogDescription>Visualisation du document PDF généré.</DialogDescription>
           </DialogHeader>
-          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm">
-            <h3 className="text-lg font-bold">Aperçu du Rapport</h3>
+          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm print:hidden">
+            <div className="flex flex-col text-left">
+              <h3 className="text-lg font-bold">Aperçu du Rapport</h3>
+              <p className="text-[10px] text-blue-600 font-bold">💡 Pour sauvegarder en PDF, changez la Destination pour "Enregistrer au format PDF".</p>
+            </div>
             <Button onClick={handleDownload} className="bg-blue-600 rounded-xl">
-              <Download size={18} className="mr-2" /> Télécharger PDF
+              <Download size={18} className="mr-2" /> Exporter PDF / Imprimer
             </Button>
           </div>
-          <div className="p-6 md:p-12">
+          <div className="p-6 md:p-12 print-container">
             {selectedReport && <ReportPDFPreview report={selectedReport} />}
           </div>
         </DialogContent>
@@ -266,6 +269,28 @@ const ReportsPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print\\:hidden, button, header, nav, aside, footer, .sticky {
+            display: none !important;
+          }
+          .print-container, .print-container * {
+            visibility: visible;
+          }
+          .print-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Wrench, Calendar, MapPin, Warehouse, PackageOpen, 
-  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Clock, FileSpreadsheet
+  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Clock, FileSpreadsheet, Printer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -100,54 +100,63 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
     return `${mins} min`;
   }, [intervention]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!intervention) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] rounded-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <DialogHeader className="border-b pb-4">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "p-2.5 rounded-xl",
-              intervention.intervention_place === "Sur Site" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
-            )}>
-              {intervention.intervention_place === "Sur Site" ? <MapPin size={24} /> : <Warehouse size={24} />}
+      <DialogContent className="sm:max-w-[550px] rounded-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-0">
+        {/* Conteneur imprimable spécifique */}
+        <div className="p-6 space-y-5 print-intervention-area">
+          <DialogHeader className="border-b pb-4 flex flex-row justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-2.5 rounded-xl print:border",
+                intervention.intervention_place === "Sur Site" ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-purple-50 text-purple-600 border-purple-200"
+              )}>
+                {intervention.intervention_place === "Sur Site" ? <MapPin size={24} /> : <Warehouse size={24} />}
+              </div>
+              <div className="text-left flex-1">
+                <DialogTitle className="text-xl font-bold leading-tight flex items-center gap-2">
+                  {intervention.title}
+                </DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  {intervention.intervention_place} • {intervention.assets?.location}
+                </DialogDescription>
+              </div>
             </div>
-            <div className="text-left flex-1">
-              <DialogTitle className="text-xl font-bold leading-tight flex items-center gap-2">
-                {intervention.title}
-              </DialogTitle>
-              <DialogDescription className="text-xs mt-0.5">
-                {intervention.intervention_place} • {intervention.assets?.location}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+            
+            <Button onClick={handlePrint} size="sm" variant="outline" className="rounded-xl border-slate-200 shrink-0 print:hidden">
+              <Printer size={16} className="mr-1.5" /> Exporter PDF / Imprimer
+            </Button>
+          </DialogHeader>
 
-        <div className="space-y-5 py-2">
           {/* Nouveau Badge RIT prominent */}
-          <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100 print:bg-transparent print:border-slate-300">
+            <div className="flex items-center gap-2 text-blue-800 print:text-black">
               <FileSpreadsheet size={16} />
               <span className="text-xs font-black uppercase tracking-wider">Rapport officiel</span>
             </div>
-            <Badge className="bg-blue-600 text-white font-bold text-sm px-3 py-1 rounded-lg">
+            <Badge className="bg-blue-600 text-white font-bold text-sm px-3 py-1 rounded-lg print:bg-black">
               {intervention.rit_number || "RIT SANS NUMÉRO"}
             </Badge>
           </div>
 
           {/* Durée Calculée Prominente */}
           {durationString && (
-            <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between shadow">
-              <span className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5"><Clock size={14} /> Durée de l'intervention</span>
-              <strong className="text-base font-black text-green-400">{durationString}</strong>
+            <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between shadow print:bg-slate-100 print:text-black print:border">
+              <span className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 print:text-black"><Clock size={14} /> Durée de l'intervention</span>
+              <strong className="text-base font-black text-green-400 print:text-black">{durationString}</strong>
             </div>
           )}
 
           {/* Main Info */}
-          <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50/50 p-4 rounded-xl border">
+          <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50/50 p-4 rounded-xl border print:bg-transparent print:border-slate-300">
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400">Équipement</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-500">Équipement</p>
               <p className="font-bold text-slate-800">
                 {intervention.assets?.name}
                 {intervention.assets?.brand && (
@@ -156,24 +165,24 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400">Date d'intervention</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-500">Date d'intervention</p>
               <p className="font-bold text-slate-800">
                 {format(new Date(intervention.intervention_date), 'dd MMMM yyyy', { locale: fr })}
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400">Type de maintenance</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-500">Type de maintenance</p>
               <Badge variant="outline" className="mt-1 text-[10px] uppercase font-bold">{intervention.maintenance_type}</Badge>
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400">Technicien</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-500">Technicien</p>
               <p className="font-bold text-slate-700 text-xs mt-1">{techName || "Non spécifié"}</p>
             </div>
           </div>
 
           {/* Heures précises */}
           {(intervention.start_date || intervention.end_date) && (
-            <div className="text-xs space-y-1 p-3 border rounded-xl bg-slate-50/20">
+            <div className="text-xs space-y-1 p-3 border rounded-xl bg-slate-50/20 print:border-slate-300">
               {intervention.start_date && (
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-bold uppercase tracking-wider">Heure d'arrivée / début :</span>
@@ -191,8 +200,8 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
 
           {/* Workshop accessories received */}
           {intervention.intervention_place === "Atelier / Service Technique" && (
-            <div className="bg-purple-50/40 border border-purple-100 p-4 rounded-xl space-y-2">
-              <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs uppercase tracking-wider">
+            <div className="bg-purple-50/40 border border-purple-100 p-4 rounded-xl space-y-2 print:border-slate-300 print:bg-transparent">
+              <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs uppercase tracking-wider print:text-black">
                 <PackageOpen size={16} />
                 <span>Accessoires Reçus</span>
               </div>
@@ -208,10 +217,10 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
 
           {/* Description */}
           <div className="space-y-1.5">
-            <h4 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1">
+            <h4 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1 print:text-slate-600">
               <FileText size={14} /> Description des travaux
             </h4>
-            <p className="text-sm text-slate-700 bg-white p-3 rounded-xl border leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-slate-700 bg-white p-3 rounded-xl border leading-relaxed whitespace-pre-wrap print:border-slate-300">
               {intervention.description || "Aucun détail complémentaire renseigné."}
             </p>
           </div>
@@ -219,25 +228,49 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
           {/* Cost and Signature */}
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400">Statut Facturation</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-600">Statut Facturation</p>
               <div className="mt-1">{getStatusBadge(intervention.invoice_status)}</div>
             </div>
             {intervention.client_signature_url && (
               <div>
-                <p className="text-[10px] font-black uppercase text-slate-400">Signature Client</p>
-                <div className="mt-1 border rounded-lg p-1 bg-white inline-block max-w-[150px]">
+                <p className="text-[10px] font-black uppercase text-slate-400 print:text-slate-600">Signature Client</p>
+                <div className="mt-1 border rounded-lg p-1 bg-white inline-block max-w-[150px] print:border-slate-300">
                   <img src={intervention.client_signature_url} alt="Signature" className="max-h-12 w-auto object-contain" />
                 </div>
               </div>
             )}
           </div>
 
-          <Separator />
+          <Separator className="print:hidden" />
 
-          {/* Attachments Section */}
-          <InterventionAttachmentsManager interventionId={intervention.id} />
+          {/* Attachments Section - Hide during print */}
+          <div className="print:hidden">
+            <InterventionAttachmentsManager interventionId={intervention.id} />
+          </div>
         </div>
       </DialogContent>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print\\:hidden, button, header, nav, aside, footer, .shrink-0 {
+            display: none !important;
+          }
+          .print-intervention-area, .print-intervention-area * {
+            visibility: visible;
+          }
+          .print-intervention-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+      `}</style>
     </Dialog>
   );
 };
