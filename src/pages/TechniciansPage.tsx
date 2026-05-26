@@ -47,7 +47,8 @@ const TechniciansPage: React.FC = () => {
           activeOrders: 0,
           phone: p.telephone || 'N/A',
           email: p.email || 'N/A',
-          last_login: p.last_login
+          last_login: p.last_login,
+          role: p.role || 'user'
         };
       });
       setTechnicians(mapped);

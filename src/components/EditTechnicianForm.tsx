@@ -50,6 +50,14 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
+  const getInitialRole = () => {
+    if (technician.role) return technician.role;
+    if (technician.specialty === 'Nouveau compte') return 'technicien biomedical';
+    if (technician.specialty.toLowerCase().includes('stock')) return 'gestionnaire de stock';
+    if (technician.specialty.toLowerCase().includes('administratif')) return 'secretaire';
+    return 'technicien biomedical';
+  };
+
   const form = useForm<TechnicianFormValues>({
     resolver: zodResolver(TechnicianSchema),
     defaultValues: {
@@ -58,7 +66,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
       email: technician.email === 'N/A' ? '' : technician.email,
       telephone: technician.phone === 'N/A' ? '' : technician.phone,
       specialite: technician.specialty,
-      role: technician.specialty === 'Nouveau compte' ? 'technicien biomedical' : (technician.specialty.toLowerCase().includes('stock') ? 'gestionnaire de stock' : 'technicien biomedical'),
+      role: getInitialRole(),
     },
   });
 

@@ -24,6 +24,7 @@ export interface Technician {
   phone: string;
   email: string;
   last_login?: string | null;
+  role?: string;
 }
 
 interface TechniciansTableProps {
