@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 import { format, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import NotificationBell from "@/components/NotificationBell";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = hasRole(['admin']);
+
   const [stats, setStats] = useState({
     totalAssets: 0,
     brokenAssets: 0,
@@ -45,7 +47,7 @@ const DashboardPage: React.FC = () => {
       const monthInvs = invs?.filter(i => i.intervention_date >= startMonth).length || 0;
       const costs = invs?.reduce((acc, curr) => acc + (Number(curr.total_cost) || 0), 0) || 0;
 
-      // 3. Top Technicien (Simulé pour l'exemple)
+      // 3. Top Technicien
       const { data: techs } = await supabase.from('profiles').select('first_name, last_name');
       const topTech = techs && techs.length > 0 ? `${techs[0].first_name} ${techs[0].last_name}` : "---";
 
@@ -131,20 +133,23 @@ const DashboardPage: React.FC = () => {
         </Card>
 
         <div className="space-y-6">
-          <Card className="shadow-lg border-none bg-slate-900 text-white">
-            <CardHeader><CardTitle className="text-xs font-black uppercase text-blue-400">Top Technicien</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xl">
-                  {stats.topTech[0]}
+          {/* Seul l'administrateur peut voir le Top Technicien */}
+          {isAdmin && (
+            <Card className="shadow-lg border-none bg-slate-900 text-white animate-in fade-in duration-300">
+              <CardHeader><CardTitle className="text-xs font-black uppercase text-blue-400">Top Technicien</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xl">
+                    {stats.topTech[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold">{stats.topTech}</p>
+                    <p className="text-[10px] text-slate-400 uppercase">Plus actif ce mois</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold">{stats.topTech}</p>
-                  <p className="text-[10px] text-slate-400 uppercase">Plus actif ce mois</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-lg border-none">
             <CardHeader><CardTitle className="text-xs font-black uppercase text-muted-foreground">Temps de Réparation</CardTitle></CardHeader>
