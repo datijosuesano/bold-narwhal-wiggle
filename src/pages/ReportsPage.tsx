@@ -1,15 +1,50 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2, Trash2, Printer } from 'lucide-react';
+import {
+  ClipboardList,
+  Plus,
+  Search,
+  FileText,
+  Map,
+  Filter,
+  Eye,
+  CheckCircle2,
+  Download,
+  Loader2,
+  Trash2,
+  Printer
+} from 'lucide-react';
+
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger
+} from "@/components/ui/dialog";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+
 import CreateReportForm from '@/components/CreateReportForm';
 import ReportPDFPreview from '@/components/ReportPDFPreview';
 import { Badge } from '@/components/ui/badge';
+
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
 import { cn } from "@/lib/utils";
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,30 +61,48 @@ interface Report {
 }
 
 const ReportsPage: React.FC = () => {
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
   const [reports, setReports] = useState<Report[]>([]);
+
   const [searchTerm, setSearchTerm] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
 
+  // =========================
+  // FETCH REPORTS
+  // =========================
+
   const fetchReports = async () => {
+
     setIsLoading(true);
+
     const { data, error } = await supabase
       .from('reports')
       .select('*')
       .order('date', { ascending: false });
 
     if (error) {
+
+      console.error(error);
+
       showError("Erreur lors du chargement des rapports.");
+
     } else {
-      const mappedReports: Report[] = (data || []).map(r => ({
+
+      const mappedReports: Report[] = (data || []).map((r: any) => ({
         ...r,
         date: new Date(r.date)
       }));
+
       setReports(mappedReports);
     }
+
     setIsLoading(false);
   };
 
@@ -57,10 +110,18 @@ const ReportsPage: React.FC = () => {
     fetchReports();
   }, []);
 
+  // =========================
+  // VIEW PDF
+  // =========================
+
   const handleViewPDF = (report: Report) => {
     setSelectedReport(report);
     setIsPreviewOpen(true);
   };
+
+  // =========================
+  // DELETE
+  // =========================
 
   const handleOpenDelete = (report: Report) => {
     setSelectedReport(report);
@@ -68,241 +129,523 @@ const ReportsPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
+
     if (!selectedReport) return;
-    
+
     const { error } = await supabase
       .from('reports')
       .delete()
       .eq('id', selectedReport.id);
 
     if (error) {
+
+      console.error(error);
+
       showError("Erreur lors de la suppression.");
+
     } else {
+
       showSuccess("Rapport supprimé avec succès.");
+
       fetchReports();
     }
+
     setIsDeleteOpen(false);
   };
 
+  // =========================
+  // VALIDATE REPORT
+  // =========================
+
   const handleValidate = async (reportId: string) => {
+
     const { error } = await supabase
       .from('reports')
       .update({ status: 'Finalized' })
       .eq('id', reportId);
 
     if (error) {
+
+      console.error(error);
+
       showError("Erreur lors de la validation.");
+
     } else {
+
       showSuccess("Rapport validé avec succès.");
+
       fetchReports();
     }
   };
 
-  const handleExportPDF = () => {
-    showSuccess("Astuce : Choisissez 'Enregistrer au format PDF' dans l'onglet Destination de la fenêtre d'impression.");
+  // =========================
+  // PRINT / PDF
+  // =========================
+
+  const handleDownload = () => {
+
+    showSuccess(
+      "Choisissez 'Enregistrer au format PDF' dans Destination pour générer le PDF."
+    );
+
     setTimeout(() => {
       window.print();
-    }, 800);
+    }, 500);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-  
+  // =========================
+  // SEARCH
+  // =========================
+
   const filteredReports = useMemo(() => {
+
     if (!searchTerm) return reports;
+
     const lowerCaseSearch = searchTerm.toLowerCase();
+
     return reports.filter(report =>
-      report.title.toLowerCase().includes(lowerCaseSearch) ||
-      report.client.toLowerCase().includes(lowerCaseSearch) ||
-      report.technician.toLowerCase().includes(lowerCaseSearch)
+      report.title?.toLowerCase().includes(lowerCaseSearch) ||
+      report.client?.toLowerCase().includes(lowerCaseSearch) ||
+      report.technician?.toLowerCase().includes(lowerCaseSearch)
     );
+
   }, [reports, searchTerm]);
 
   return (
+
     <div className="space-y-8">
+
+      {/* HEADER */}
+
       <div className="flex justify-between items-center">
+
         <div className="flex items-center space-x-4">
+
           <div className="p-3 bg-blue-100 rounded-2xl">
             <ClipboardList className="h-8 w-8 text-blue-600" />
           </div>
+
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Rapports d'Activité</h1>
-            <p className="text-lg text-muted-foreground">Centralisation des interventions multi-sites.</p>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">
+              Rapports d'Activité
+            </h1>
+
+            <p className="text-lg text-muted-foreground">
+              Centralisation des interventions multi-sites.
+            </p>
           </div>
+
         </div>
-        
+
+        {/* CREATE REPORT */}
+
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+
           <DialogTrigger asChild>
+
             <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <Plus className="mr-2 h-4 w-4" /> Nouveau Rapport
+              <Plus className="mr-2 h-4 w-4" />
+              Nouveau Rapport
             </Button>
+
           </DialogTrigger>
+
           <DialogContent className="sm:max-w-[550px] rounded-xl">
+
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Créer un Rapport</DialogTitle>
-              <DialogDescription>Saisissez les détails de l'intervention multi-sites.</DialogDescription>
+
+              <DialogTitle className="text-2xl font-bold">
+                Créer un Rapport
+              </DialogTitle>
+
+              <DialogDescription>
+                Saisissez les détails de l'intervention multi-sites.
+              </DialogDescription>
+
             </DialogHeader>
-            <CreateReportForm onSuccess={() => { setIsCreateOpen(false); fetchReports(); }} />
+
+            <CreateReportForm
+              onSuccess={() => {
+                setIsCreateOpen(false);
+                fetchReports();
+              }}
+            />
+
           </DialogContent>
+
         </Dialog>
+
       </div>
 
+      {/* MAIN CARD */}
+
       <Card className="shadow-lg">
+
         <CardHeader>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+
             <div>
-              <CardTitle>Journal des Rapports</CardTitle>
-              <CardDescription>Documents classés par ordre chronologique.</CardDescription>
+
+              <CardTitle>
+                Journal des Rapports
+              </CardTitle>
+
+              <CardDescription>
+                Documents classés par ordre chronologique.
+              </CardDescription>
+
             </div>
+
+            {/* SEARCH */}
+
             <div className="flex gap-2 w-full sm:w-auto">
+
               <div className="relative flex-1 sm:w-64">
+
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input 
-                  placeholder="Rechercher (Client, Objet...)" 
-                  className="pl-10 rounded-xl" 
+
+                <Input
+                  placeholder="Rechercher (Client, Objet...)"
+                  className="pl-10 rounded-xl"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+
               </div>
-              <Button variant="outline" className="rounded-xl"><Filter size={18} /></Button>
+
+              <Button variant="outline" className="rounded-xl">
+                <Filter size={18} />
+              </Button>
+
             </div>
+
           </div>
+
         </CardHeader>
+
         <CardContent className="p-0">
+
           <div className="divide-y">
+
             {isLoading ? (
-              <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-blue-600 h-10 w-10" /></div>
+
+              <div className="text-center py-20">
+
+                <Loader2 className="animate-spin mx-auto text-blue-600 h-10 w-10" />
+
+              </div>
+
             ) : filteredReports.length > 0 ? (
+
               filteredReports.map((report) => (
-                <div key={report.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
+
+                <div
+                  key={report.id}
+                  className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors"
+                >
+
+                  {/* LEFT */}
+
                   <div className="flex items-center space-x-4">
-                    <div className={cn(
-                      "p-2 rounded-lg",
-                      report.type === 'Intervention' ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"
-                    )}>
-                      {report.type === 'Intervention' ? <FileText size={20} /> : <Map size={20} />}
+
+                    <div
+                      className={cn(
+                        "p-2 rounded-lg",
+                        report.type === 'Intervention'
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-purple-100 text-purple-600"
+                      )}
+                    >
+
+                      {report.type === 'Intervention'
+                        ? <FileText size={20} />
+                        : <Map size={20} />
+                      }
+
                     </div>
+
                     <div>
-                      <h4 className="font-bold text-foreground">{report.title}</h4>
-                      <p className="text-sm font-medium text-blue-600">{report.client}</p>
-                      <p className="text-xs text-muted-foreground">Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}</p>
+
+                      <h4 className="font-bold text-foreground">
+                        {report.title}
+                      </h4>
+
+                      <p className="text-sm font-medium text-blue-600">
+                        {report.client}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        Par {report.technician} • {format(report.date, 'dd MMMM yyyy', { locale: fr })}
+                      </p>
+
                     </div>
+
                   </div>
+
+                  {/* RIGHT */}
+
                   <div className="flex items-center space-x-3">
-                    <Badge variant={report.status === 'Finalized' ? "default" : "secondary"} className={cn(
-                      "rounded-full",
-                      report.status === 'Finalized' ? "bg-green-100 text-green-700 border-green-200" : "bg-amber-100 text-amber-700 border-amber-200"
-                    )}>
-                      {report.status === 'Finalized' ? 'Validé' : 'Brouillon'}
+
+                    <Badge
+                      variant={report.status === 'Finalized' ? "default" : "secondary"}
+                      className={cn(
+                        "rounded-full",
+                        report.status === 'Finalized'
+                          ? "bg-green-100 text-green-700 border-green-200"
+                          : "bg-amber-100 text-amber-700 border-amber-200"
+                      )}
+                    >
+
+                      {report.status === 'Finalized'
+                        ? 'Validé'
+                        : 'Brouillon'
+                      }
+
                     </Badge>
-                    
+
                     <div className="flex items-center gap-1">
+
+                      {/* VALIDATE */}
+
                       {report.status === 'Draft' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 text-green-600 hover:bg-green-50" 
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-green-600 hover:bg-green-50"
                           onClick={() => handleValidate(report.id)}
                           title="Valider le rapport"
                         >
+
                           <CheckCircle2 size={18} />
+
                         </Button>
+
                       )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 text-blue-600 hover:bg-blue-50" 
+
+                      {/* VIEW */}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-blue-600 hover:bg-blue-50"
                         onClick={() => handleViewPDF(report)}
                         title="Voir Aperçu PDF"
                       >
+
                         <Eye size={18} />
+
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 text-red-500 hover:bg-red-50" 
+
+                      {/* DELETE */}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-red-500 hover:bg-red-50"
                         onClick={() => handleOpenDelete(report)}
                         title="Supprimer"
                       >
+
                         <Trash2 size={18} />
+
                       </Button>
+
                     </div>
+
                   </div>
+
                 </div>
+
               ))
+
             ) : (
+
               <div className="text-center py-20 text-muted-foreground bg-muted/10">
+
                 <ClipboardList className="mx-auto h-12 w-12 opacity-20 mb-2" />
-                <p>Aucun rapport trouvé. Commencez par en créer un.</p>
+
+                <p>
+                  Aucun rapport trouvé. Commencez par en créer un.
+                </p>
+
               </div>
+
             )}
+
           </div>
+
         </CardContent>
+
       </Card>
 
-      {/* Aperçu PDF */}
+      {/* PREVIEW PDF */}
+
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
+
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto rounded-xl p-0 border-none bg-slate-100">
+
           <DialogHeader className="sr-only">
-            <DialogTitle>Aperçu du Rapport</DialogTitle>
-            <DialogDescription>Visualisation du document PDF généré.</DialogDescription>
+
+            <DialogTitle>
+              Aperçu du Rapport
+            </DialogTitle>
+
+            <DialogDescription>
+              Visualisation du document PDF généré.
+            </DialogDescription>
+
           </DialogHeader>
-          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10 shadow-sm print:hidden">
+
+          {/* TOOLBAR */}
+
+          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-50 shadow-sm print:hidden">
+
             <div className="flex flex-col text-left">
-              <h3 className="text-lg font-bold">Aperçu du Rapport</h3>
-              <p className="text-[10px] text-blue-600 font-bold">💡 Pour sauvegarder en PDF, changez la Destination pour "Enregistrer au format PDF".</p>
+
+              <h3 className="text-lg font-bold">
+                Aperçu du Rapport
+              </h3>
+
+              <p className="text-[10px] text-blue-600 font-bold">
+                💡 Pour sauvegarder en PDF :
+                Destination → Enregistrer au format PDF
+              </p>
+
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleExportPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
-                <Download size={18} className="mr-2" /> Exporter PDF
+
+            <div className="flex items-center gap-2">
+
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                className="rounded-xl"
+              >
+
+                <Printer size={18} className="mr-2" />
+                Imprimer
+
               </Button>
-              <Button onClick={handlePrint} variant="outline" className="rounded-xl">
-                <Printer size={18} className="mr-2" /> Imprimer
+
+              <Button
+                onClick={handleDownload}
+                className="bg-blue-600 hover:bg-blue-700 rounded-xl"
+              >
+
+                <Download size={18} className="mr-2" />
+                Exporter PDF
+
               </Button>
+
             </div>
+
           </div>
-          <div className="p-6 md:p-12 print-container">
-            {selectedReport && <ReportPDFPreview report={selectedReport} />}
+
+          {/* PRINT AREA */}
+
+          <div id="report-print-area" className="print-container bg-white">
+
+            <div className="p-6 md:p-12">
+
+              {selectedReport && (
+                <ReportPDFPreview report={selectedReport} />
+              )}
+
+            </div>
+
           </div>
+
         </DialogContent>
+
       </Dialog>
 
-      {/* Suppression */}
+      {/* DELETE DIALOG */}
+
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+
         <AlertDialogContent className="rounded-xl">
+
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce rapport ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est irréversible. Le rapport sera définitivement retiré de la base.</AlertDialogDescription>
+
+            <AlertDialogTitle>
+              Supprimer ce rapport ?
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Cette action est irréversible.
+              Le rapport sera définitivement retiré de la base.
+            </AlertDialogDescription>
+
           </AlertDialogHeader>
+
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">Confirmer</AlertDialogAction>
+
+            <AlertDialogCancel className="rounded-xl">
+              Annuler
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 rounded-xl"
+            >
+
+              Confirmer
+
+            </AlertDialogAction>
+
           </AlertDialogFooter>
+
         </AlertDialogContent>
+
       </AlertDialog>
 
+      {/* PRINT CSS */}
+
       <style>{`
+
         @media print {
+
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
-          .print\\:hidden, button, header, nav, aside, footer, .sticky {
-            display: none !important;
+
+          #report-print-area,
+          #report-print-area * {
+            visibility: visible !important;
           }
-          .print-container, .print-container * {
-            visibility: visible;
-          }
-          .print-container {
+
+          #report-print-area {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            padding: 0 !important;
-            margin: 0 !important;
+            background: white;
+          }
+
+          .print\\:hidden,
+          button,
+          header,
+          nav,
+          aside,
+          footer,
+          .sticky {
+            display: none !important;
+          }
+
+          @page {
+            size: A4;
+            margin: 12mm;
+          }
+
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
+
       `}</style>
+
     </div>
   );
 };
