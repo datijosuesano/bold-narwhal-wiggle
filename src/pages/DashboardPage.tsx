@@ -83,7 +83,7 @@ const DashboardPage: React.FC = () => {
     { title: "Parc Total", value: stats.totalAssets, icon: <Factory className="text-blue-600" />, color: "border-l-blue-600" },
     { title: "En Panne", value: stats.brokenAssets, icon: <AlertTriangle className="text-red-600" />, color: "border-l-red-600 bg-red-50/30" },
     { title: "Opérationnels", value: stats.operationalAssets, icon: <CheckCircle2 className="text-green-600" />, color: "border-l-green-600" },
-    { title: "Coûts Maint.", value: `${stats.totalCosts.toLocaleString()} F`, icon: <DollarSign className="text-amber-600" />, color: "border-l-amber-600" },
+    ...(isAdmin ? [{ title: "Coûts Maint.", value: `${stats.totalCosts.toLocaleString()} F`, icon: <DollarSign className="text-amber-600" />, color: "border-l-amber-600" }] : []),
   ];
 
   return (
@@ -96,7 +96,10 @@ const DashboardPage: React.FC = () => {
         <NotificationBell />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className={cn(
+        "grid gap-6 md:grid-cols-2",
+        isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"
+      )}>
         {kpis.map((kpi, index) => (
           <Card key={index} className={cn("shadow-lg border-l-4 transition-all hover:scale-[1.02]", kpi.color)}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
