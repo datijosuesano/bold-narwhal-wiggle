@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2, Trash2 } from 'lucide-react';
+import { ClipboardList, Plus, Search, FileText, Map, Filter, Eye, CheckCircle2, Download, Loader2, Trash2, Printer } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -98,7 +98,14 @@ const ReportsPage: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
+  const handleExportPDF = () => {
+    showSuccess("Astuce : Choisissez 'Enregistrer au format PDF' dans l'onglet Destination de la fenêtre d'impression.");
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  };
+
+  const handlePrint = () => {
     window.print();
   };
   
@@ -246,9 +253,14 @@ const ReportsPage: React.FC = () => {
               <h3 className="text-lg font-bold">Aperçu du Rapport</h3>
               <p className="text-[10px] text-blue-600 font-bold">💡 Pour sauvegarder en PDF, changez la Destination pour "Enregistrer au format PDF".</p>
             </div>
-            <Button onClick={handleDownload} className="bg-blue-600 rounded-xl">
-              <Download size={18} className="mr-2" /> Exporter PDF / Imprimer
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleExportPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+                <Download size={18} className="mr-2" /> Exporter PDF
+              </Button>
+              <Button onClick={handlePrint} variant="outline" className="rounded-xl">
+                <Printer size={18} className="mr-2" /> Imprimer
+              </Button>
+            </div>
           </div>
           <div className="p-6 md:p-12 print-container">
             {selectedReport && <ReportPDFPreview report={selectedReport} />}

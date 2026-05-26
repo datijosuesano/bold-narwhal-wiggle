@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Wrench, Calendar, MapPin, Warehouse, PackageOpen, 
-  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Clock, FileSpreadsheet, Printer
+  DollarSign, FileText, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Clock, FileSpreadsheet, Printer, Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import InterventionAttachmentsManager from './InterventionAttachmentsManager';
 import { supabase } from '@/integrations/supabase/client';
+import { showSuccess } from '@/utils/toast';
 
 interface Intervention {
   id: string;
@@ -100,6 +101,13 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
     return `${mins} min`;
   }, [intervention]);
 
+  const handleExportPDF = () => {
+    showSuccess("Astuce : Choisissez 'Enregistrer au format PDF' dans l'onglet Destination de la fenêtre d'impression.");
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -129,9 +137,14 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({ int
               </div>
             </div>
             
-            <Button onClick={handlePrint} size="sm" variant="outline" className="rounded-xl border-slate-200 shrink-0 print:hidden">
-              <Printer size={16} className="mr-1.5" /> Exporter PDF / Imprimer
-            </Button>
+            <div className="flex gap-1 shrink-0 print:hidden">
+              <Button onClick={handleExportPDF} size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Download size={14} className="mr-1" /> PDF
+              </Button>
+              <Button onClick={handlePrint} size="sm" variant="outline" className="rounded-xl border-slate-200">
+                <Printer size={14} className="mr-1" /> Imprimer
+              </Button>
+            </div>
           </DialogHeader>
 
           {/* Nouveau Badge RIT prominent */}

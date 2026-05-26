@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Calendar, Building2, DollarSign, FileText, AlertTriangle, Hash, Printer } from 'lucide-react';
+import { ShieldCheck, Calendar, Building2, DollarSign, FileText, AlertTriangle, Hash, Printer, Download } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { showSuccess } from '@/utils/toast';
 
 interface Contract {
   id: string;
@@ -42,6 +43,13 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract, displ
 
   const status = getStatusInfo();
 
+  const handleExportPDF = () => {
+    showSuccess("Astuce : Choisissez 'Enregistrer au format PDF' dans l'onglet Destination de la fenêtre d'impression.");
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -59,8 +67,11 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({ contract, displ
           </div>
         </div>
         <div className="flex gap-2 items-center">
+          <Button onClick={handleExportPDF} size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white print:hidden">
+            <Download size={16} className="mr-1.5" /> Exporter PDF
+          </Button>
           <Button onClick={handlePrint} size="sm" variant="outline" className="rounded-xl border-slate-200 print:hidden">
-            <Printer size={16} className="mr-1.5" /> Exporter PDF / Imprimer
+            <Printer size={16} className="mr-1.5" /> Imprimer
           </Button>
           <div className={cn("flex items-center space-x-2 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-sm print:bg-transparent print:text-black print:border", status.color)}>
             {status.icon}

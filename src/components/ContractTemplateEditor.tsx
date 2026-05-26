@@ -3,8 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Save, Printer, Plus, Trash2, FileText, CheckCircle2 } from 'lucide-react';
-import { showSuccess } from '@/utils/toast';
+import { Save, Printer, Plus, Trash2, FileText, CheckCircle2, Download } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface EquipmentRow {
   id: number;
@@ -57,6 +57,13 @@ const ContractTemplateEditor: React.FC = () => {
     showSuccess("Modèle de contrat et liste d'équipements enregistrés avec succès !");
   };
 
+  const handleExportPDF = () => {
+    showSuccess("Astuce : Choisissez 'Enregistrer au format PDF' dans l'onglet Destination de la fenêtre d'impression.");
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -69,16 +76,16 @@ const ContractTemplateEditor: React.FC = () => {
           <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
             <CheckCircle2 size={14} className="text-blue-600" /> Les bordures d'édition bleues disparaissent à l'impression.
           </p>
-          <p className="text-[11px] text-blue-600 font-bold mt-1">
-            💡 Astuce : Dans la fenêtre qui s'ouvre, changez la Destination par "Enregistrer au format PDF" pour l'exporter.
-          </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 rounded-xl">
-            <Save size={16} className="mr-2" /> Enregistrer les modifications
+            <Save size={16} className="mr-2" /> Enregistrer
+          </Button>
+          <Button onClick={handleExportPDF} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl text-white">
+            <Download size={16} className="mr-2" /> Exporter PDF
           </Button>
           <Button onClick={handlePrint} variant="outline" className="rounded-xl border-slate-200">
-            <Printer size={16} className="mr-2" /> Imprimer / Exporter PDF
+            <Printer size={16} className="mr-2" /> Imprimer
           </Button>
         </div>
       </div>
