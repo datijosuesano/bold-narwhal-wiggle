@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Building2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Building2, UserPlus, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -26,11 +27,12 @@ const RegisterPage: React.FC = () => {
   const [specialty, setSpecialty] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     setIsSubmitting(true);
+    setErrorMessage(null);
     
     // Déterminer le rôle système correspondant à la spécialité choisie
     let assignedRole = 'user';
@@ -43,13 +45,16 @@ const RegisterPage: React.FC = () => {
     }
     
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      // Déconnecter toute session active pour éviter les conflits dans le navigateur de test
+      await supabase.auth.signOut();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
         password,
         options: {
           data: {
-            first_name: firstName,
-            last_name: lastName,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
             specialite: specialty || 'Non défini',
             role: assignedRole,
           }
@@ -57,13 +62,20 @@ const RegisterPage: React.FC = () => {
       });
 
       if (error) {
-        showError(`Erreur: ${error.message}`);
-      } else {
+        throw error;
+      }
+
+      if (data.user) {
         showSuccess("Inscription réussie ! Vous pouvez maintenant vous connecter.");
         navigate("/login");
+      } else {
+        throw new Error("Impossible de créer le compte. Vérifiez les informations saisies.");
       }
-    } catch (err) {
-      showError("Une erreur s'est produite lors de l'inscription.");
+    } catch (err: any) {
+      console.error("Erreur d'inscription détaillée :", err);
+      const msg = err.message || "Une erreur s'est produite lors de l'inscription.";
+      setErrorMessage(msg);
+      showError(`Erreur d'inscription : ${msg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -86,6 +98,14 @@ const RegisterPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
+            {errorMessage && (
+              <Alert variant="destructive" className="rounded-xl bg-red-50 border-red-200 text-red-800 animate-in fade-in duration-300">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="font-bold">Erreur d'inscription</AlertTitle>
+                <AlertDescription className="text-xs">{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Prénom</Label>
@@ -97,9 +117,9 @@ const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+            <div className="space-y-2">
               <Label>Spécialité technique / Métier</Label>
-              <Select onValueChange={setSpecialty} value={specialty}>
+              <Select onValueChange={setSpecialty} value={specialty} required>
                 <SelectTrigger className="rounded-xl h-11">
                   <SelectValue placeholder="Sélectionnez votre métier" />
                 </SelectTrigger>
