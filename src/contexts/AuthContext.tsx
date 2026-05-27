@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   role: string | null;
   specialty: string | null;
+  siteName: string | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
   hasRole: (roles: string[]) => boolean;
@@ -22,13 +23,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [specialty, setSpecialty] = useState<string | null>(null);
+  const [siteName, setSiteName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("role, specialite")
+        .select("role, specialite, site_name")
         .eq("id", userId)
         .maybeSingle();
 
@@ -37,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         role: data?.role || "user",
         specialty: data?.specialite || null,
+        siteName: data?.site_name || null,
       };
 
     } catch (error) {
@@ -45,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         role: "user",
         specialty: null,
+        siteName: null,
       };
     }
   };
@@ -66,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setRole(profile.role);
           setSpecialty(profile.specialty);
+          setSiteName(profile.siteName);
         }
 
       } catch (error) {
@@ -88,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!session) {
         setRole(null);
         setSpecialty(null);
+        setSiteName(null);
         setIsLoading(false);
         return;
       }
@@ -97,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setRole(profile.role);
         setSpecialty(profile.specialty);
+        setSiteName(profile.siteName);
         setIsLoading(false);
 
       }, 0);
@@ -143,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         role,
         specialty,
+        siteName,
         isLoading,
         signOut,
         hasRole,

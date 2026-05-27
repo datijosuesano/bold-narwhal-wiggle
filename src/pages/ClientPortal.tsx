@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
   const assetIdFromUrl = searchParams.get('assetId');
-  const { user } = useAuth();
+  const { user, role, siteName: userSiteName } = useAuth();
 
   const [step, setStep] = useState<'loading' | 'scan' | 'form' | 'success' | 'error'>('loading');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +51,14 @@ const ClientPortal: React.FC = () => {
         setErrorMessage("Cet équipement n'existe pas dans notre base de données.");
         setStep('error');
       } else {
-        setAsset(data);
-        setStep('form');
+        // Restriction de sécurité si l'utilisateur est un Client Hospitalier connecté
+        if (role === 'client' && userSiteName && data.location !== userSiteName) {
+          setErrorMessage(`Accès refusé. Cet équipement appartient au site "${data.location}", mais votre compte est rattaché au site "${userSiteName}".`);
+          setStep('error');
+        } else {
+          setAsset(data);
+          setStep('form');
+        }
       }
     } catch (err: any) {
       console.error("Erreur fetch asset:", err);
@@ -160,8 +166,8 @@ const ClientPortal: React.FC = () => {
           <ShieldAlert size={40} />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-slate-900 uppercase">Erreur de Scan</h2>
-          <p className="text-muted-foreground">{errorMessage}</p>
+          <h2 className="text-2xl font-black text-slate-900 uppercase font-sans">Accès Limité</h2>
+          <p className="text-muted-foreground text-sm font-sans">{errorMessage}</p>
         </div>
         <Button onClick={() => setStep('scan')} variant="outline" className="w-full rounded-xl h-12 border-slate-200">
           Réessayer le scan
@@ -242,7 +248,7 @@ const ClientPortal: React.FC = () => {
               />
             </div>
 
-            {/* Nouveau module de téléversement photo / vidéo */}
+            {/* module de téléversement photo / vidéo */}
             <div className="space-y-2">
               <label className="text-xs font-black uppercase text-slate-500 block">Preuve Visuelle (Photo / Vidéo)</label>
               
@@ -309,7 +315,7 @@ const ClientPortal: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h2 className="text-3xl font-black text-slate-900">C'EST ENVOYÉ !</h2>
-            <p className="text-muted-foreground font-medium px-6">L'équipe technique a été notifiée et interviendra dans les plus brefs délais.</p>
+            <p className="text-muted-foreground font-medium px-6 font-sans">L'équipe technique a été notifiée et interviendra dans les plus brefs délais.</p>
           </div>
           <Button onClick={() => window.location.href = '/portal'} variant="outline" className="rounded-xl h-12 px-8 border-slate-200">
             Terminer

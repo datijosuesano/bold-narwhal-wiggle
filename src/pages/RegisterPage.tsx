@@ -48,6 +48,10 @@ const RegisterPage: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      // Détermination du rôle en fonction de la spécialité ou du choix du type de compte
+      const isAdministratif = specialty === "Administratif";
+      const finalRole = isAdministratif ? 'secretaire' : role;
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -56,7 +60,7 @@ const RegisterPage: React.FC = () => {
             first_name: firstName,
             last_name: lastName,
             specialite: specialty || (role === 'client' ? 'Client Hospitalier' : 'Non défini'),
-            role: role,
+            role: finalRole,
             site_name: role === 'client' ? siteName : null,
           }
         }
@@ -87,7 +91,7 @@ const RegisterPage: React.FC = () => {
             Créer un compte
           </CardTitle>
           <CardDescription>
-            Rejoignez la plateforme GMAO Dyad
+            Rejoignez la plateforme GMAO BioPulse
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -105,7 +109,7 @@ const RegisterPage: React.FC = () => {
 
             <div className="space-y-2">
               <Label>Type de compte</Label>
-              <Select onValueChange={setRole} value={role}>
+              <Select onValueChange={(val) => { setRole(val); setSpecialty(""); }} value={role}>
                 <SelectTrigger className="rounded-xl h-11">
                   <SelectValue placeholder="Sélectionnez votre rôle" />
                 </SelectTrigger>
@@ -121,7 +125,7 @@ const RegisterPage: React.FC = () => {
                 <Label className="flex items-center"><MapPin size={14} className="mr-1 text-blue-600" /> Votre Établissement</Label>
                 <Select onValueChange={setSiteName} value={siteName}>
                   <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue placeholder="Choisir votre site" />
+                    <SelectValue placeholder="Choisir votre site d'affectation" />
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
@@ -130,7 +134,7 @@ const RegisterPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label>Spécialité technique</Label>
+                <Label>Spécialité / Métier</Label>
                 <Select onValueChange={setSpecialty} value={specialty}>
                   <SelectTrigger className="rounded-xl h-11">
                     <SelectValue placeholder="Sélectionnez votre métier" />
@@ -141,6 +145,7 @@ const RegisterPage: React.FC = () => {
                     <SelectItem value="Laboratoire">Spécialiste Laboratoire</SelectItem>
                     <SelectItem value="Froid Médical">Technicien Froid</SelectItem>
                     <SelectItem value="Gestion Stock">Gestionnaire de Stock</SelectItem>
+                    <SelectItem value="Administratif">Administratif (Secrétaire / Facturation)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
