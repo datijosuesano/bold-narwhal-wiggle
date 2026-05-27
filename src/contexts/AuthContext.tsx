@@ -34,6 +34,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
+      // Auto-correction pour les comptes existants (legacy) :
+      // Si la spécialité est "Administratif" mais que le rôle en BDD n'est pas encore "secretaire",
+      // on met à jour automatiquement pour corriger le profil.
+      if (data && data.specialite === "Administratif" && data.role !== "secretaire") {
+        await supabase
+          .from("profiles")
+          .update({ role: "secretaire" })
+          .eq("id", userId);
+        
+        return {
+          role: "secretaire",
+          specialty: "Administratif",
+        };
+      }
+
       return {
         role: data?.role || "user",
         specialty: data?.specialite || null,
