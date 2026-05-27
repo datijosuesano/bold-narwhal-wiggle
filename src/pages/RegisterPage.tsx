@@ -30,27 +30,57 @@ const RegisterPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    
-    try {
-      // Déconnecter toute session active pour éviter les conflits dans le navigateur de test
-      await supabase.auth.signOut();
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            specialite: specialty || 'Non défini',
-            // On ne passe plus de rôle directement ici pour éviter l'erreur 500 du trigger SQL.
-            // Le rôle sera attribué automatiquement par AuthContext au premier login.
-          }
+  e.preventDefault();
+
+  setIsSubmitting(true);
+  setErrorMessage(null);
+
+  try {
+
+    let finalSpecialite = specialty;
+
+    if (!finalSpecialite) {
+      finalSpecialite = "Biomédical";
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          specialite: finalSpecialite,
+          site_name: null
         }
-      });
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.user) {
+      showSuccess("Compte créé avec succès !");
+      navigate("/login");
+    }
+
+  } catch (err: any) {
+
+    console.error(err);
+
+    const message =
+      err?.message ||
+      "Erreur lors de l'inscription.";
+
+    setErrorMessage(message);
+
+    showError(message);
+
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
       if (error) {
         throw error;
