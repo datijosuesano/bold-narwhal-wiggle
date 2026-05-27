@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Building2, UserPlus, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+import { Building2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -35,36 +38,52 @@ const RegisterPage: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      // Déconnecter toute session active pour éviter les conflits dans le navigateur de test
+      const emailClean = email.trim();
+
+      // Déconnexion sécurité (évite conflits session)
       await supabase.auth.signOut();
 
+      // Déterminer rôle côté frontend (optionnel, backend peut aussi gérer)
+      let role = 'technicien_biomedical';
+
+      if (specialty === 'Administratif') {
+        role = 'administratif';
+      } else if (specialty === 'Gestion Stock') {
+        role = 'gestionnaire_stock';
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: emailClean,
         password,
         options: {
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            specialite: specialty || 'Non défini'
+            specialite: specialty,
+            role: role
           }
         }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.user) {
-        showSuccess("Inscription réussie ! Vous pouvez maintenant vous connecter.");
+        showSuccess("Compte créé avec succès !");
         navigate("/login");
       } else {
-        throw new Error("Impossible de créer le compte. Vérifiez les informations saisies.");
+        throw new Error("Création du compte impossible.");
       }
+
     } catch (err: any) {
-      console.error("Erreur d'inscription détaillée :", err);
-      const msg = err.message || "Une erreur s'est produite lors de l'inscription.";
+      console.error("Erreur inscription :", err);
+
+      const msg =
+        err?.message ||
+        "Erreur lors de l'inscription";
+
       setErrorMessage(msg);
-      showError(`Erreur d'inscription : ${msg}`);
+      showError(`Erreur : ${msg}`);
+
     } finally {
       setIsSubmitting(false);
     }
@@ -72,77 +91,122 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+
       <Card className="w-full max-w-md rounded-2xl shadow-2xl border-none overflow-hidden">
         <div className="h-2 bg-blue-600 w-full" />
+
         <CardHeader className="text-center space-y-2 pb-6">
           <div className="mx-auto bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mb-2">
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
-          <CardTitle className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+
+          <CardTitle className="text-3xl font-black text-slate-900">
             Créer un compte
           </CardTitle>
+
           <CardDescription>
-            Rejoignez la plateforme GMAO Dyad
+            Plateforme GMAO biomédicale
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
+
             {errorMessage && (
-              <Alert variant="destructive" className="rounded-xl bg-red-50 border-red-200 text-red-800 animate-in fade-in duration-300">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="font-bold">Erreur d'inscription</AlertTitle>
-                <AlertDescription className="text-xs">{errorMessage}</AlertDescription>
-              </Alert>
+              <div className="text-red-600 text-sm bg-red-50 p-2 rounded-lg">
+                {errorMessage}
+              </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
-                <Input id="firstName" placeholder="Jean" required className="rounded-xl h-11" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prénom</Label>
+                <Input
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
-                <Input id="lastName" placeholder="Dupont" required className="rounded-xl h-11" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+
+              <div>
+                <Label>Nom</Label>
+                <Input
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Spécialité technique / Métier</Label>
-              <Select onValueChange={setSpecialty} value={specialty} required>
-                <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Sélectionnez votre métier" />
+            <div>
+              <Label>Spécialité</Label>
+
+              <Select value={specialty} onValueChange={setSpecialty} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir spécialité" />
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectItem value="Biomédical">Technicien Biomédical</SelectItem>
-                  <SelectItem value="Imagerie">Ingénieur Imagerie</SelectItem>
-                  <SelectItem value="Laboratoire">Spécialiste Laboratoire</SelectItem>
-                  <SelectItem value="Froid Médical">Technicien Froid</SelectItem>
-                  <SelectItem value="Gestion Stock">Gestionnaire de Stock</SelectItem>
+                  <SelectItem value="Imagerie">Imagerie</SelectItem>
+                  <SelectItem value="Laboratoire">Laboratoire</SelectItem>
+                  <SelectItem value="Gestion Stock">Gestion Stock</SelectItem>
                   <SelectItem value="Administratif">Administratif</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email professionnel</Label>
-              <Input id="email" type="email" placeholder="votre@email.com" required className="rounded-xl h-11" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+
+            <div>
+              <Label>Mot de passe</Label>
+
               <div className="relative">
-                <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" required className="rounded-xl h-11 pr-10" value={password} onChange={(e) => setPassword(e.target.value)} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2 text-gray-500"
+                >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg font-bold text-lg mt-2" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <UserPlus className="mr-2 h-5 w-5" />}
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isSubmitting ? (
+                <Loader2 className="animate-spin mr-2" />
+              ) : (
+                <UserPlus className="mr-2" />
+              )}
               S'inscrire
             </Button>
-            <p className="text-center text-sm text-slate-600 mt-4">
-              Déjà un compte ? <Link to="/login" className="text-blue-600 font-bold hover:underline">Se connecter</Link>
+
+            <p className="text-center text-sm">
+              Déjà un compte ?{" "}
+              <Link to="/login" className="text-blue-600 font-bold">
+                Connexion
+              </Link>
             </p>
+
           </form>
         </CardContent>
       </Card>
