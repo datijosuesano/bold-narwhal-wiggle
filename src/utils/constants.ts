@@ -40,7 +40,7 @@ export const formatRole = (role: string | null): string => {
     case 'gestionnaire de stock':
       return 'Gestionnaire de Stock';
     case 'secretaire':
-      return 'Secrétaire';
+      return 'Administratif';
     case 'user':
       return 'Collaborateur';
     case 'client':
