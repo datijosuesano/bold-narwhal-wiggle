@@ -32,6 +32,16 @@ const RegisterPage: React.FC = () => {
     
     setIsSubmitting(true);
     
+    // Déterminer le rôle système correspondant à la spécialité choisie
+    let assignedRole = 'user';
+    if (specialty === 'Administratif') {
+      assignedRole = 'secretaire';
+    } else if (specialty === 'Gestion Stock') {
+      assignedRole = 'gestionnaire de stock';
+    } else if (['Biomédical', 'Imagerie', 'Laboratoire', 'Froid Médical'].includes(specialty)) {
+      assignedRole = 'technicien biomedical';
+    }
+    
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -41,7 +51,7 @@ const RegisterPage: React.FC = () => {
             first_name: firstName,
             last_name: lastName,
             specialite: specialty || 'Non défini',
-            role: 'user', // Enregistré par défaut en tant que collaborateur
+            role: assignedRole,
           }
         }
       });
