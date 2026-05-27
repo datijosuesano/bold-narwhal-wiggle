@@ -34,16 +34,6 @@ const RegisterPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMessage(null);
     
-    // Déterminer le rôle système correspondant à la spécialité choisie
-    let assignedRole = 'user';
-    if (specialty === 'Administratif') {
-      assignedRole = 'secretaire';
-    } else if (specialty === 'Gestion Stock') {
-      assignedRole = 'gestionnaire de stock';
-    } else if (['Biomédical', 'Imagerie', 'Laboratoire', 'Froid Médical'].includes(specialty)) {
-      assignedRole = 'technicien biomedical';
-    }
-    
     try {
       // Déconnecter toute session active pour éviter les conflits dans le navigateur de test
       await supabase.auth.signOut();
@@ -56,7 +46,8 @@ const RegisterPage: React.FC = () => {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
             specialite: specialty || 'Non défini',
-            role: assignedRole,
+            // On ne passe plus de rôle directement ici pour éviter l'erreur 500 du trigger SQL.
+            // Le rôle sera attribué automatiquement par AuthContext au premier login.
           }
         }
       });

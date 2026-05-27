@@ -34,24 +34,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Auto-correction pour les comptes existants (legacy) :
-      // Si la spécialité est "Administratif" mais que le rôle en BDD n'est pas encore "secretaire",
-      // on met à jour automatiquement pour corriger le profil.
-      if (data && data.specialite === "Administratif" && data.role !== "secretaire") {
-        await supabase
-          .from("profiles")
-          .update({ role: "secretaire" })
-          .eq("id", userId);
-        
+      if (data) {
+        let currentRole = data.role;
+        let shouldUpdate = false;
+
+        // Détection de la spécialité pour configurer ou corriger le rôle
+        if (data.specialite === "Administratif" && data.role !== "secretaire") {
+          currentRole = "secretaire";
+          shouldUpdate = true;
+        } else if (data.specialite === "Gestion Stock" && data.role !== "gestionnaire de stock") {
+          currentRole = "gestionnaire de stock";
+          shouldUpdate = true;
+        } else if (["Biomédical", "Imagerie", "Laboratoire", "Froid Médical"].includes(data.specialite || "") && data.role !== "technicien biomedical" && data.role !== "admin") {
+          currentRole = "technicien biomedical";
+          shouldUpdate = true;
+        }
+
+        // On applique la correction automatiquement en BDD si nécessaire
+        if (shouldUpdate) {
+          await supabase
+            .from("profiles")
+            .update({ role: currentRole })
+            .eq("id", userId);
+        }
+
         return {
-          role: "secretaire",
-          specialty: "Administratif",
+          role: currentRole || "user",
+          specialty: data.specialite || null,
         };
       }
 
       return {
-        role: data?.role || "user",
-        specialty: data?.specialite || null,
+        role: "user",
+        specialty: null,
       };
 
     } catch (error) {
