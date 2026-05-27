@@ -46,6 +46,16 @@ const RegisterPage: React.FC = () => {
     }
     
     setIsSubmitting(true);
+
+    // Si la spécialité choisie est Administratif, attribuer automatiquement le rôle de secrétaire (qui se traduit par Administratif)
+    let finalRole = role;
+    if (role !== 'client') {
+      if (specialty === 'Administratif') {
+        finalRole = 'secretaire';
+      } else if (specialty === 'Gestion Stock') {
+        finalRole = 'gestionnaire de stock';
+      }
+    }
     
     try {
       const { error } = await supabase.auth.signUp({
@@ -56,7 +66,7 @@ const RegisterPage: React.FC = () => {
             first_name: firstName,
             last_name: lastName,
             specialite: specialty || (role === 'client' ? 'Client Hospitalier' : 'Non défini'),
-            role: role,
+            role: finalRole,
             site_name: role === 'client' ? siteName : null,
           }
         }
@@ -141,6 +151,7 @@ const RegisterPage: React.FC = () => {
                     <SelectItem value="Laboratoire">Spécialiste Laboratoire</SelectItem>
                     <SelectItem value="Froid Médical">Technicien Froid</SelectItem>
                     <SelectItem value="Gestion Stock">Gestionnaire de Stock</SelectItem>
+                    <SelectItem value="Administratif">Administratif</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
