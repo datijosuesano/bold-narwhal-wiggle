@@ -56,7 +56,7 @@ const RegisterPage: React.FC = () => {
         email: emailClean,
         password
         }
-      };
+      });
 
       if (error) throw error;
 
