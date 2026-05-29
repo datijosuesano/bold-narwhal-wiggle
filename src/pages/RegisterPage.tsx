@@ -60,7 +60,7 @@ const RegisterPage: React.FC = () => {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
             specialite: specialty,
-            role:
+            role: role
           }
         }
       });
