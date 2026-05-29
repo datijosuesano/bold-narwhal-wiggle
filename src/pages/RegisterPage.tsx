@@ -54,8 +54,7 @@ const RegisterPage: React.FC = () => {
 
       const { data, error } = await supabase.auth.signUp({
         email: emailClean,
-        password,
-        
+        password
         }
       });
 
