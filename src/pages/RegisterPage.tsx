@@ -33,54 +33,78 @@ const RegisterPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setErrorMessage(null);
+  e.preventDefault();
 
-    try {
-      const emailClean = email.trim();
+  setIsSubmitting(true);
+  setErrorMessage(null);
 
-      // Déconnexion sécurité (évite conflits session)
-      await supabase.auth.signOut();
+  try {
 
-      // Déterminer rôle côté frontend (optionnel, backend peut aussi gérer)
-      let role = 'technicien_biomedical';
+    const emailClean = email.trim().toLowerCase();
 
-      if (specialty === 'Administratif') {
-        role = 'administratif';
-      } else if (specialty === 'Gestion Stock') {
-        role = 'gestionnaire_stock';
-      }
+    // Création du compte auth
+    const { data, error } = await supabase.auth.signUp({
+      email: emailClean,
+      password
+    });
 
-      const { data, error } = await supabase.auth.signUp({
+    if (error) {
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error("Utilisateur non créé.");
+    }
+
+    // Déterminer le rôle automatiquement
+    let finalRole = "technicien";
+
+    if (specialty === "Administratif") {
+      finalRole = "administratif";
+    }
+
+    if (specialty === "Gestion Stock") {
+      finalRole = "gestionnaire_stock";
+    }
+
+    // Création du profil
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({
+        id: data.user.id,
         email: emailClean,
-        password
-        
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        specialite: specialty,
+        role: finalRole
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        showSuccess("Compte créé avec succès !");
-        navigate("/login");
-      } else {
-        throw new Error("Création du compte impossible.");
-      }
-
-    } catch (err: any) {
-      console.error("Erreur inscription :", err);
-
-      const msg =
-        err?.message ||
-        "Erreur lors de l'inscription";
-
-      setErrorMessage(msg);
-      showError(`Erreur : ${msg}`);
-
-    } finally {
-      setIsSubmitting(false);
+    if (profileError) {
+      console.error(profileError);
+      throw new Error("Compte créé mais profil impossible à créer.");
     }
-  };
+
+    showSuccess("Compte créé avec succès !");
+    navigate("/login");
+
+  } catch (err: any) {
+
+    console.error("Erreur inscription :", err);
+
+    const msg =
+      err.message ||
+      "Une erreur est survenue.";
+
+    setErrorMessage(msg);
+
+    showError(msg);
+
+  } finally {
+
+    setIsSubmitting(false);
+
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
