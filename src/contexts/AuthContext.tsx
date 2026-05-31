@@ -1,3 +1,4 @@
+```tsx
 "use client";
 
 import React, { createContext, useState, useEffect, useContext } from "react";
@@ -16,7 +17,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
 
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
+
       const { data, error } = await supabase
         .from("profiles")
         .select("role, specialite")
@@ -35,45 +39,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (data) {
+
         let currentRole = data.role;
         let shouldUpdate = false;
 
-        // Détection de la spécialité pour configurer ou corriger le rôle
-        if (data.specialite === "Administratif" && data.role !== "secretaire") {
-          currentRole = "secretaire";
-          shouldUpdate = true;
-        } else if (data.specialite === "Gestion Stock" && data.role !== "gestionnaire de stock") {
-          currentRole = "gestionnaire de stock";
-          shouldUpdate = true;
-        } else if (["Biomédical", "Imagerie", "Laboratoire", "Froid Médical"].includes(data.specialite || "") && data.role !== "technicien biomedical" && data.role !== "admin") {
-          currentRole = "technicien biomedical";
-          shouldUpdate = true;
+        // ADMIN = intouchable
+        if (data.role !== "admin") {
+
+          // Administratif => Secrétaire
+          if (
+            data.specialite === "Administratif" &&
+            data.role !== "secretaire"
+          ) {
+            currentRole = "secretaire";
+            shouldUpdate = true;
+          }
+
+          // Gestion Stock => Gestionnaire
+          else if (
+            data.specialite === "Gestion Stock" &&
+            data.role !== "gestionnaire de stock"
+          ) {
+            currentRole = "gestionnaire de stock";
+            shouldUpdate = true;
+          }
+
+          // Métiers techniques
+          else if (
+            [
+              "Biomédical",
+              "Imagerie",
+              "Laboratoire",
+              "Froid Médical"
+            ].includes(data.specialite || "") &&
+            data.role !== "technicien biomedical"
+          ) {
+            currentRole = "technicien biomedical";
+            shouldUpdate = true;
+          }
         }
 
-        // On applique la correction automatiquement en BDD si nécessaire
+        // Mise à jour automatique si nécessaire
         if (shouldUpdate) {
-          await supabase
+          const { error: updateError } = await supabase
             .from("profiles")
-            .update({ role: currentRole })
+            .update({
+              role: currentRole
+            })
             .eq("id", userId);
+
+          if (updateError) {
+            console.error(
+              "Erreur mise à jour automatique du rôle :",
+              updateError
+            );
+          }
         }
 
         return {
-          role: currentRole || "user",
+          role: currentRole,
           specialty: data.specialite || null,
         };
       }
 
       return {
-        role: "user",
+        role: null,
         specialty: null,
       };
 
     } catch (error) {
-      console.error("Erreur récupération profil :", error);
+
+      console.error(
+        "Erreur récupération profil :",
+        error
+      );
 
       return {
-        role: "user",
+        role: null,
         specialty: null,
       };
     }
@@ -82,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
 
     const initializeAuth = async () => {
+
       try {
 
         const {
@@ -89,19 +132,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } = await supabase.auth.getSession();
 
         if (session) {
+
           setSession(session);
           setUser(session.user);
 
-          const profile = await fetchProfile(session.user.id);
+          const profile = await fetchProfile(
+            session.user.id
+          );
 
           setRole(profile.role);
           setSpecialty(profile.specialty);
         }
 
       } catch (error) {
-        console.error("Auth init error:", error);
+
+        console.error(
+          "Erreur initialisation auth :",
+          error
+        );
 
       } finally {
+
         setIsLoading(false);
       }
     };
@@ -110,28 +161,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
 
-      setSession(session);
-      setUser(session?.user ?? null);
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (!session) {
-        setRole(null);
-        setSpecialty(null);
-        setIsLoading(false);
-        return;
+        if (!session) {
+
+          setRole(null);
+          setSpecialty(null);
+          setIsLoading(false);
+          return;
+        }
+
+        setTimeout(async () => {
+
+          const profile = await fetchProfile(
+            session.user.id
+          );
+
+          setRole(profile.role);
+          setSpecialty(profile.specialty);
+          setIsLoading(false);
+
+        }, 0);
       }
-
-      setTimeout(async () => {
-        const profile = await fetchProfile(session.user.id);
-
-        setRole(profile.role);
-        setSpecialty(profile.specialty);
-        setIsLoading(false);
-
-      }, 0);
-
-    });
+    );
 
     return () => {
       subscription.unsubscribe();
@@ -140,20 +196,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
+
     try {
+
       await supabase.auth.signOut();
       window.location.href = "/login";
 
     } catch (error) {
-      console.error("Sign out error:", error);
+
+      console.error(
+        "Erreur déconnexion :",
+        error
+      );
     }
   };
 
   const hasRole = (roles: string[]) => {
+
     if (!role) return false;
 
     const userRole = role.toLowerCase();
 
+    // Admin a accès à tout
     if (
       userRole === "admin" ||
       userRole === "administrateur"
@@ -162,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return roles
-      .map((r) => r.toLowerCase())
+      .map(r => r.toLowerCase())
       .includes(userRole);
   };
 
@@ -184,11 +248,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = () => {
+
   const context = useContext(AuthContext);
 
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error(
+      "useAuth must be used within an AuthProvider"
+    );
   }
 
   return context;
 };
+```
