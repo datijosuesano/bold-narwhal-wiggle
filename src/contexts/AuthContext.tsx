@@ -25,47 +25,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Récupération des informations d'authentification utilisateur
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const meta = authUser?.user_metadata || {};
+
+      // Récupération du profil en base de données
+      const { data: dbProfile, error } = await supabase
         .from("profiles")
-        .select("role, specialite")
+        .select("role, specialite, first_name, last_name")
         .eq("id", userId)
         .maybeSingle();
 
       if (error) throw error;
 
-      if (data) {
-        let currentRole = data.role;
-        let shouldUpdate = false;
+      // Utiliser les métadonnées d'inscription comme fallback immédiat pour éviter d'attendre la synchro DB
+      const finalSpecialty = dbProfile?.specialite || meta.specialite || "Biomédical";
+      const finalFirstName = dbProfile?.first_name || meta.first_name || "";
+      const finalLastName = dbProfile?.last_name || meta.last_name || "";
+      
+      let currentRole = dbProfile?.role || "user";
+      let shouldUpdate = false;
 
-        // Détection de la spécialité pour configurer ou corriger le rôle
-        if (data.specialite === "Administratif" && data.role !== "secretaire") {
-          currentRole = "secretaire";
-          shouldUpdate = true;
-        } else if (data.specialite === "Gestion Stock" && data.role !== "gestionnaire de stock") {
-          currentRole = "gestionnaire de stock";
-          shouldUpdate = true;
-        } else if (["Biomédical", "Imagerie", "Laboratoire", "Froid Médical"].includes(data.specialite || "") && data.role !== "technicien biomedical" && data.role !== "admin") {
-          currentRole = "technicien biomedical";
-          shouldUpdate = true;
-        }
+      // Détermination rigoureuse du rôle selon la spécialité
+      if (finalSpecialty === "Gestion Stock" && currentRole !== "gestionnaire de stock") {
+        currentRole = "gestionnaire de stock";
+        shouldUpdate = true;
+      } else if (finalSpecialty === "Administratif" && currentRole !== "secretaire") {
+        currentRole = "secretaire";
+        shouldUpdate = true;
+      } else if (
+        ["Biomédical", "Imagerie", "Laboratoire", "Froid Médical"].includes(finalSpecialty) && 
+        currentRole !== "technicien biomedical" && 
+        currentRole !== "admin"
+      ) {
+        currentRole = "technicien biomedical";
+        shouldUpdate = true;
+      }
 
-        // On applique la correction automatiquement en BDD si nécessaire
-        if (shouldUpdate) {
-          await supabase
-            .from("profiles")
-            .update({ role: currentRole })
-            .eq("id", userId);
-        }
-
-        return {
-          role: currentRole || "user",
-          specialty: data.specialite || null,
-        };
+      // Mise à jour de sécurité de la base de données en arrière-plan
+      if (
+        shouldUpdate || 
+        !dbProfile?.specialite || 
+        !dbProfile?.first_name || 
+        !dbProfile?.last_name
+      ) {
+        await supabase
+          .from("profiles")
+          .update({
+            role: currentRole,
+            specialite: finalSpecialty,
+            first_name: finalFirstName,
+            last_name: finalLastName
+          })
+          .eq("id", userId);
       }
 
       return {
-        role: "user",
-        specialty: null,
+        role: currentRole,
+        specialty: finalSpecialty,
       };
 
     } catch (error) {
