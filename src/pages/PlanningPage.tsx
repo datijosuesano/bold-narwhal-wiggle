@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { isToday } from "date-fns";
 import { showSuccess, showError } from "@/utils/toast";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface ScheduledEvent {
   id: string;
