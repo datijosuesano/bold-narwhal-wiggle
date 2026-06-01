@@ -118,16 +118,17 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       const { data: newInv, error } = await supabase.from('interventions').insert(payload).select('id').single();
       if (error) throw error;
 
-      // CLÔTURE AUTOMATIQUE DE LA PANNE (Workflow Step Final)
-      if (initialData?.id && initialData?.reporter_name) {
+      // CLÔTURE ET LIAISON AUTOMATIQUE DE L'ORDRE DE TRAVAIL (Workflow Pipeline)
+      if (initialData?.id) {
          await supabase.from('work_orders').update({ 
            status: 'Terminé',
-           closed_at: new Date().toISOString()
+           closed_at: new Date().toISOString(),
+           intervention_id: newInv.id // Liaison physique ici
          }).eq('id', initialData.id);
       }
 
       setSavedInterventionId(newInv.id);
-      showSuccess("Étape Intervention terminée. OT clôturé.");
+      showSuccess("Intervention enregistrée et Ordre de travail lié clôturé !");
     } catch (err: any) {
       showError(err.message);
     } finally {

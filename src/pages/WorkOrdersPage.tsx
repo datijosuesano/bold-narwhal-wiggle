@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User, Calendar } from "lucide-react";
+import { FilePlus, Search, Filter, Loader2, Edit2, Trash2, Clock, User, Calendar, Wrench, Eye, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import WorkOrderForm from "@/components/WorkOrderForm";
+import AddPastInterventionForm from "@/components/AddPastInterventionForm";
+import InterventionDetailDialog from "@/components/InterventionDetailDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
@@ -22,13 +24,17 @@ const WorkOrdersPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isInterventionOpen, setIsInterventionOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   const [selectedOT, setSelectedOT] = useState<any>(null);
+  const [linkedIntervention, setLinkedIntervention] = useState<any>(null);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<{id: string, name: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("Toutes");
-  const [filterTechnician, setFilterTechnician] = useState<string>("Tous");
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -62,16 +68,39 @@ const WorkOrdersPage: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  const handleOpenIntervention = (ot: any) => {
+    setSelectedOT(ot);
+    setIsInterventionOpen(true);
+  };
+
+  const handleViewLinkedIntervention = async (interventionId: string) => {
+    setIsDetailLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('interventions')
+        .select('*, assets(name, location, brand)')
+        .eq('id', interventionId)
+        .single();
+      
+      if (error) throw error;
+      setLinkedIntervention(data);
+      setIsDetailOpen(true);
+    } catch (err: any) {
+      showError("Impossible de charger le rapport d'intervention lié.");
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
   const filteredOTs = useMemo(() => {
     return workOrders.filter(ot => {
       const matchesSearch = 
         ot.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         ot.assets?.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPriority = filterPriority === "Toutes" || ot.priority === filterPriority;
-      let matchesTech = filterTechnician === "Tous" || (filterTechnician === "Unassigned" ? !ot.assigned_to : ot.assigned_to === filterTechnician);
-      return matchesSearch && matchesPriority && matchesTech;
+      return matchesSearch && matchesPriority;
     });
-  }, [workOrders, searchTerm, filterPriority, filterTechnician]);
+  }, [workOrders, searchTerm, filterPriority]);
 
   const handleDelete = async () => {
     if (!selectedOT) return;
@@ -98,7 +127,7 @@ const WorkOrdersPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-4xl font-black text-primary tracking-tight">Ordres de Travail</h1>
-          <p className="text-lg text-muted-foreground">Suivi des demandes de maintenance.</p>
+          <p className="text-lg text-muted-foreground">Suivi des demandes et pipeline d'exécution.</p>
         </div>
         
         {canEdit && (
@@ -123,7 +152,7 @@ const WorkOrdersPage: React.FC = () => {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input 
-            placeholder="Rechercher..." 
+            placeholder="Rechercher par objet ou équipement..." 
             className="pl-10 rounded-xl border-none bg-slate-50 h-11" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -179,16 +208,43 @@ const WorkOrdersPage: React.FC = () => {
                       <Badge variant="outline" className="rounded-full text-[9px] font-black uppercase">{ot.status}</Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {canEdit && (
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full" onClick={() => { setSelectedOT(ot); setIsEditOpen(true); }}>
-                            <Edit2 size={14} />
+                      <div className="flex justify-end gap-1 items-center">
+                        {/* workflow step: action "Saisir l'intervention" sur les OT non-terminés */}
+                        {canEdit && ot.status !== 'Terminé' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="rounded-xl h-8 text-[10px] font-bold border-green-200 text-green-700 hover:bg-green-50 mr-2"
+                            onClick={() => handleOpenIntervention(ot)}
+                          >
+                            <Wrench size={10} className="mr-1.5" /> Réaliser l'intervention
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full" onClick={() => { setSelectedOT(ot); setIsDeleteOpen(true); }}>
-                            <Trash2 size={14} />
+                        )}
+
+                        {/* Voir le RIT lié si déjà clôturé */}
+                        {ot.status === 'Terminé' && ot.intervention_id && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="rounded-xl h-8 text-[10px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50 mr-2"
+                            onClick={() => handleViewLinkedIntervention(ot.intervention_id)}
+                            disabled={isDetailLoading}
+                          >
+                            <FileSpreadsheet size={10} className="mr-1.5" /> Voir le RIT
                           </Button>
-                        </div>
-                      )}
+                        )}
+
+                        {canEdit && (
+                          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full" onClick={() => { setSelectedOT(ot); setIsEditOpen(true); }}>
+                              <Edit2 size={14} />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full" onClick={() => { setSelectedOT(ot); setIsDeleteOpen(true); }}>
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -197,6 +253,29 @@ const WorkOrdersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Saisir Intervention liée à l'OT */}
+      <Dialog open={isInterventionOpen} onOpenChange={setIsInterventionOpen}>
+        <DialogContent className="sm:max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase">Enregistrer l'Intervention</DialogTitle>
+            <DialogDescription>Cette action saisit le rapport technique et clôture définitivement cet Ordre de Travail.</DialogDescription>
+          </DialogHeader>
+          {selectedOT && (
+            <AddPastInterventionForm 
+              initialData={selectedOT} 
+              onSuccess={() => { setIsInterventionOpen(false); fetchData(); }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Visualiser le RIT lié */}
+      <InterventionDetailDialog 
+        intervention={linkedIntervention} 
+        isOpen={isDetailOpen} 
+        onClose={() => setIsDetailOpen(false)} 
+      />
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-2xl">
