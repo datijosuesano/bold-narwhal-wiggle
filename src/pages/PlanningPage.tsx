@@ -61,7 +61,10 @@ const PlanningPage: React.FC = () => {
     try {
       const { error } = await supabase
         .from('work_orders')
-        .update({ status: 'Completed' })
+        .update({ 
+          status: 'Completed',
+          closed_at: new Date().toISOString()
+        })
         .eq('id', eventId);
 
       if (error) throw error;

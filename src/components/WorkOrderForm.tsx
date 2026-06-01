@@ -192,6 +192,8 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
 
     setIsLoading(true);
 
+    const now = new Date().toISOString();
+
     const payload: any = {
       asset_id: data.asset_id,
 
@@ -217,12 +219,29 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
       completed_today: data.completed_today,
 
       completion_note: data.completion_note,
-
-      completed_at:
-        data.completed_today
-          ? new Date().toISOString()
-          : null,
     };
+
+    // --- PIPELINE METIER : GESTION DES TIMESTAMP (assigned_at, started_at, closed_at) ---
+    
+    // 1. Assignation de technicien
+    if (payload.assigned_to && payload.assigned_to !== initialData?.assigned_to) {
+      payload.assigned_at = now;
+      // S'il n'était pas encore en cours, l'assigner démarre souvent l'étape "En cours"
+      if (payload.status === "Ouvert") {
+        payload.status = "En cours";
+      }
+    }
+
+    // 2. Début effectif des travaux (passage à "En cours")
+    if (payload.status === "En cours" && initialData?.status !== "En cours") {
+      payload.started_at = now;
+    }
+
+    // 3. Clôture des travaux (passage à "Terminé" ou coche réalisée)
+    if (data.completed_today || (payload.status === "Terminé" && initialData?.status !== "Terminé")) {
+      payload.status = "Terminé";
+      payload.closed_at = now;
+    }
 
     let error;
 
@@ -238,6 +257,14 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
     } else {
 
       payload.user_id = user.id;
+      
+      // Si créé directement assigné ou en cours
+      if (payload.assigned_to) {
+        payload.assigned_at = now;
+      }
+      if (payload.status === "En cours") {
+        payload.started_at = now;
+      }
 
       const { error: insertError } = await supabase
         .from("work_orders")

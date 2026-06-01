@@ -120,7 +120,10 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
 
       // CLÔTURE AUTOMATIQUE DE LA PANNE (Workflow Step Final)
       if (initialData?.id && initialData?.reporter_name) {
-         await supabase.from('work_orders').update({ status: 'Terminé' }).eq('id', initialData.id);
+         await supabase.from('work_orders').update({ 
+           status: 'Terminé',
+           closed_at: new Date().toISOString()
+         }).eq('id', initialData.id);
       }
 
       setSavedInterventionId(newInv.id);
