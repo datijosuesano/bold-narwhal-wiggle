@@ -149,14 +149,11 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
       assigned_to:
         initialData?.assigned_to || null,
 
-      scheduled_today:
-        initialData?.scheduled_today || false,
+      scheduled_today: false,
 
-      completed_today:
-        initialData?.completed_today || false,
+      completed_today: false,
 
-      completion_note:
-        initialData?.completion_note || "",
+      completion_note: "",
     },
   });
 
@@ -213,12 +210,6 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
         data.assigned_to === "none"
           ? null
           : data.assigned_to,
-
-      scheduled_today: data.scheduled_today,
-
-      completed_today: data.completed_today,
-
-      completion_note: data.completion_note,
     };
 
     // --- PIPELINE METIER : GESTION DES TIMESTAMP (assigned_at, started_at, closed_at) ---
@@ -241,6 +232,11 @@ const WorkOrderForm: React.FC<WorkOrderFormProps> = ({
     if (data.completed_today || (payload.status === "Terminé" && initialData?.status !== "Terminé")) {
       payload.status = "Terminé";
       payload.closed_at = now;
+    }
+
+    // Gérer l'observation de clôture s'il y en a une en la rajoutant proprement à la description
+    if (data.completion_note) {
+      payload.description = `${payload.description}\n\n[Observation de Clôture]: ${data.completion_note}`;
     }
 
     let error;
