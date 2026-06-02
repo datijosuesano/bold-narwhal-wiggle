@@ -79,72 +79,45 @@ const AssetDetailView: React.FC<{ asset: Asset }> = ({ asset }) => {
   /* =========================
      FETCH DATA
   ========================= */
+React.useEffect(() => {
+  const fetchData = async () => {
+    /* -------- ASSIGNE -------- */
+    if (asset.assigned_to) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", asset.assigned_to)
+        .single();
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      /* -------- ASSIGNE -------- */
-      if (asset.assigned_to) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("first_name, last_name")
-          .eq("id", asset.assigned_to)
-          .single();
-
-        if (data) {
-          setAssigneeName(`${data.first_name} ${data.last_name}`);
-        }
+      if (data) {
+        setAssigneeName(`${data.first_name} ${data.last_name}`);
       }
+    }
 
-      /* -------- INTERVENTIONS -------- */
-      const { data, error } = await supabase.rpc("get_asset_stats", {
-  aid: asset.id,
-});
+    /* -------- STATS VIA RPC -------- */
+    const { data, error } = await supabase.rpc("get_asset_stats", {
+      aid: asset.id,
+    });
 
-if (error) {
-  console.error(error);
-  return;
-}
+    if (error) {
+      console.error(error);
+      return;
+    }
 
-      if (!invs || invs.length === 0) return;
+    const row = Array.isArray(data) ? data[0] : data;
 
-      const breakdownCount = invs.filter(
-        (i) =>
-          i.maintenance_type === "Corrective" ||
-          i.maintenance_type === "Curative"
-      ).length;
+    setStats({
+      breakdownCount: row?.breakdown_count || 0,
+      totalCost: row?.total_cost || 0,
+      lastIntervention: row?.last_intervention
+        ? new Date(row.last_intervention)
+        : null,
+      frequency: 0, // option: calculer plus tard
+    });
+  };
 
-      const totalCost = invs.reduce(
-        (acc, curr) => acc + (Number(curr.total_cost) || 0),
-        0
-      );
-
-      const lastDate = new Date(invs[0].intervention_date);
-
-      let frequency = 0;
-      if (invs.length > 1) {
-        const firstDate = new Date(
-          invs[invs.length - 1].intervention_date
-        );
-
-        const diffDays =
-          (lastDate.getTime() - firstDate.getTime()) /
-          (1000 * 60 * 60 * 24);
-
-        frequency = Math.round(diffDays / (invs.length - 1));
-      }
-
-     setStats({
-  breakdownCount: data?.[0]?.breakdown_count || 0,
-  totalCost: data?.[0]?.total_cost || 0,
-  lastIntervention: data?.[0]?.last_intervention
-    ? new Date(data[0].last_intervention)
-    : null,
-  frequency: 0, // option : calculer séparément si tu veux
-});
-    };
-
-    fetchData();
-  }, [asset.id, asset.assigned_to, refreshTrigger]);
+  fetchData();
+}, [asset.id, asset.assigned_to, refreshTrigger]);
 
   /* =========================
      LOGIC
