@@ -96,11 +96,14 @@ const AssetDetailView: React.FC<{ asset: Asset }> = ({ asset }) => {
       }
 
       /* -------- INTERVENTIONS -------- */
-      const { data: invs } = await supabase
-        .from("interventions")
-        .select("intervention_date, total_cost, maintenance_type")
-        .eq("asset_id", asset.id)
-        .order("intervention_date", { ascending: false });
+      const { data, error } = await supabase.rpc("get_asset_stats", {
+  aid: asset.id,
+});
+
+if (error) {
+  console.error(error);
+  return;
+}
 
       if (!invs || invs.length === 0) return;
 
