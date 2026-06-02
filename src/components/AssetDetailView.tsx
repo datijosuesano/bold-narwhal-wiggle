@@ -107,13 +107,13 @@ React.useEffect(() => {
     const row = Array.isArray(data) ? data[0] : data;
 
     setStats({
-      breakdownCount: row?.breakdown_count || 0,
-      totalCost: row?.total_cost || 0,
-      lastIntervention: row?.last_intervention
-        ? new Date(row.last_intervention)
-        : null,
-      frequency: 0, // option: calculer plus tard
-    });
+  breakdownCount: row?.breakdown_count ?? 0,
+  totalCost: Number(row?.total_cost ?? 0),
+  lastIntervention: row?.last_intervention
+    ? new Date(row.last_intervention + "T00:00:00")
+    : null,
+  frequency: 0,
+});
   };
 
   fetchData();
