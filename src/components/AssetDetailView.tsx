@@ -110,9 +110,9 @@ React.useEffect(() => {
   breakdownCount: row?.breakdown_count ?? 0,
   totalCost: Number(row?.total_cost ?? 0),
   lastIntervention: row?.last_intervention
-    ? new Date(row.last_intervention + "T00:00:00")
+    ? new Date(row.last_intervention)
     : null,
-  frequency: 0,
+  frequency: row?.frequency ?? 0,
 });
   };
 
