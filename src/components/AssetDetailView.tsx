@@ -133,12 +133,14 @@ if (error) {
         frequency = Math.round(diffDays / (invs.length - 1));
       }
 
-      setStats({
-        breakdownCount,
-        totalCost,
-        lastIntervention: lastDate,
-        frequency,
-      });
+     setStats({
+  breakdownCount: data?.[0]?.breakdown_count || 0,
+  totalCost: data?.[0]?.total_cost || 0,
+  lastIntervention: data?.[0]?.last_intervention
+    ? new Date(data[0].last_intervention)
+    : null,
+  frequency: 0, // option : calculer séparément si tu veux
+});
     };
 
     fetchData();
