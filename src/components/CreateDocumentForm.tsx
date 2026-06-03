@@ -137,7 +137,7 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
         finalUrl = externalUrl;
         detectedMime = detectMimeTypeForLink(externalUrl);
       }
-     const isExternal = doc.source_type === "external";
+      
       const { error: dbError } = await supabase.from('asset_documents').insert({
         asset_id: data.asset_id,
         user_id: user.id,
