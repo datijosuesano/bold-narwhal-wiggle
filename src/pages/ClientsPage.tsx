@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
+import { Card } from "@/components/ui/card";
 import CreateClientForm from '@/components/CreateClientForm';
 import EditClientForm from '@/components/EditClientForm';
 import CreateContractForm from '@/components/CreateContractForm';
