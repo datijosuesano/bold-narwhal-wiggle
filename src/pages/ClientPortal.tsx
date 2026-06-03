@@ -48,7 +48,7 @@ interface TimelineItem {
 
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const tokenFromUrl = searchParams.get('token');
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'declare' | 'details' | 'history'>('declare');
