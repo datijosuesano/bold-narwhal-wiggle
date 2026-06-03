@@ -27,7 +27,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { DOCUMENT_CATEGORIES } from "@/pages/DocumentationPage";
+import { DOCUMENT_CATEGORIES } from "@/utils/constants";
 
 const DocSchema = z.object({
   name: z.string().min(3, "Titre requis"),
@@ -49,15 +49,6 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { user } = useAuth();
 
-  const form = useForm<DocFormValues>({
-    resolver: zodResolver(DocSchema),
-    defaultValues: {
-      name: "",
-      category: "Manuel Technique",
-      asset_id: "",
-    },
-  });
-
   useEffect(() => {
     const fetchAssets = async () => {
       try {
@@ -71,6 +62,46 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
     fetchAssets();
   }, []);
 
+  const form = useForm<DocFormValues>({
+    resolver: zodResolver(DocSchema),
+    defaultValues: {
+      name: "",
+      category: "Manuel Technique",
+      asset_id: "",
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // 1. Validation de la taille (Max 5 Mo)
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        showError("Le fichier est trop volumineux. La taille maximale autorisée est de 5 Mo.");
+        return;
+      }
+
+      // 2. Validation stricte du type MIME
+      const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedMimeTypes.includes(file.type)) {
+        showError("Format de fichier non accepté. Veuillez sélectionner un PDF, JPEG, PNG ou WEBP.");
+        return;
+      }
+
+      setSelectedFile(file);
+    }
+  };
+
+  const detectMimeTypeForLink = (url: string): string => {
+    const cleanUrl = url.toLowerCase().split('?')[0];
+    if (cleanUrl.endsWith('.pdf')) return 'application/pdf';
+    if (cleanUrl.endsWith('.png')) return 'image/png';
+    if (cleanUrl.endsWith('.jpg') || cleanUrl.endsWith('.jpeg')) return 'image/jpeg';
+    if (cleanUrl.endsWith('.webp')) return 'image/webp';
+    return 'application/octet-stream'; // Valeur par défaut
+  };
+
   const onSubmit = async (data: DocFormValues) => {
     if (!user) {
       showError("Session introuvable. Veuillez vous déconnecter et vous reconnecter.");
@@ -81,10 +112,12 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
     
     try {
       let finalUrl = "";
+      let detectedMime = "";
 
       if (mode === 'upload') {
-        if (!selectedFile) throw new Error("Aucun fichier sélectionné.");
+        if (!selectedFile) throw new Error("Veuillez d'abord sélectionner un fichier.");
         
+        detectedMime = selectedFile.type;
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${data.asset_id}/${Date.now()}.${fileExt}`;
         const filePath = `documentation/${fileName}`;
@@ -94,14 +127,15 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
           .upload(filePath, selectedFile);
 
         if (uploadError) {
-          throw new Error(`Erreur Storage: ${uploadError.message}. Vérifiez que le bucket 'asset-documents' est bien créé en mode PUBLIC.`);
+          throw new Error(`Erreur Storage: ${uploadError.message}.`);
         }
 
         const { data: urlData } = supabase.storage.from("asset-documents").getPublicUrl(filePath);
         finalUrl = urlData.publicUrl;
       } else {
-        if (!externalUrl) throw new Error("L'URL est vide.");
+        if (!externalUrl) throw new Error("Veuillez saisir une adresse URL valide.");
         finalUrl = externalUrl;
+        detectedMime = detectMimeTypeForLink(externalUrl);
       }
 
       const { error: dbError } = await supabase.from('asset_documents').insert({
@@ -109,11 +143,12 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
         user_id: user.id,
         name: data.name,
         file_url: finalUrl,
-        category: data.category
+        category: data.category,
+        mime_type: detectedMime // Enregistrement de la nouvelle colonne
       });
 
       if (dbError) {
-        throw new Error(`Erreur Base de données: ${dbError.message}. Vérifiez vos politiques RLS.`);
+        throw new Error(`Erreur Base de données: ${dbError.message}`);
       }
 
       showSuccess("Document enregistré avec succès !");
@@ -193,14 +228,16 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
               <div className="flex flex-col items-center">
                 <FileCheck className="h-8 w-8 text-green-500 mb-2" />
                 <span className="text-blue-600 font-bold text-sm">{selectedFile.name}</span>
+                <span className="text-[10px] text-slate-400 mt-1">{(selectedFile.size / 1024 / 1024).toFixed(2)} Mo</span>
               </div>
             ) : (
               <div className="text-center">
                 <UploadCloud className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-                <span className="text-xs text-slate-500">PDF, JPG, PNG (Max 5Mo)</span>
+                <span className="text-xs text-slate-500">Sélectionner un PDF, JPG, PNG ou WEBP</span>
+                <span className="block text-[10px] text-slate-400 mt-1">Limite maximale : 5 Mo</span>
               </div>
             )}
-            <input type="file" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} />
+            <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} />
           </label>
         ) : (
           <div className="space-y-2">

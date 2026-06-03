@@ -30,6 +30,15 @@ export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
 export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "En attente de pièce", "Terminé", "Annulé"] as const;
 export const WORK_ORDER_STATUS = STATUTS_WORK_ORDER;
 
+// Catégories de documentation normalisées
+export const DOCUMENT_CATEGORIES = [
+  "Manuel Technique",
+  "Schéma / Plan",
+  "Certificat de conformité",
+  "Procédure d'utilisation",
+  "Autre"
+] as const;
+
 export const formatRole = (role: string | null): string => {
   if (!role) return "Utilisateur";
   switch (role.toLowerCase()) {

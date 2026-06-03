@@ -30,6 +30,7 @@ import CreateDocumentForm from '@/components/CreateDocumentForm';
 import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { DOCUMENT_CATEGORIES } from "@/utils/constants";
 
 interface AssetDoc {
   id: string;
@@ -46,15 +47,6 @@ interface AssetDoc {
 }
 
 const ITEMS_PER_PAGE = 12;
-
-// Catégories de documentation normalisées
-export const DOCUMENT_CATEGORIES = [
-  "Manuel Technique",
-  "Schéma / Plan",
-  "Certificat de conformité",
-  "Procédure d'utilisation",
-  "Autre"
-] as const;
 
 const DocumentationPage: React.FC = () => {
   const [docs, setDocs] = useState<AssetDoc[]>([]);
