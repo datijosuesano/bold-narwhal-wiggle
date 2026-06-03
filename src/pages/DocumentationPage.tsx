@@ -5,21 +5,16 @@ import {
   Loader2, 
   Globe, 
   FileType, 
-  ExternalLink, 
   Download, 
   Filter, 
   Factory, 
   Plus, 
   Trash2, 
   Calendar, 
-  Hash, 
   Eye, 
   ChevronLeft, 
   ChevronRight, 
   BookOpen, 
-  FileSignature, 
-  Workflow, 
-  Image as ImageIcon,
   AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -51,6 +46,15 @@ interface AssetDoc {
 }
 
 const ITEMS_PER_PAGE = 12;
+
+// Catégories de documentation normalisées
+export const DOCUMENT_CATEGORIES = [
+  "Manuel Technique",
+  "Schéma / Plan",
+  "Certificat de conformité",
+  "Procédure d'utilisation",
+  "Autre"
+] as const;
 
 const DocumentationPage: React.FC = () => {
   const [docs, setDocs] = useState<AssetDoc[]>([]);
@@ -84,34 +88,20 @@ const DocumentationPage: React.FC = () => {
     fetchDocs(); 
   }, []);
 
-  // Extraction dynamique des filtres uniques
-  const categories = useMemo(() => {
-    const list = docs.map(d => d.category);
-    return Array.from(new Set(list)).filter(Boolean);
-  }, [docs]);
-
   const uniqueAssets = useMemo(() => {
     const list = docs.map(d => d.assets?.name).filter(Boolean);
     return Array.from(new Set(list));
   }, [docs]);
 
-  // Statistiques calculées par useMemo
+  // Statistiques calculées par useMemo avec les nouvelles catégories normalisées
   const stats = useMemo(() => {
     const total = docs.length;
-    const manuals = docs.filter(d => 
-      d.category.toLowerCase().includes('manuel') || d.category.toLowerCase().includes('technique')
-    ).length;
-    const procedures = docs.filter(d => 
-      d.category.toLowerCase().includes('procédure') || d.category.toLowerCase().includes('certificat')
-    ).length;
-    const schemas = docs.filter(d => 
-      d.category.toLowerCase().includes('schéma') || d.category.toLowerCase().includes('plan')
-    ).length;
-    const externalLinks = docs.filter(d => 
-      !d.file_url.includes('supabase.co/storage')
-    ).length;
+    const manuals = docs.filter(d => d.category === "Manuel Technique").length;
+    const schemas = docs.filter(d => d.category === "Schéma / Plan").length;
+    const certificates = docs.filter(d => d.category === "Certificat de conformité" || d.category === "Procédure d'utilisation").length;
+    const externalLinks = docs.filter(d => !d.file_url.includes('supabase.co/storage')).length;
 
-    return { total, manuals, procedures, schemas, externalLinks };
+    return { total, manuals, schemas, certificates, externalLinks };
   }, [docs]);
 
   // Filtrage combiné optimisé par useMemo
@@ -120,8 +110,7 @@ const DocumentationPage: React.FC = () => {
       const matchesSearch = 
         doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (doc.assets?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.id.toLowerCase().includes(searchTerm.toLowerCase());
+        doc.category.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory;
       const matchesAsset = selectedAsset === "all" || doc.assets?.name === selectedAsset;
@@ -152,13 +141,13 @@ const DocumentationPage: React.FC = () => {
     if (!docToDelete) return;
     try {
       if (docToDelete.file_url.includes('supabase.co/storage')) {
-        const path = docToDelete.file_url.split('asset-documents/')[1];
-        if (path) {
-          await supabase.functions.invoke('delete-storage-file', {
-            body: { bucket: 'asset-documents', path: path, recordId: docToDelete.id, tableName: 'asset_documents' }
-          });
-        }
+        // L'Edge function a impérativement besoin que l'enregistrement existe encore
+        // pour récupérer son file_url. On l'appelle donc en premier.
+        await supabase.functions.invoke('delete-storage-file', {
+          body: { recordId: docToDelete.id, tableName: 'asset_documents' }
+        });
       }
+      
       const { error } = await supabase.from('asset_documents').delete().eq('id', docToDelete.id);
       if (error) throw error;
       
@@ -172,11 +161,20 @@ const DocumentationPage: React.FC = () => {
     }
   };
 
-  // Déterminer le type de prévisualisation
+  // Déterminer de manière ultra-robuste le type de prévisualisation (Priority 1)
   const getPreviewType = (url: string): 'pdf' | 'image' | 'unsupported' => {
-    const cleanUrl = url.toLowerCase().split('?')[0];
-    if (cleanUrl.endsWith('.pdf')) return 'pdf';
-    if (cleanUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/)) return 'image';
+    if (!url) return 'unsupported';
+    try {
+      const parsedUrl = new URL(url);
+      const cleanPath = parsedUrl.pathname.toLowerCase();
+      if (cleanPath.endsWith('.pdf')) return 'pdf';
+      if (cleanPath.match(/\.(jpeg|jpg|gif|png|webp|svg)$/)) return 'image';
+    } catch (e) {
+      // Fallback si l'URL est malformée ou relative
+      const cleanUrl = url.toLowerCase().split('?')[0];
+      if (cleanUrl.endsWith('.pdf')) return 'pdf';
+      if (cleanUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/)) return 'image';
+    }
     return 'unsupported';
   };
 
@@ -221,8 +219,8 @@ const DocumentationPage: React.FC = () => {
           <span className="text-2xl font-black text-blue-600 mt-2">{stats.manuals}</span>
         </Card>
         <Card className="shadow-sm border border-slate-100 bg-white p-4 flex flex-col justify-between">
-          <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Procédures / Certificats</span>
-          <span className="text-2xl font-black text-purple-600 mt-2">{stats.procedures}</span>
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Procédures / Guides</span>
+          <span className="text-2xl font-black text-purple-600 mt-2">{stats.certificates}</span>
         </Card>
         <Card className="shadow-sm border border-slate-100 bg-white p-4 flex flex-col justify-between">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Schémas / Plans</span>
@@ -239,7 +237,7 @@ const DocumentationPage: React.FC = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
           <Input 
-            placeholder="Rechercher par document, équipement, catégorie, ID..." 
+            placeholder="Rechercher par document, équipement, catégorie..." 
             className="pl-10 rounded-xl h-11 border-slate-200" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -255,7 +253,7 @@ const DocumentationPage: React.FC = () => {
             </SelectTrigger>
             <SelectContent className="rounded-xl">
               <SelectItem value="all">Toutes les catégories</SelectItem>
-              {categories.map(cat => (
+              {DOCUMENT_CATEGORIES.map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
@@ -318,7 +316,7 @@ const DocumentationPage: React.FC = () => {
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4 flex-1 flex flex-col justify-between">
                       <div>
-                        {/* Designation équipement mise en évidence */}
+                        {/* Designation équipement */}
                         <div className="flex items-center text-[10px] text-blue-600 font-black uppercase mb-1">
                           <Factory size={12} className="mr-1.5 shrink-0" />
                           <span className="truncate">{doc.assets?.name || "Appareil inconnu"}</span>
@@ -334,7 +332,6 @@ const DocumentationPage: React.FC = () => {
                       </div>
 
                       <div className="flex gap-2 mt-4 pt-2 border-t">
-                        {/* Aperçu direct */}
                         <Button 
                           variant="secondary"
                           onClick={() => { setPreviewDoc(doc); setIsPreviewOpen(true); }}

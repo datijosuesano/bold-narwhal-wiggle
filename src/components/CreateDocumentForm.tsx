@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, UploadCloud, FileCheck, AlertCircle } from "lucide-react";
+import { Loader2, UploadCloud, FileCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { DOCUMENT_CATEGORIES } from "@/pages/DocumentationPage";
 
 const DocSchema = z.object({
   name: z.string().min(3, "Titre requis"),
@@ -158,10 +159,9 @@ const CreateDocumentForm: React.FC<CreateDocumentFormProps> = ({ onSuccess }) =>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
-                  <SelectItem value="Manuel Technique">Manuel Technique</SelectItem>
-                  <SelectItem value="Schéma">Schéma / Plan</SelectItem>
-                  <SelectItem value="Certificat">Certificat</SelectItem>
-                  <SelectItem value="Autre">Autre</SelectItem>
+                  {DOCUMENT_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormItem>
