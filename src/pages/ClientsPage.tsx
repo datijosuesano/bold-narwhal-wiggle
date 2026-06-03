@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, Plus, Search, Loader2, Edit2, Trash2, MapPin, User, Phone, ShieldCheck, FilePlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -19,97 +19,115 @@ interface Client {
   city: string;
   contact_name: string;
   phone: string;
-  contract_status: string;
+}
+
+interface Contract {
+  id: string;
+  client_id: string;
+  status: string;
 }
 
 const ClientsPage: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [activeContractClinics, setActiveContractClinics] = useState<string[]>([]);
+  const [activeContracts, setActiveContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCreateContractOpen, setIsCreateContractOpen] = useState(false);
 
+  // 🔥 FETCH OPTIMISÉ
   const fetchData = async () => {
     setIsLoading(true);
-    try {
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
 
-      const { data: contractsData, error: contractsError } = await supabase
-        .from('contracts')
-        .select('clinic')
-        .eq('status', 'Active');
+    const { data: clientsData, error: clientsError } = await supabase
+      .from('clients')
+      .select('id, name, city, address, contact_name, phone');
 
-      if (clientsError || contractsError) {
-        showError("Erreur lors du chargement des données.");
-      } else {
-        setClients(clientsData || []);
-        const uniqueClinics = Array.from(new Set((contractsData || []).map(c => c.clinic)));
-        setActiveContractClinics(uniqueClinics);
-      }
-    } catch (error) {
+    const { data: contractsData, error: contractsError } = await supabase
+      .from('contracts')
+      .select('id, client_id, status')
+      .eq('status', 'Active');
+
+    if (clientsError || contractsError) {
       showError("Erreur lors du chargement des données.");
-    } finally {
       setIsLoading(false);
+      return;
     }
+
+    setClients(clientsData || []);
+    setActiveContracts(contractsData || []);
+    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // 🔥 MAP pour lookup rapide (optimisation perf)
+  const activeContractMap = useMemo(() => {
+    return new Set(activeContracts.map(c => c.client_id));
+  }, [activeContracts]);
+
+  // 🔍 FILTER
+  const filteredClients = useMemo(() => {
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.city.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [clients, searchTerm]);
+
+  // 🗑 DELETE
   const handleDelete = async () => {
     if (!selectedClient) return;
-    
+
     const { error } = await supabase
       .from('clients')
       .delete()
       .eq('id', selectedClient.id);
 
     if (error) {
-      showError(`Erreur lors de la suppression: ${error.message}`);
-    } else {
-      showSuccess(`Le site "${selectedClient.name}" a été supprimé.`);
-      fetchData();
+      showError(error.message);
+      return;
     }
-    setIsDeleteOpen(false);
-  };
 
-  const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    showSuccess("Client supprimé avec succès");
+    setIsDeleteOpen(false);
+    fetchData();
+  };
 
   return (
     <div className="space-y-8">
+
+      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <div className="p-3 bg-blue-100 rounded-2xl">
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Clients & Sites</h1>
-            <p className="text-lg text-muted-foreground">Gestion de votre parc de sites clients.</p>
+            <h1 className="text-4xl font-extrabold">Clients & Sites</h1>
+            <p className="text-muted-foreground">Gestion des sites clients</p>
           </div>
         </div>
+
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
-              <Plus className="mr-2 h-4 w-4" /> Nouveau Site
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nouveau site
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-xl">
+
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">Ajouter un Site Client</DialogTitle>
-              <DialogDescription>Créez une nouvelle fiche établissement dans votre base.</DialogDescription>
+              <DialogTitle>Ajouter un client</DialogTitle>
+              <DialogDescription>Créer un nouveau site</DialogDescription>
             </DialogHeader>
+
             <CreateClientForm onSuccess={() => {
               setIsCreateOpen(false);
               fetchData();
@@ -117,160 +135,147 @@ const ClientsPage: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
-      
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input 
-          placeholder="Rechercher un site ou une ville..." 
-          className="pl-10 rounded-xl" 
-          value={searchTerm} 
-          onChange={e => setSearchTerm(e.target.value)} 
+
+      {/* SEARCH */}
+      <div className="max-w-md relative">
+        <Search className="absolute left-3 top-3 text-gray-400" />
+        <Input
+          className="pl-10"
+          placeholder="Rechercher..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-      
+
+      {/* LOADING */}
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin h-10 w-10 text-blue-600" />
+          <Loader2 className="animate-spin" />
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
           {filteredClients.map(client => {
-            const isUnderContract = activeContractClinics.includes(client.name);
+            const hasContract = activeContractMap.has(client.id);
+
             return (
-              <div 
-                key={client.id} 
-                className={cn(
-                  "group p-6 bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all border-l-4",
-                  isUnderContract ? "border-l-green-500" : "border-l-gray-300"
-                )}
-              >
-                <div className="flex justify-between items-start mb-4">
+              <div key={client.id} className="p-6 border rounded-xl hover:shadow">
+
+                {/* HEADER CARD */}
+                <div className="flex justify-between">
                   <div>
-                    <h3 className="font-bold text-xl text-foreground line-clamp-1">{client.name}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                    <h3 className="font-bold">{client.name}</h3>
+                    <div className="text-sm text-gray-500 flex items-center">
                       <MapPin size={14} className="mr-1" />
                       {client.city}
                     </div>
                   </div>
-                  <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
-                      onClick={() => {
-                        setSelectedClient(client);
-                        setIsEditOpen(true);
-                      }}
-                    >
+
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setSelectedClient(client);
+                      setIsEditOpen(true);
+                    }}>
                       <Edit2 size={16} />
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
-                      onClick={() => {
-                        setSelectedClient(client);
-                        setIsDeleteOpen(true);
-                      }}
-                    >
+
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setSelectedClient(client);
+                      setIsDeleteOpen(true);
+                    }}>
                       <Trash2 size={16} />
                     </Button>
                   </div>
                 </div>
-                
-                <div className="space-y-2 mt-4 text-sm">
-                  <div className="flex items-center text-muted-foreground">
-                    <User size={14} className="mr-2 text-blue-500" />
+
+                {/* INFO */}
+                <div className="mt-4 text-sm space-y-1">
+                  <div className="flex items-center">
+                    <User size={14} className="mr-2" />
                     {client.contact_name}
                   </div>
-                  <div className="flex items-center text-muted-foreground">
-                    <Phone size={14} className="mr-2 text-blue-500" />
+                  <div className="flex items-center">
+                    <Phone size={14} className="mr-2" />
                     {client.phone}
                   </div>
                 </div>
-                
-                <div className="mt-6 flex items-center justify-between">
-                  {isUnderContract ? (
-                    <Badge className="rounded-full bg-green-100 text-green-700 border-green-200 flex items-center">
+
+                {/* FOOTER */}
+                <div className="mt-4">
+                  {hasContract ? (
+                    <Badge className="bg-green-100 text-green-700">
                       <ShieldCheck size={12} className="mr-1" />
-                      Sous Contrat
+                      Sous contrat
                     </Badge>
                   ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="rounded-full text-[10px] font-bold uppercase border-blue-200 text-blue-600 hover:bg-blue-50"
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => {
                         setSelectedClient(client);
                         setIsCreateContractOpen(true);
                       }}
                     >
-                      <FilePlus size={12} className="mr-1" /> Créer Contrat
+                      <FilePlus size={12} className="mr-1" />
+                      Créer contrat
                     </Button>
                   )}
                 </div>
+
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Modale de modification client */}
+      {/* MODALS */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Modifier le Site</DialogTitle>
-          </DialogHeader>
+        <DialogContent>
           {selectedClient && (
-            <EditClientForm 
-              client={selectedClient} 
+            <EditClientForm
+              client={selectedClient}
               onSuccess={() => {
                 setIsEditOpen(false);
                 fetchData();
-              }} 
+              }}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Modale de création de contrat liée au client */}
       <Dialog open={isCreateContractOpen} onOpenChange={setIsCreateContractOpen}>
-        <DialogContent className="rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Nouveau Contrat pour {selectedClient?.name}</DialogTitle>
-          </DialogHeader>
+        <DialogContent>
           {selectedClient && (
-            <CreateContractForm 
-              existingContracts={activeContractClinics}
+            <CreateContractForm
               defaultClinicName={selectedClient.name}
+              existingContracts={activeContracts}
               onSuccess={() => {
                 setIsCreateContractOpen(false);
                 fetchData();
-              }} 
+              }}
             />
           )}
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent className="rounded-xl">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce site ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le site <strong>{selectedClient?.name}</strong> ?
+              Action irréversible pour {selectedClient?.name}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              className="bg-red-600 hover:bg-red-700 rounded-xl"
-            >
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
               Confirmer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 };
