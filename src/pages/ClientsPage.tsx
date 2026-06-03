@@ -79,7 +79,7 @@ const ClientsPage: React.FC = () => {
   const normalizedActiveContractsSet = useMemo(() => {
   return new Set(activeContracts.map(c => c.client_id));
 }, [activeContracts]);
-
+const hasContract = normalizedActiveContractsSet.has(client.id);
   // Statistiques de couverture contractuelle
   const stats = useMemo(() => {
     const total = clients.length;
