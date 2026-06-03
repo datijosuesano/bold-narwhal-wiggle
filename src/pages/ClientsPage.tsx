@@ -10,7 +10,6 @@ import EditClientForm from '@/components/EditClientForm';
 import CreateContractForm from '@/components/CreateContractForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
-import { cn } from '@/lib/utils';
 
 interface Client {
   id: string;
@@ -23,7 +22,7 @@ interface Client {
 
 interface Contract {
   id: string;
-  client_id: string;
+  clinic: string;
   status: string;
 }
 
@@ -39,40 +38,44 @@ const ClientsPage: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCreateContractOpen, setIsCreateContractOpen] = useState(false);
 
-  // 🔥 FETCH OPTIMISÉ
+  // FETCH OPTIMISÉ
   const fetchData = async () => {
     setIsLoading(true);
 
-    const { data: clientsData, error: clientsError } = await supabase
-      .from('clients')
-      .select('id, name, city, address, contact_name, phone');
+    try {
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, city, address, contact_name, phone');
 
-    const { data: contractsData, error: contractsError } = await supabase
-      .from('contracts')
-      .select('id, client_id, status')
-      .eq('status', 'Active');
+      // Le lien entre contrat et client se fait par la colonne 'clinic' contenant le nom
+      const { data: contractsData, error: contractsError } = await supabase
+        .from('contracts')
+        .select('id, clinic, status')
+        .eq('status', 'Active');
 
-    if (clientsError || contractsError) {
-      showError("Erreur lors du chargement des données.");
+      if (clientsError) throw clientsError;
+      if (contractsError) throw contractsError;
+
+      setClients(clientsData || []);
+      setActiveContracts((contractsData as any) || []);
+    } catch (err: any) {
+      console.error(err);
+      showError("Erreur lors du chargement des données : " + err.message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setClients(clientsData || []);
-    setActiveContracts(contractsData || []);
-    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 🔥 MAP pour lookup rapide (optimisation perf)
+  // MAP des cliniques ayant un contrat actif pour un lookup ultra rapide
   const activeContractMap = useMemo(() => {
-    return new Set(activeContracts.map(c => c.client_id));
+    return new Set(activeContracts.map(c => c.clinic));
   }, [activeContracts]);
 
-  // 🔍 FILTER
+  // FILTRE DE RECHERCHE
   const filteredClients = useMemo(() => {
     return clients.filter(c =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,7 +83,7 @@ const ClientsPage: React.FC = () => {
     );
   }, [clients, searchTerm]);
 
-  // 🗑 DELETE
+  // SUPPRESSION CLIENT
   const handleDelete = async () => {
     if (!selectedClient) return;
 
@@ -90,7 +93,7 @@ const ClientsPage: React.FC = () => {
       .eq('id', selectedClient.id);
 
     if (error) {
-      showError(error.message);
+      showError("Impossible de supprimer le client : " + error.message);
       return;
     }
 
@@ -109,23 +112,23 @@ const ClientsPage: React.FC = () => {
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold">Clients & Sites</h1>
-            <p className="text-muted-foreground">Gestion des sites clients</p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-primary">Clients & Sites</h1>
+            <p className="text-lg text-muted-foreground">Gestion des sites clients et établissements.</p>
           </div>
         </div>
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md">
               <Plus className="mr-2 h-4 w-4" />
               Nouveau site
             </Button>
           </DialogTrigger>
 
-          <DialogContent>
+          <DialogContent className="sm:max-w-md rounded-xl">
             <DialogHeader>
-              <DialogTitle>Ajouter un client</DialogTitle>
-              <DialogDescription>Créer un nouveau site</DialogDescription>
+              <DialogTitle className="text-2xl font-bold">Ajouter un site</DialogTitle>
+              <DialogDescription>Enregistrez un nouvel établissement sanitaire.</DialogDescription>
             </DialogHeader>
 
             <CreateClientForm onSuccess={() => {
@@ -136,74 +139,74 @@ const ClientsPage: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* SEARCH */}
+      {/* RECHERCHE */}
       <div className="max-w-md relative">
-        <Search className="absolute left-3 top-3 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
-          className="pl-10"
-          placeholder="Rechercher..."
+          className="pl-10 rounded-xl bg-white shadow-sm"
+          placeholder="Rechercher par nom de clinique ou ville..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* LOADING */}
+      {/* GRILLE DES COMPTES */}
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin" />
+          <Loader2 className="animate-spin h-10 w-10 text-blue-600" />
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
           {filteredClients.map(client => {
-            const hasContract = activeContractMap.has(client.id);
+            const hasContract = activeContractMap.has(client.name);
 
             return (
-              <div key={client.id} className="p-6 border rounded-xl hover:shadow">
+              <div key={client.id} className="p-6 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all group relative">
 
                 {/* HEADER CARD */}
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-bold">{client.name}</h3>
-                    <div className="text-sm text-gray-500 flex items-center">
-                      <MapPin size={14} className="mr-1" />
+                    <h3 className="font-bold text-lg text-slate-900">{client.name}</h3>
+                    <div className="text-xs text-muted-foreground flex items-center mt-1">
+                      <MapPin size={12} className="mr-1 text-red-500" />
                       {client.city}
                     </div>
                   </div>
 
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100">
-                    <Button size="icon" variant="ghost" onClick={() => {
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50" onClick={() => {
                       setSelectedClient(client);
                       setIsEditOpen(true);
                     }}>
-                      <Edit2 size={16} />
+                      <Edit2 size={14} />
                     </Button>
 
-                    <Button size="icon" variant="ghost" onClick={() => {
+                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50" onClick={() => {
                       setSelectedClient(client);
                       setIsDeleteOpen(true);
                     }}>
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>
 
-                {/* INFO */}
-                <div className="mt-4 text-sm space-y-1">
+                {/* COORDINATES */}
+                <div className="mt-4 text-xs space-y-2 border-t pt-3 text-slate-600">
                   <div className="flex items-center">
-                    <User size={14} className="mr-2" />
-                    {client.contact_name}
+                    <User size={14} className="mr-2 text-slate-400" />
+                    <span className="font-medium">{client.contact_name}</span>
                   </div>
                   <div className="flex items-center">
-                    <Phone size={14} className="mr-2" />
-                    {client.phone}
+                    <Phone size={14} className="mr-2 text-slate-400" />
+                    <span className="font-mono">{client.phone}</span>
                   </div>
                 </div>
 
-                {/* FOOTER */}
-                <div className="mt-4">
+                {/* CONTRAT STATUS */}
+                <div className="mt-5 pt-1">
                   {hasContract ? (
-                    <Badge className="bg-green-100 text-green-700">
+                    <Badge className="bg-green-100 text-green-700 border border-green-200 rounded-full font-bold text-[10px] px-2.5 py-0.5">
                       <ShieldCheck size={12} className="mr-1" />
                       Sous contrat
                     </Badge>
@@ -211,6 +214,7 @@ const ClientsPage: React.FC = () => {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="rounded-xl text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 h-8"
                       onClick={() => {
                         setSelectedClient(client);
                         setIsCreateContractOpen(true);
@@ -228,9 +232,12 @@ const ClientsPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODALS */}
+      {/* EDITIONS & CREATIONS MODALES */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Modifier le site client</DialogTitle>
+          </DialogHeader>
           {selectedClient && (
             <EditClientForm
               client={selectedClient}
@@ -244,11 +251,15 @@ const ClientsPage: React.FC = () => {
       </Dialog>
 
       <Dialog open={isCreateContractOpen} onOpenChange={setIsCreateContractOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Générer un Contrat</DialogTitle>
+            <DialogDescription>Créez un accord de maintenance lié à cet établissement.</DialogDescription>
+          </DialogHeader>
           {selectedClient && (
             <CreateContractForm
               defaultClinicName={selectedClient.name}
-              existingContracts={activeContracts}
+              existingContracts={activeContracts.map(c => c.clinic)}
               onSuccess={() => {
                 setIsCreateContractOpen(false);
                 fetchData();
@@ -259,17 +270,17 @@ const ClientsPage: React.FC = () => {
       </Dialog>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-bold">Supprimer ce client ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Action irréversible pour {selectedClient?.name}
+              Cette action retirera définitivement l'établissement <strong>{selectedClient?.name}</strong> et les contrats associés de la base.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
+            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">
               Confirmer
             </AlertDialogAction>
           </AlertDialogFooter>
