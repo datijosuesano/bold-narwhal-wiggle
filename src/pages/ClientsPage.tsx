@@ -77,8 +77,8 @@ const ClientsPage: React.FC = () => {
 
   // Map des contrats normalisée (casse insensible, trim pour robustesse)
   const normalizedActiveContractsSet = useMemo(() => {
-    return new Set(activeContracts.map(c => c.clinic.trim().toLowerCase()));
-  }, [activeContracts]);
+  return new Set(activeContracts.map(c => c.client_id));
+}, [activeContracts]);
 
   // Statistiques de couverture contractuelle
   const stats = useMemo(() => {
