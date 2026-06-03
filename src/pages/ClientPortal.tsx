@@ -16,7 +16,7 @@ import {
   Camera, 
   Video, 
   Film, 
-  Image as ImageIcon, 
+  ImageIcon, 
   X, 
   Calendar, 
   ShieldCheck, 
@@ -75,15 +75,57 @@ const ClientPortal: React.FC = () => {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   useEffect(() => {
-    if (assetIdFromUrl) {
-      loadPortalData(assetIdFromUrl);
-    } else {
-      setStep('scan');
-    }
-  }, [assetIdFromUrl]);
+    const resolveTokenAndLoad = async () => {
+      if (!tokenFromUrl) {
+        setStep('scan');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        // Résoudre le token d'accès et vérifier s'il est actif
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('portal_access_tokens')
+          .select('*')
+          .eq('token', tokenFromUrl)
+          .maybeSingle();
+
+        if (tokenError) throw tokenError;
+
+        if (!tokenData) {
+          setErrorMessage("Lien de portail invalide ou inexistant.");
+          setStep('error');
+          return;
+        }
+
+        if (!tokenData.active) {
+          setErrorMessage("Ce QR Code / Lien d'accès a été désactivé par l'administrateur.");
+          setStep('error');
+          return;
+        }
+
+        // Mettre à jour la date de dernier accès
+        await supabase
+          .from('portal_access_tokens')
+          .update({ last_accessed_at: new Date().toISOString() })
+          .eq('token', tokenFromUrl);
+
+        // Charger les données de l'équipement résolu
+        await loadPortalData(tokenData.asset_id);
+
+      } catch (err: any) {
+        console.error("Erreur de résolution du token:", err);
+        setErrorMessage("Impossible de valider votre clé d'accès au portail.");
+        setStep('error');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    resolveTokenAndLoad();
+  }, [tokenFromUrl]);
 
   const loadPortalData = async (id: string) => {
-    setIsLoading(true);
     try {
       // 1. Fetch Asset
       const { data: assetData, error: assetError } = await supabase
@@ -97,7 +139,6 @@ const ClientPortal: React.FC = () => {
       if (!assetData) {
         setErrorMessage("Cet équipement n'existe pas dans notre base de données.");
         setStep('error');
-        setIsLoading(false);
         return;
       }
 
@@ -182,8 +223,6 @@ const ClientPortal: React.FC = () => {
       console.error("Erreur chargement portail:", err);
       setErrorMessage("Impossible de charger les données de cet appareil.");
       setStep('error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -283,11 +322,11 @@ const ClientPortal: React.FC = () => {
           <ShieldAlert size={40} />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-slate-900 uppercase">Erreur de Scan</h2>
+          <h2 className="text-2xl font-black text-slate-900 uppercase">Accès Refusé</h2>
           <p className="text-muted-foreground">{errorMessage}</p>
         </div>
-        <Button onClick={() => setStep('scan')} variant="outline" className="w-full rounded-xl h-12 border-slate-200">
-          Réessayer le scan
+        <Button onClick={() => window.close()} className="w-full rounded-xl h-12 bg-slate-900 text-white">
+          Fermer la page
         </Button>
       </div>
     );
@@ -643,4 +682,4 @@ const ClientPortal: React.FC = () => {
   );
 };
 
-export default ClientPortal; 
+export default ClientPortal;

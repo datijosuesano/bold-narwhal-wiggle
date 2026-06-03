@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Printer, Laptop, Smartphone, Info } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Printer, Loader2, Power, PowerOff, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
+import { showSuccess, showError } from "@/utils/toast";
+import { Badge } from "@/components/ui/badge";
 
 interface AssetQRCodeProps {
   assetId: string;
@@ -19,60 +20,89 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
 }) => {
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const [token, setToken] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
-
-  const isLocalhost =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
+  const [actionLoading, setActionLoading] = useState(false);
 
   const safeAssetId = assetId.replace(/[^a-zA-Z0-9-]/g, "");
+  const portalUrl = token ? `${baseUrl}/portal?token=${token}` : "";
 
-  const portalUrl = token
-    ? `${baseUrl}/portal?token=${token}`
-    : "";
-
-  useEffect(() => {
-    const loadToken = async () => {
-      setLoading(true);
-
-      // 1. chercher token existant
-      const { data } = await supabase
+  const loadToken = async () => {
+    setLoading(true);
+    try {
+      // Rechercher le token le plus récent pour cet équipement (actif ou inactif)
+      const { data, error } = await supabase
         .from("portal_access_tokens")
         .select("*")
         .eq("asset_id", assetId)
-        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      // 2. si existe → utiliser
-      if (data?.token) {
+      if (error) throw error;
+
+      if (data) {
         setToken(data.token);
-        setLoading(false);
-        return;
+        setIsActive(data.active);
+      } else {
+        // Si aucun token n'existe, on en génère un par défaut (actif)
+        const newToken = crypto.randomUUID?.() || Math.random().toString(36).substring(2);
+        const { data: inserted, error: insertError } = await supabase
+          .from("portal_access_tokens")
+          .insert({
+            asset_id: assetId,
+            token: newToken,
+            active: true,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        if (inserted) {
+          setToken(inserted.token);
+          setIsActive(true);
+        }
       }
-
-      // 3. sinon créer un token
-      const newToken =
-        crypto.randomUUID?.() || Math.random().toString(36).substring(2);
-
-      const { data: inserted, error } = await supabase
-        .from("portal_access_tokens")
-        .insert({
-          asset_id: assetId,
-          token: newToken,
-          active: true,
-        })
-        .select()
-        .single();
-
-      if (!error && inserted) {
-        setToken(inserted.token);
-      }
-
+    } catch (err: any) {
+      console.error("Erreur de chargement du token QR:", err);
+      showError("Impossible de configurer l'accès portail de cet appareil.");
+    } finally {
       setLoading(false);
-    };
+    }
+  };
 
+  useEffect(() => {
     loadToken();
   }, [assetId]);
+
+  // Désactiver ou réactiver le Token QR Code
+  const handleToggleActive = async () => {
+    if (!token) return;
+    setActionLoading(true);
+    const targetStatus = !isActive;
+
+    try {
+      const { error } = await supabase
+        .from("portal_access_tokens")
+        .update({ active: targetStatus })
+        .eq("token", token);
+
+      if (error) throw error;
+
+      setIsActive(targetStatus);
+      showSuccess(
+        targetStatus 
+          ? "QR Code réactivé avec succès ! L'accès au portail est rétabli." 
+          : "QR Code désactivé avec succès ! Le portail client est désormais verrouillé."
+      );
+    } catch (err: any) {
+      console.error("Erreur toggle active:", err);
+      showError("Une erreur est survenue lors de la modification de l'accès.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
@@ -123,21 +153,41 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
   };
 
   if (loading) {
-    return <p className="text-xs text-muted-foreground">Génération QR...</p>;
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="animate-spin text-blue-600 h-8 w-8" />
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-2xl border shadow-sm space-y-6">
-      {isLocalhost && (
-        <Alert className="bg-blue-50 border-blue-200 text-blue-800 rounded-xl">
-          <Info className="h-4 w-4" />
-          <AlertDescription className="text-[11px]">
-            Utilisez l’IP du PC pour test mobile.
-          </AlertDescription>
-        </Alert>
-      )}
+      
+      {/* Alerte du statut d'activité */}
+      <div className="w-full">
+        {isActive ? (
+          <Alert className="bg-green-50 border-green-200 text-green-800 rounded-xl">
+            <ShieldCheck className="h-4 w-4 text-green-600" />
+            <AlertTitle className="font-bold text-xs uppercase">Accès Activé</AlertTitle>
+            <AlertDescription className="text-[11px] text-green-700 leading-tight">
+              Le QR Code est actuellement opérationnel. Les clients peuvent scanner pour signaler une panne.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="bg-red-50 border-red-200 text-red-800 rounded-xl">
+            <ShieldAlert className="h-4 w-4 text-red-600" />
+            <AlertTitle className="font-bold text-xs uppercase">Accès Désactivé</AlertTitle>
+            <AlertDescription className="text-[11px] text-red-700 leading-tight">
+              L'accès à cet équipement est coupé. Toute personne scannant ce QR Code obtiendra un message d'accès refusé.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
 
-      <div className="bg-slate-50 p-4 rounded-2xl border-dashed border-2">
+      <div className={cn(
+        "bg-slate-50 p-4 rounded-2xl border-dashed border-2 relative",
+        !isActive && "opacity-25"
+      )}>
         <QRCodeSVG
           id={`asset-qr-${safeAssetId}`}
           value={portalUrl}
@@ -145,18 +195,48 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
           level="H"
           includeMargin
         />
+        {!isActive && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/20 backdrop-blur-[1px]">
+            <Badge variant="destructive" className="rounded-full text-[10px] font-black uppercase tracking-wider px-3 py-1">INACTIF</Badge>
+          </div>
+        )}
       </div>
 
-      <p className="text-[9px] font-mono break-all">{portalUrl}</p>
+      <p className="text-[9px] font-mono break-all text-muted-foreground bg-slate-50 p-2 rounded border w-full text-center">
+        {portalUrl || "En attente de token..."}
+      </p>
 
-      <Button
-        onClick={handlePrint}
-        className="w-full rounded-xl font-bold"
-        disabled={!token}
-      >
-        <Printer className="mr-2" size={16} />
-        Imprimer
-      </Button>
+      <div className="flex flex-col gap-2 w-full">
+        <Button
+          onClick={handlePrint}
+          className="w-full rounded-xl font-bold h-11 bg-blue-600 hover:bg-blue-700"
+          disabled={!token || !isActive}
+        >
+          <Printer className="mr-2 h-4 w-4" />
+          Imprimer l'étiquette
+        </Button>
+
+        <Button
+          variant={isActive ? "destructive" : "secondary"}
+          onClick={handleToggleActive}
+          disabled={actionLoading || !token}
+          className="w-full rounded-xl font-bold h-11"
+        >
+          {actionLoading ? (
+            <Loader2 className="animate-spin mr-2 h-4 w-4" />
+          ) : isActive ? (
+            <>
+              <PowerOff className="mr-2 h-4 w-4" />
+              Désactiver l'accès QR Code
+            </>
+          ) : (
+            <>
+              <Power className="mr-2 h-4 w-4" />
+              Réactiver l'accès QR Code
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 };
