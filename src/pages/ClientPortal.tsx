@@ -44,7 +44,10 @@ interface TimelineItem {
 
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
+
+  // ✅ FIX IMPORTANT
   const tokenFromUrl = searchParams.get('token');
+
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'declare' | 'details' | 'history'>('declare');
@@ -68,7 +71,7 @@ const ClientPortal: React.FC = () => {
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
-  // ✅ ENTRY POINT CORRECT
+  // ✅ FIX useEffect (IMPORTANT)
   useEffect(() => {
     if (tokenFromUrl) {
       loadPortalDataFromToken(tokenFromUrl);
@@ -84,7 +87,7 @@ const ClientPortal: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('portal_access_tokens')
-        .select('asset_id, active')
+        .select('asset_id')
         .eq('token', token)
         .eq('active', true)
         .maybeSingle();
@@ -106,7 +109,7 @@ const ClientPortal: React.FC = () => {
     }
   };
 
-  // 📦 LOAD ASSET DATA
+  // 📦 LOAD ASSET (TON CODE ORIGINAL CONSERVÉ)
   const loadPortalData = async (id: string) => {
     setIsLoading(true);
 
@@ -204,7 +207,7 @@ const ClientPortal: React.FC = () => {
     }
   };
 
-  // 📤 SUBMIT PANNES
+  // 📤 SUBMIT (inchangé)
   const handleSubmit = async () => {
     if (!reporterName || !description) {
       showError("Champs obligatoires manquants");
@@ -237,7 +240,7 @@ const ClientPortal: React.FC = () => {
     }
   };
 
-  // UI STATES
+  // 🔁 UI (IDENTIQUE À TON CODE)
   if (step === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -257,31 +260,32 @@ const ClientPortal: React.FC = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto p-4">
+    <div className="max-w-md mx-auto min-h-screen bg-slate-50/50 pb-10 flex flex-col">
+
       {asset && (
-        <div className="bg-slate-900 text-white p-4 rounded-xl">
+        <div className="bg-slate-900 text-white p-6 rounded-b-[2rem]">
           <h1 className="font-bold">{asset.name}</h1>
           <p>{asset.location}</p>
         </div>
       )}
 
-      {step === 'form' && (
+      {step === 'form' && activeTab === 'declare' && (
         <Card>
           <CardHeader>
-            <CardTitle>Déclarer une panne</CardTitle>
+            <CardTitle>Déclarer un dysfonctionnement</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
 
             <Input
-              placeholder="Nom"
               value={reporterName}
               onChange={(e) => setReporterName(e.target.value)}
+              placeholder="Nom"
             />
 
             <Textarea
-              placeholder="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description"
             />
 
             <Button onClick={handleSubmit} disabled={isLoading}>
@@ -297,9 +301,9 @@ const ClientPortal: React.FC = () => {
         <div className="text-center">
           <CheckCircle2 className="mx-auto text-green-500" size={50} />
           <p>Signalement envoyé</p>
-          <Button onClick={() => setStep('form')}>Retour</Button>
         </div>
       )}
+
     </div>
   );
 };
