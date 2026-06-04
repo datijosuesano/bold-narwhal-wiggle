@@ -25,11 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      // Récupération des informations d'authentification utilisateur
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const meta = authUser?.user_metadata || {};
-
-      // Récupération du profil en base de données
+      // Récupération sécurisée du profil de l'utilisateur
       const { data: dbProfile, error } = await supabase
         .from("profiles")
         .select("role, specialite, first_name, last_name")
@@ -38,55 +34,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Utiliser les métadonnées d'inscription comme fallback immédiat pour éviter d'attendre la synchro DB
-      const finalSpecialty = dbProfile?.specialite || meta.specialite || "Biomédical";
+      // Si le profil n'existe pas encore ou que des informations de base (noms) sont manquantes, 
+      // on peut faire une mise à jour de complétion, mais SANS JAMAIS modifier le rôle depuis le client !
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const meta = authUser?.user_metadata || {};
+
       const finalFirstName = dbProfile?.first_name || meta.first_name || "";
       const finalLastName = dbProfile?.last_name || meta.last_name || "";
-      
-      let currentRole = dbProfile?.role || "user";
-      let shouldUpdate = false;
+      const finalSpecialty = dbProfile?.specialite || meta.specialite || "Biomédical";
 
-      // Détermination rigoureuse du rôle selon la spécialité
-      if (finalSpecialty === "Gestion Stock" && currentRole !== "gestionnaire de stock") {
-        currentRole = "gestionnaire de stock";
-        shouldUpdate = true;
-      } else if (finalSpecialty === "Administratif" && currentRole !== "secretaire") {
-        currentRole = "secretaire";
-        shouldUpdate = true;
-      } else if (
-        ["Biomédical", "Imagerie", "Laboratoire", "Froid Médical"].includes(finalSpecialty) && 
-        currentRole !== "technicien biomedical" && 
-        currentRole !== "admin"
-      ) {
-        currentRole = "technicien biomedical";
-        shouldUpdate = true;
-      }
-
-      // Mise à jour de sécurité de la base de données en arrière-plan
-      if (
-        shouldUpdate || 
-        !dbProfile?.specialite || 
-        !dbProfile?.first_name || 
-        !dbProfile?.last_name
-      ) {
+      if (!dbProfile?.first_name || !dbProfile?.last_name || !dbProfile?.specialite) {
+        // Seules les métadonnées nominatives et la spécialité sont modifiables par le client
         await supabase
           .from("profiles")
           .update({
-            role: currentRole,
-            specialite: finalSpecialty,
             first_name: finalFirstName,
-            last_name: finalLastName
+            last_name: finalLastName,
+            specialite: finalSpecialty
           })
           .eq("id", userId);
       }
 
       return {
-        role: currentRole,
+        role: dbProfile?.role || "user",
         specialty: finalSpecialty,
       };
 
     } catch (error) {
-      console.error("Erreur récupération profil :", error);
+      console.error("Erreur de récupération sécurisée du profil :", error);
       return {
         role: "user",
         specialty: null,
