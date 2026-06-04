@@ -16,7 +16,8 @@ import {
   Activity, 
   Wrench,
   Percent,
-  CheckCircle
+  CheckCircle,
+  ClipboardList
 } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,10 @@ const PlanningPage: React.FC = () => {
       });
       setIsCloseDialogOpen(true);
     }
+  };
+
+  const handleCompleteEvent = (eventId: string) => {
+    handleOpenCloseDialog(eventId);
   };
 
   // Assignation rapide d'un technicien depuis le planning
