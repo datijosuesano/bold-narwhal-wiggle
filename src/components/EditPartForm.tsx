@@ -27,6 +27,8 @@ const PartSchema = z.object({
   purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
   location: z.string().min(1, "La localisation est requise"),
   category: z.string().min(1, "La catégorie est requise"),
+  supplier: z.string().optional().default(""),
+  compatible_equipment: z.string().optional().default(""),
 });
 
 type PartFormValues = z.infer<typeof PartSchema>;
@@ -40,6 +42,8 @@ interface Part {
   purchase_cost?: number;
   location: string;
   category: string;
+  supplier?: string;
+  compatible_equipment?: string;
 }
 
 interface EditPartFormProps {
@@ -59,7 +63,9 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
       minQuantity: part.min_stock, 
       purchaseCost: part.purchase_cost || 0,
       location: part.location || "", 
-      category: part.category || "" 
+      category: part.category || "",
+      supplier: part.supplier || "",
+      compatible_equipment: part.compatible_equipment || "",
     },
   });
 
@@ -75,7 +81,9 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
         min_stock: data.minQuantity,
         purchase_cost: data.purchaseCost,
         location: data.location,
-        category: data.category
+        category: data.category,
+        supplier: data.supplier,
+        compatible_equipment: data.compatible_equipment,
       })
       .eq('id', part.id);
 
@@ -107,6 +115,15 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
           )} />
           <FormField control={form.control} name="location" render={({ field }) => (
             <FormItem><FormLabel>Emplacement</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+          )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="supplier" render={({ field }) => (
+            <FormItem><FormLabel>Fournisseur Principal</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="compatible_equipment" render={({ field }) => (
+            <FormItem><FormLabel>Compatibilité Équipements</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
         </div>
 

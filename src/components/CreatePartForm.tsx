@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Box } from "lucide-react";
+import { Loader2, Box, Factory } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,8 @@ const PartSchema = z.object({
   minQuantity: z.coerce.number().min(0, "Le seuil doit être positif"),
   purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
   location: z.string().min(1, "La localisation est requise"),
+  supplier: z.string().optional().default(""),
+  compatible_equipment: z.string().optional().default(""),
 });
 
 type PartFormValues = z.infer<typeof PartSchema>;
@@ -47,7 +49,9 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       quantity: 0, 
       minQuantity: 1, 
       purchaseCost: 0,
-      location: "Magasin Central" 
+      location: "Magasin Central",
+      supplier: "",
+      compatible_equipment: "",
     },
   });
 
@@ -62,7 +66,9 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       current_stock: data.quantity,
       min_stock: data.minQuantity,
       purchase_cost: data.purchaseCost,
-      location: data.location
+      location: data.location,
+      supplier: data.supplier,
+      compatible_equipment: data.compatible_equipment,
     });
 
     setIsLoading(false);
@@ -81,26 +87,40 @@ const CreatePartForm: React.FC<CreatePartFormProps> = ({ onSuccess }) => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input placeholder="Ex: Filtre" {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input placeholder="Ex: Filtre autoclave" {...field} /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="reference" render={({ field }) => (
-            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input placeholder="Ex: REF-001" {...field} /></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Référence</FormLabel><FormControl><Input placeholder="Ex: REF-FA-99" {...field} /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
 
-        <FormField control={form.control} name="location" render={({ field }) => (
-          <FormItem><FormLabel>Localisation</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="location" render={({ field }) => (
+            <FormItem><FormLabel>Localisation / Étagère</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="supplier" render={({ field }) => (
+            <FormItem><FormLabel>Fournisseur Principal</FormLabel><FormControl><Input placeholder="Ex: Siemens Healthineers" {...field} /></FormControl></FormItem>
+          )} />
+        </div>
+
+        <FormField control={form.control} name="compatible_equipment" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Compatibilité Équipements</FormLabel>
+            <FormControl>
+              <Input placeholder="Ex: Autoclaves vertical 50L, Systèmes de paillasse" {...field} />
+            </FormControl>
+          </FormItem>
         )} />
 
         <div className="grid grid-cols-3 gap-4">
           <FormField control={form.control} name="quantity" render={({ field }) => (
-            <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Stock Initial</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="minQuantity" render={({ field }) => (
-            <FormItem><FormLabel>Seuil</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Seuil d'Alerte</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="purchaseCost" render={({ field }) => (
-            <FormItem><FormLabel>Prix (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Prix Unit. (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
           )} />
         </div>
 
