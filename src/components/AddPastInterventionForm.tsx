@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse, PackageOpen, FileSpreadsheet, Clock } from "lucide-react";
+import { Loader2, Save, User, CheckCircle2, PenTool, MapPin, Warehouse, PackageOpen, FileSpreadsheet, Clock, Plus, Trash2, Box } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -51,10 +51,17 @@ interface AddPastInterventionFormProps {
   onSuccess: () => void;
 }
 
+interface SelectedPart {
+  partId: string;
+  quantity: number;
+}
+
 const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ assetId, initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [assets, setAssets] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
+  const [spareParts, setSpareParts] = useState<any[]>([]);
+  const [selectedParts, setSelectedParts] = useState<SelectedPart[]>([]);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [savedInterventionId, setSavedInterventionId] = useState<string | null>(null);
   
@@ -91,12 +98,56 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
       setAssets(assetList || []);
       const { data: techList } = await supabase.from('profiles').select('id, first_name, last_name').order('last_name');
       setTechnicians(techList || []);
+      const { data: partList } = await supabase.from('spare_parts').select('id, name, reference, current_stock').order('name');
+      setSpareParts(partList || []);
     };
     fetchData();
   }, []);
 
+  const handleAddPartRow = () => {
+    setSelectedParts([...selectedParts, { partId: "", quantity: 1 }]);
+  };
+
+  const handleRemovePartRow = (index: number) => {
+    const updated = [...selectedParts];
+    updated.splice(index, 1);
+    setSelectedParts(updated);
+  };
+
+  const handlePartChange = (index: number, partId: string) => {
+    const updated = [...selectedParts];
+    updated[index].partId = partId;
+    // Réinitialiser la quantité à 1 par précaution
+    updated[index].quantity = 1;
+    setSelectedParts(updated);
+  };
+
+  const handleQuantityChange = (index: number, quantity: number) => {
+    const updated = [...selectedParts];
+    updated[index].quantity = Math.max(1, quantity);
+    setSelectedParts(updated);
+  };
+
   const onSubmit = async (data: z.infer<typeof InterventionSchema>) => {
     setIsLoading(true);
+
+    // Étape 5 : Empêcher l'utilisation d'une quantité supérieure au stock disponible
+    for (const item of selectedParts) {
+      if (!item.partId) {
+        showError("Veuillez sélectionner une pièce de rechange valide pour chaque ligne.");
+        setIsLoading(false);
+        return;
+      }
+      const matchedPart = spareParts.find(p => p.id === item.partId);
+      if (matchedPart) {
+        if (item.quantity > matchedPart.current_stock) {
+          showError(`Stock insuffisant pour "${matchedPart.name}". Disponible : ${matchedPart.current_stock} unité(s).`);
+          setIsLoading(false);
+          return;
+        }
+      }
+    }
+
     try {
       const payload = {
         user_id: user?.id,
@@ -127,8 +178,50 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
          }).eq('id', initialData.id);
       }
 
+      // Étape 4 : Enregistrer les lignes d'interventions, décrémenter le stock et créer les mouvements
+      for (const item of selectedParts) {
+        if (!item.partId) continue;
+
+        // 1. Ligne intervention_parts
+        const { error: partLinkError } = await supabase.from('intervention_parts').insert({
+          intervention_id: newInv.id,
+          part_id: item.partId,
+          quantity: item.quantity
+        });
+        if (partLinkError) throw partLinkError;
+
+        // 2. Décrémentation spare_parts.current_stock
+        const matchedPart = spareParts.find(p => p.id === item.partId);
+        if (matchedPart) {
+          const newStock = Math.max(0, matchedPart.current_stock - item.quantity);
+          const { error: stockUpdateError } = await supabase
+            .from('spare_parts')
+            .update({ current_stock: newStock })
+            .eq('id', item.partId);
+          if (stockUpdateError) throw stockUpdateError;
+
+          // 3. Mouvement de stock (Table stock_movements)
+          await supabase.from('stock_movements').insert({
+            part_id: item.partId,
+            movement_type: 'OUT',
+            quantity: item.quantity,
+            reference_type: 'Intervention',
+            reference_id: newInv.id
+          });
+
+          // 4. Mouvement de stock (Table spare_part_movements pour compatibilité existante)
+          await supabase.from('spare_part_movements').insert({
+            part_id: item.partId,
+            user_id: user?.id,
+            quantity: item.quantity,
+            type: 'OUT',
+            reason: `Utilisé dans l'intervention RIT ${data.rit_number}`
+          });
+        }
+      }
+
       setSavedInterventionId(newInv.id);
-      showSuccess("Intervention enregistrée et Ordre de travail lié clôturé !");
+      showSuccess("Intervention enregistrée, stock mis à jour et Ordre de travail lié clôturé !");
     } catch (err: any) {
       showError(err.message);
     } finally {
@@ -178,6 +271,79 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ asset
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem><FormLabel>Travaux réalisés</FormLabel><FormControl><Textarea {...field} className="rounded-xl h-24 resize-none" /></FormControl></FormItem>
             )} />
+
+            {/* Étape 3 : Saisie des pièces de rechange utilisées */}
+            <div className="border rounded-2xl p-4 bg-slate-50 space-y-4">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-black uppercase text-slate-700 flex items-center gap-1.5">
+                  <Box size={14} className="text-blue-600" />
+                  Pièces de rechange utilisées
+                </h4>
+                <Button 
+                  type="button" 
+                  onClick={handleAddPartRow} 
+                  size="sm" 
+                  variant="outline" 
+                  className="rounded-xl h-8 border-blue-200 text-blue-600 hover:bg-blue-50 text-[10px]"
+                >
+                  <Plus size={12} className="mr-1" /> Ajouter une pièce
+                </Button>
+              </div>
+
+              {selectedParts.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedParts.map((item, index) => {
+                    const matchedPart = spareParts.find(p => p.id === item.partId);
+                    const maxStock = matchedPart ? matchedPart.current_stock : 0;
+                    return (
+                      <div key={index} className="flex gap-2 items-end bg-white p-3 rounded-xl border">
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Sélectionner la pièce</label>
+                          <Select onValueChange={(val) => handlePartChange(index, val)} value={item.partId}>
+                            <SelectTrigger className="h-9 rounded-lg">
+                              <SelectValue placeholder="Choisir la référence" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {spareParts.map(p => (
+                                <SelectItem key={p.id} value={p.id} disabled={p.current_stock <= 0}>
+                                  {p.name} (Ref: {p.reference}) [Dispo: {p.current_stock}]
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="w-24 space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Qté</label>
+                          <Input 
+                            type="number" 
+                            min="1" 
+                            max={maxStock || 1} 
+                            value={item.quantity} 
+                            onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
+                            className="h-9 rounded-lg"
+                          />
+                        </div>
+
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleRemovePartRow(index)}
+                          className="h-9 w-9 text-red-500 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-center py-4 text-xs text-slate-400 italic bg-white rounded-xl border border-dashed">
+                  Aucune pièce de rechange associée pour le moment.
+                </p>
+              )}
+            </div>
 
             <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12 font-bold" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-2" />} 

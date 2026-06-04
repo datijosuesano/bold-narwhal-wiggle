@@ -110,6 +110,7 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   onClose
 }) => {
   const [techName, setTechName] = useState<string>("");
+  const [usedParts, setUsedParts] = useState<{ name: string; ref: string; quantity: number; source: string }[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   // =========================
@@ -138,6 +139,34 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
 
     if (isOpen && intervention) {
       fetchTech();
+    }
+  }, [isOpen, intervention]);
+
+  // ===================================
+  // CHARGEMENT DES PIÈCES SÉLECTIONNÉES
+  // ===================================
+  useEffect(() => {
+    const fetchUsedParts = async () => {
+      if (!intervention) return;
+      const { data, error } = await supabase
+        .from('intervention_parts')
+        .select('quantity, spare_parts(name, reference)')
+        .eq('intervention_id', intervention.id);
+      
+      if (!error && data) {
+        setUsedParts(data.map((item: any) => ({
+          name: item.spare_parts?.name || "Pièce inconnue",
+          ref: item.spare_parts?.reference || "N/A",
+          quantity: item.quantity,
+          source: "Stock GMAO"
+        })));
+      } else {
+        setUsedParts([]);
+      }
+    };
+
+    if (isOpen && intervention) {
+      fetchUsedParts();
     }
   }, [isOpen, intervention]);
 
@@ -189,25 +218,6 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
       return `${hours}h ${remMins}m`;
     }
     return `${minutes} min`;
-  }, [intervention]);
-
-  // =========================
-  // EXTRACTION DES PIÈCES RECHANGE (Simulé et extensible)
-  // =========================
-  const usedParts = useMemo(() => {
-    if (!intervention) return [];
-    // Recherche de mentions de pièces dans le texte de la description
-    const desc = intervention.description || "";
-    const lower = desc.toLowerCase();
-    
-    // Si la case 'parts_replaced' est cochée ou que le texte mentionne un remplacement, on prépare des exemples
-    if ((intervention as any).parts_replaced || lower.includes("remplacé") || lower.includes("changement")) {
-      return [
-        { name: "Filtre à air autoclave", ref: "FA-99238", quantity: 1, source: "Stock GMAO" },
-        { name: "Joint torique de porte", ref: "JT-55102", quantity: 2, source: "Stock GMAO" }
-      ];
-    }
-    return [];
   }, [intervention]);
 
   // =========================
