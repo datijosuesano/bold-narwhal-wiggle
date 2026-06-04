@@ -92,14 +92,15 @@ const InterventionsPage: React.FC = () => {
 
   const fetchInterventions = async () => {
     setIsLoading(true);
-    // On effectue une jointure sur la table profiles pour récupérer le nom du technicien responsable
+    // On utilise profiles!technician_id pour spécifier quelle relation de clé étrangère utiliser
     const { data, error } = await supabase
       .from('interventions')
-      .select('*, assets(name, location, brand), profiles:technician_id(first_name, last_name)')
+      .select('*, assets(name, location, brand), profiles!technician_id(first_name, last_name)')
       .order('intervention_date', { ascending: false });
 
     if (error) {
       showError("Erreur lors du chargement de l'historique.");
+      console.error("Erreur fetch interventions:", error);
     } else {
       setInterventions((data as any) || []);
     }
