@@ -66,41 +66,36 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
       executeAdjustment(actionType, qty, reason);
     }
   };
+const executeAdjustment = async (
+  type: "IN" | "OUT",
+  qty: number,
+  finalReason: string
+) => {
+  setIsLoading(true);
 
-  const executeAdjustment = async (type: 'IN' | 'OUT', qty: number, finalReason: string) => {
-    setIsLoading(true);
-    const newStock = type === 'IN' ? currentStock + qty : currentStock - qty;
+  try {
+    const { error } = await supabase.rpc("adjust_reagent_stock", {
+      p_reagent_id: reagentId,
+      p_user_id: user?.id,
+      p_quantity: qty,
+      p_type: type,
+      p_reason: finalReason,
+    });
 
-    try {
-      // 1. Mettre à jour le stock
-      const { error: updateError } = await supabase
-        .from('lab_reagents')
-        .update({ current_stock: newStock })
-        .eq('id', reagentId);
+    if (error) throw error;
 
-      if (updateError) throw updateError;
+    showSuccess(
+      `Audit ISO : ${type === "IN" ? "Entrée" : "Sortie"} de ${qty} unité(s) enregistrée.`
+    );
 
-      // 2. Enregistrer le mouvement de stock pour l'audit log ISO
-      const { error: movementError } = await supabase.from('lab_reagent_movements').insert({
-        reagent_id: reagentId,
-        user_id: user?.id,
-        quantity: qty,
-        type: type,
-        reason: finalReason
-      });
-
-      if (movementError) throw movementError;
-
-      showSuccess(`Audit ISO : ${type === 'IN' ? 'Entrée' : 'Sortie'} de ${qty} unité(s) enregistrée.`);
-      setAmount("1");
-      onSuccess();
-    } catch (error: any) {
-      showError(`Erreur : ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+    setAmount("1");
+    onSuccess();
+  } catch (error: any) {
+    showError(error.message || "Erreur lors de l’ajustement");
+  } finally {
+    setIsLoading(false);
+  }
+};
   return (
     <div className="flex items-center gap-2">
       <Input 
