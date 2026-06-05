@@ -97,7 +97,24 @@ const ToolsPage: React.FC = () => {
     try {
       // Parallel execution for best load performance
       const [toolsRes, profilesRes] = await Promise.all([
-        supabase.from('tools').select('id, name, serial_number, category, status, assigned_to').order('name'),
+        supabase
+  .from('tools')
+  .select(`
+    id,
+    name,
+    serial_number,
+    category,
+    status,
+    assigned_to,
+    purchase_date,
+    supplier,
+    location,
+    calibration_due_date,
+    maintenance_due_date,
+    condition,
+    notes
+  `)
+  .order('name');
         supabase.from('profiles').select('id, first_name, last_name')
       ]);
 
