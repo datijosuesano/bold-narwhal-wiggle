@@ -1,397 +1,414 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import {
-  Users,
-  UserPlus,
-  Search,
-  Loader2,
-  ShieldAlert,
-  Briefcase,
-  ShieldCheck,
-  UserCheck,
-  Clock,
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { 
+  Users, 
+  UserPlus, 
+  Search, 
+  Loader2, 
+  ShieldAlert, 
+  ShieldCheck, 
+  Clock, 
   Filter,
-} from "lucide-react";
-
+  Shield,
+  Activity
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import TechniciansTable, { Technician } from '@/components/TechniciansTable';
+import CreateTechnicianForm from '@/components/CreateTechnicianForm';
+import EditTechnicianForm from '@/components/EditTechnicianForm';
+import TechnicianTasksDialog from '@/components/TechnicianTasksDialog';
+import { showSuccess, showError } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRoles } from '@/hooks/useRoles';
 
-import TechniciansTable, { Technician } from "@/components/TechniciansTable";
-import CreateTechnicianForm from "@/components/CreateTechnicianForm";
-import EditTechnicianForm from "@/components/EditTechnicianForm";
-import TechnicianTasksDialog from "@/components/TechnicianTasksDialog";
+const ITEMS_PER_PAGE = 10;
 
-import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-
-const ITEMS_PER_PAGE = 8;
-
-/* =========================
-   HELPERS
-========================= */
-
-const normalize = (v: string | null | undefined) =>
-  (v || "user").toLowerCase().trim();
-
-const mapStatus = (status: string | null): any => {
-  if (!status) return "Available";
-
-  const s = status.toLowerCase().trim();
-
-  if (["disponible", "available"].includes(s)) return "Available";
-  if (["en intervention", "inintervention"].includes(s)) return "InIntervention";
-  if (["en congé", "en conge", "onleave"].includes(s)) return "OnLeave";
-
-  return "Available";
+const mapStatus = (status: string | null): 'Available' | 'InIntervention' | 'OnLeave' => {
+  if (!status) return 'Available';
+  const normalized = status.toLowerCase().trim();
+  if (normalized === 'disponible' || normalized === 'available') return 'Available';
+  if (normalized === 'en intervention' || normalized === 'inintervention') return 'InIntervention';
+  if (normalized === 'en congé' || normalized === 'en conge' || normalized === 'onleave') return 'OnLeave';
+  return 'Available';
 };
 
-const isLoggedToday = (date?: string | null) => {
-  if (!date) return false;
-
-  const d = new Date(date);
-  const n = new Date();
-
+const isLoggedToday = (lastLoginStr: string | null | undefined): boolean => {
+  if (!lastLoginStr) return false;
+  const loginDate = new Date(lastLoginStr);
+  const today = new Date();
   return (
-    d.getDate() === n.getDate() &&
-    d.getMonth() === n.getMonth() &&
-    d.getFullYear() === n.getFullYear()
+    loginDate.getDate() === today.getDate() &&
+    loginDate.getMonth() === today.getMonth() &&
+    loginDate.getFullYear() === today.getFullYear()
   );
 };
 
-/* =========================
-   DYNAMIC ROLES HOOK
-========================= */
-
-const useRoles = () => {
-  const [roles, setRoles] = useState<string[]>([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const { data, error } = await supabase.from("roles").select("name");
-
-      if (error || !data) {
-        // fallback sécurisé basé sur ton système actuel
-        setRoles([
-          "admin",
-          "technicien_biomedical",
-          "gestionnaire_stock",
-          "secretaire",
-          "user",
-        ]);
-        return;
-      }
-
-      setRoles(data.map((r) => r.name));
-    };
-
-    load();
-  }, []);
-
-  return roles;
-};
-
-/* =========================
-   PAGE
-========================= */
-
 const TechniciansPage: React.FC = () => {
   const { user, hasRole } = useAuth();
-  const isAdmin = hasRole(["admin"]);
+  const isAdmin = hasRole(['admin']);
+  const { roles, isLoading: isRolesLoading } = useRoles();
 
-  const roles = useRoles();
-
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  const [page, setPage] = useState(1);
-
-  const [selected, setSelected] = useState<Technician | null>(null);
-
-  const [openCreate, setOpenCreate] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openTasks, setOpenTasks] = useState(false);
-
-  const [deleting, setDeleting] = useState(false);
-
-  /* =========================
-     FETCH
-  ========================= */
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchTechnicians = useCallback(async () => {
-    setLoading(true);
+    setIsLoading(true);
+    try {
+      // JOINTURE DYNAMIQUE AVEC LA TABLE ROLES
+      // Note: On utilise role_id pour la liaison
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          email, 
+          telephone, 
+          specialite, 
+          status, 
+          last_login,
+          roles:role_id (
+            name,
+            label,
+            color
+          )
+        `)
+        .order('last_login', { ascending: false });
 
-    const { data, error } = await supabase.from("profiles").select("*");
+      if (error) throw error;
 
-    if (error) {
-      showError(error.message);
-      setLoading(false);
-      return;
+      const mapped: Technician[] = (data || []).map((p: any) => {
+        const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+        return {
+          id: p.id,
+          name: fullName || p.email || 'Utilisateur sans nom',
+          specialty: p.specialite || 'Non défini',
+          status: mapStatus(p.status),
+          activeOrders: 0, // Sera calculé dynamiquement si besoin
+          phone: p.telephone || 'N/A',
+          email: p.email || 'N/A',
+          last_login: p.last_login,
+          role_name: p.roles?.name || 'user',
+          role_label: p.roles?.label || 'Collaborateur',
+          role_color: p.roles?.color || 'bg-slate-400'
+        };
+      });
+      setTechnicians(mapped);
+    } catch (err: any) {
+      console.error("Error fetching technicians:", err);
+      showError("Erreur lors du chargement des profils : " + err.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    const mapped: Technician[] = (data || []).map((p) => ({
-      id: p.id,
-      name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email,
-      email: p.email,
-      phone: p.telephone || "N/A",
-      specialty: p.specialite || "Non défini",
-      status: mapStatus(p.status),
-      last_login: p.last_login,
-      activeOrders: 0,
-      role: normalize(p.role),
-    }));
-
-    setTechnicians(mapped);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchTechnicians();
   }, [fetchTechnicians]);
 
-  /* =========================
-     KPI (FIX BUG 0 TECHNICIEN)
-  ========================= */
-
+  // KPI CALCULATIONS - ENTIÈREMENT DYNAMIQUES
   const kpis = useMemo(() => {
-    const count = (r: string) =>
-      technicians.filter((t) => normalize(t.role) === r).length;
-
-    return {
-      total: technicians.length,
-      admins: count("admin"),
-      tech: count("technicien_biomedical"),
-      stock: count("gestionnaire_stock"),
-      activeToday: technicians.filter((t) => isLoggedToday(t.last_login)).length,
-    };
-  }, [technicians]);
-
-  /* =========================
-     FILTER
-  ========================= */
-
-  const filtered = useMemo(() => {
-    return technicians.filter((t) => {
-      const matchSearch =
-        t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.email.toLowerCase().includes(search.toLowerCase()) ||
-        t.specialty.toLowerCase().includes(search.toLowerCase());
-
-      const matchRole =
-        roleFilter === "all" || normalize(t.role) === roleFilter;
-
-      const matchStatus = statusFilter === "all" || t.status === statusFilter;
-
-      return matchSearch && matchRole && matchStatus;
-    });
-  }, [technicians, search, roleFilter, statusFilter]);
-
-  /* =========================
-     PAGINATION
-  ========================= */
-
-  const pages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-
-  const paginated = useMemo(() => {
-    const start = (page - 1) * ITEMS_PER_PAGE;
-    return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, page]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, roleFilter, statusFilter]);
-
-  /* =========================
-     ACTIONS
-  ========================= */
-
-  const handleDelete = async () => {
-    if (!selected) return;
-
-    setDeleting(true);
-
-    const { error } = await supabase.functions.invoke("delete-user", {
-      body: { userId: selected.id },
+    const total = technicians.length;
+    const loggedToday = technicians.filter(t => isLoggedToday(t.last_login)).length;
+    
+    // Générer des statistiques par rôle présent en base
+    const roleStats: Record<string, number> = {};
+    roles.forEach(r => roleStats[r.name] = 0);
+    
+    technicians.forEach(t => {
+      if (roleStats[t.role_name] !== undefined) {
+        roleStats[t.role_name]++;
+      }
     });
 
-    setDeleting(false);
-    setOpenDelete(false);
+    return { total, loggedToday, roleStats };
+  }, [technicians, roles]);
 
-    if (error) {
-      showError(error.message);
-      return;
-    }
+  // FILTERING
+  const filteredTechnicians = useMemo(() => {
+    return technicians.filter(tech => {
+      const matchesSearch = 
+        tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tech.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tech.specialty.toLowerCase().includes(searchTerm.toLowerCase());
 
-    setTechnicians((prev) => prev.filter((t) => t.id !== selected.id));
-    showSuccess("Utilisateur supprimé");
+      const matchesRole = roleFilter === "all" || tech.role_name === roleFilter;
+      const matchesStatus = statusFilter === "all" || tech.status === statusFilter;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [technicians, searchTerm, roleFilter, statusFilter]);
+
+  // PAGINATION
+  const totalPages = Math.ceil(filteredTechnicians.length / ITEMS_PER_PAGE);
+  const paginatedTechnicians = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTechnicians.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredTechnicians, currentPage]);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, roleFilter, statusFilter]);
+
+  const handleEdit = (tech: Technician) => {
+    if (!isAdmin) return;
+    setSelectedTech(tech);
+    setIsEditOpen(true);
   };
 
-  /* =========================
-     UI
-  ========================= */
+  const handleShowTasks = (tech: Technician) => {
+    setSelectedTech(tech);
+    setIsTasksOpen(true);
+  };
+
+  const handleDeleteClick = (tech: Technician) => {
+    if (!isAdmin) return;
+    if (tech.id === user?.id) {
+      showError("Sécurité : Vous ne pouvez pas supprimer votre propre compte.");
+      return;
+    }
+    setSelectedTech(tech);
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedTech) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: selectedTech.id }
+      });
+      if (error) throw error;
+      showSuccess(`Le compte de ${selectedTech.name} a été supprimé.`);
+      setTechnicians(prev => prev.filter(t => t.id !== selectedTech.id));
+    } catch (err: any) {
+      showError(`Erreur : ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteOpen(false);
+      setSelectedTech(null);
+    }
+  };
 
   return (
-    <div className="space-y-8">
-
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* HEADER */}
-      <div className="flex justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Équipe biomédicale</h1>
-          <p className="text-gray-500">Gestion des utilisateurs & rôles</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-blue-100 rounded-2xl">
+            <Users className="h-8 w-8 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight uppercase">Équipe BioPulse</h1>
+            <p className="text-lg text-muted-foreground">Gestion centralisée des accès et rôles dynamiques.</p>
+          </div>
         </div>
-
+        
         {isAdmin && (
-          <Button onClick={() => setOpenCreate(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Ajouter
-          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md h-11 font-bold">
+                <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px] rounded-xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold">Ajouter un Membre</DialogTitle>
+                <DialogDescription>Chaque utilisateur doit s'inscrire individuellement via le portail.</DialogDescription>
+              </DialogHeader>
+              <CreateTechnicianForm onSuccess={() => { setIsCreateOpen(false); fetchTechnicians(); }} />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
-      {/* KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card><CardContent className="p-4">Total: {kpis.total}</CardContent></Card>
-        <Card><CardContent className="p-4">Tech: {kpis.tech}</CardContent></Card>
-        <Card><CardContent className="p-4">Stock: {kpis.stock}</CardContent></Card>
-        <Card><CardContent className="p-4">Admins: {kpis.admins}</CardContent></Card>
-        <Card><CardContent className="p-4">Actifs: {kpis.activeToday}</CardContent></Card>
+      {/* KPI DASHBOARD DYNAMIQUE */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card className="shadow-sm border-l-4 border-l-blue-600 bg-white">
+          <CardHeader className="pb-1 p-4">
+            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5">
+              <Users size={12} className="text-blue-600" /> Effectif Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-black text-slate-800">{isLoading ? "..." : kpis.total}</div>
+            <p className="text-[9px] text-muted-foreground">Tous rôles confondus</p>
+          </CardContent>
+        </Card>
+
+        {/* Affichage des KPIs basés sur les rôles dynamiques (Top 3 rôles par exemple) */}
+        {roles.slice(0, 2).map(role => (
+          <Card key={role.id} className="shadow-sm border-l-4 bg-white" style={{ borderLeftColor: role.color.replace('bg-', '') }}>
+            <CardHeader className="pb-1 p-4">
+              <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5">
+                <Shield size={12} className="text-slate-400" /> {role.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-black text-slate-800">{isLoading ? "..." : (kpis.roleStats[role.name] || 0)}</div>
+              <p className="text-[9px] text-muted-foreground">Membres affectés</p>
+            </CardContent>
+          </Card>
+        ))}
+
+        <Card className="shadow-sm border-l-4 border-l-amber-500 bg-white">
+          <CardHeader className="pb-1 p-4">
+            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5 text-amber-500">
+              <Activity size={12} /> Connexions Jour
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-black text-slate-800">{isLoading ? "..." : kpis.loggedToday}</div>
+            <p className="text-[9px] text-muted-foreground">Actifs ce jour</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* FILTERS */}
-      <div className="flex gap-3">
-        <div className="flex-1 relative">
-          <Search className="absolute left-2 top-2 h-4 w-4" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} />
+      {/* FILTERS & SEARCH */}
+      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+          <Input 
+            placeholder="Rechercher par nom, email, métier..." 
+            className="pl-10 rounded-xl h-11 border-slate-200" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Rôles" />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            {roles.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous statuts</SelectItem>
-            <SelectItem value="Available">Disponible</SelectItem>
-            <SelectItem value="InIntervention">Intervention</SelectItem>
-            <SelectItem value="OnLeave">Congé</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="w-full md:w-56">
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="rounded-xl h-11 border-slate-200">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Shield size={14} />
+                <SelectValue placeholder="Filtrer par rôle" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Tous les rôles</SelectItem>
+              {roles.map(role => (
+                <SelectItem key={role.id} value={role.name}>{role.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full md:w-56">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="rounded-xl h-11 border-slate-200">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Filter size={14} />
+                <SelectValue placeholder="Disponibilité" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Toutes disponibilités</SelectItem>
+              <SelectItem value="Available">Disponible</SelectItem>
+              <SelectItem value="InIntervention">En Intervention</SelectItem>
+              <SelectItem value="OnLeave">En Congé</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* TABLE */}
-      <Card>
-        <CardContent>
-          {loading ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <TechniciansTable
-              technicians={paginated}
-              onEdit={(t) => {
-                setSelected(t);
-                setOpenEdit(true);
-              }}
-              onDelete={(t) => {
-                setSelected(t);
-                setOpenDelete(true);
-              }}
-              onShowTasks={(t) => {
-                setSelected(t);
-                setOpenTasks(true);
-              }}
-              canManage={isAdmin}
-            />
-          )}
-
-          {/* pagination */}
-          {pages > 1 && (
-            <div className="flex gap-2 justify-center mt-4">
-              <Button onClick={() => setPage((p) => Math.max(p - 1, 1))}>
-                Prev
-              </Button>
-              <span>{page} / {pages}</span>
-              <Button onClick={() => setPage((p) => Math.min(p + 1, pages))}>
-                Next
-              </Button>
+      {/* TABLE CARD */}
+      <Card className="shadow-xl border-none overflow-hidden">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-20 text-center space-y-4 bg-white">
+              <Loader2 className="animate-spin h-10 w-10 mx-auto text-blue-600" />
+              <p className="text-muted-foreground font-medium">Chargement sécurisé de l'équipe...</p>
             </div>
+          ) : (
+            <>
+              <TechniciansTable 
+                technicians={paginatedTechnicians} 
+                onEdit={handleEdit}
+                onShowTasks={handleShowTasks}
+                onDelete={handleDeleteClick}
+                canManage={isAdmin}
+              />
+
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 py-6 bg-slate-50/50 border-t">
+                  <Button 
+                    variant="outline" size="sm" className="rounded-xl h-10 font-bold"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >Précédent</Button>
+                  <span className="text-xs font-black text-slate-500 uppercase">Page {currentPage} / {totalPages}</span>
+                  <Button 
+                    variant="outline" size="sm" className="rounded-xl h-10 font-bold"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >Suivant</Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* DELETE */}
-      <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Action irréversible
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      {/* MODALS */}
+      {isAdmin && (
+        <>
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="sm:max-w-[500px] rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold">Édition du Profil</DialogTitle>
+                <DialogDescription>Mise à jour des informations et attribution du rôle RBAC.</DialogDescription>
+              </DialogHeader>
+              {selectedTech && (
+                <EditTechnicianForm 
+                  technician={selectedTech} 
+                  onSuccess={() => { setIsEditOpen(false); fetchTechnicians(); }} 
+                />
+              )}
+            </DialogContent>
+          </Dialog>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Suppression..." : "Supprimer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <AlertDialogContent className="rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <ShieldAlert size={20} /> Supprimer le compte ?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible. L'utilisateur <strong>{selectedTech?.name}</strong> perdra tout accès immédiat à la GMAO.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl" disabled={isDeleting}>
+                  {isDeleting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null} Supprimer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
 
-      {/* TASKS */}
-      <TechnicianTasksDialog
-        technician={selected}
-        isOpen={openTasks}
-        onClose={() => setOpenTasks(false)}
+      <TechnicianTasksDialog 
+        technician={selectedTech} 
+        isOpen={isTasksOpen} 
+        onClose={() => setIsTasksOpen(false)} 
       />
     </div>
   );

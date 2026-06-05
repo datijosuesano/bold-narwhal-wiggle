@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit2, MessageCircle, Trash2, Eye, Clock } from 'lucide-react';
+import { Edit2, MessageCircle, Trash2, Eye, Clock, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from 'date-fns';
@@ -24,7 +24,9 @@ export interface Technician {
   phone: string;
   email: string;
   last_login?: string | null;
-  role?: string;
+  role_name: string;
+  role_label: string;
+  role_color: string;
 }
 
 interface TechniciansTableProps {
@@ -35,19 +37,11 @@ interface TechniciansTableProps {
   canManage?: boolean;
 }
 
-const getStatusBadge = (status: Technician['status']) => {
-  switch (status) {
-    case 'Available': return <Badge className="bg-green-600 hover:bg-green-700 rounded-full">Disponible</Badge>;
-    case 'InIntervention': return <Badge className="bg-amber-500 hover:bg-amber-600 rounded-full">En Intervention</Badge>;
-    case 'OnLeave': return <Badge variant="secondary" className="rounded-full">Congés</Badge>;
-  }
-};
-
 const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit, onShowTasks, onDelete, canManage = false }) => {
   
   const handleWhatsApp = (tech: Technician) => {
     const cleanNumber = tech.phone.replace(/\D/g, '');
-    const formattedNumber = cleanNumber.startsWith('0') ? '33' + cleanNumber.substring(1) : cleanNumber;
+    const formattedNumber = cleanNumber.startsWith('0') ? '225' + cleanNumber.substring(1) : cleanNumber;
     window.open(`https://wa.me/${formattedNumber}`, '_blank');
   };
 
@@ -56,8 +50,8 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow>
-            <TableHead className="font-semibold">Technicien</TableHead>
-            <TableHead className="font-semibold">Spécialité</TableHead>
+            <TableHead className="font-semibold">Membre</TableHead>
+            <TableHead className="font-semibold">Rôle & Spécialité</TableHead>
             <TableHead className="font-semibold">Dernière Connexion</TableHead>
             <TableHead className="font-semibold text-center">OT Actifs</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
@@ -70,20 +64,28 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                 <TableCell>
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10 border-2 border-primary/10">
-                      <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
+                      <AvatarFallback className="bg-slate-100 text-slate-700 font-bold">
                         {tech.name.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-medium text-foreground">{tech.name}</div>
+                      <div className="font-bold text-slate-900">{tech.name}</div>
                       <div className="text-[10px] text-muted-foreground font-mono">{tech.email}</div>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="rounded-xl border-blue-200 text-blue-700 bg-blue-50">
-                    {tech.specialty}
-                  </Badge>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center">
+                      <div className={cn("w-2 h-2 rounded-full mr-2", tech.role_color || "bg-slate-400")} />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        {tech.role_label}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="w-fit rounded-xl border-slate-200 text-slate-500 bg-slate-50 text-[10px]">
+                      {tech.specialty}
+                    </Badge>
+                  </div>
                 </TableCell>
                 <TableCell>
                   {tech.last_login ? (
@@ -104,7 +106,6 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
                       "inline-flex items-center justify-center h-8 w-8 rounded-full font-bold transition-all hover:scale-110 shadow-sm",
                       tech.activeOrders > 2 ? "bg-red-500 text-white" : tech.activeOrders > 0 ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground"
                     )}
-                    title="Voir les tâches"
                   >
                     {tech.activeOrders}
                   </button>
@@ -158,8 +159,8 @@ const TechniciansTable: React.FC<TechniciansTableProps> = ({ technicians, onEdit
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                Aucun technicien trouvé.
+              <TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                Aucun membre d'équipe trouvé.
               </TableCell>
             </TableRow>
           )}

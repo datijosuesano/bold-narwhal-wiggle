@@ -4,7 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Technician } from "./TechniciansTable";
+import { useRoles } from "@/hooks/useRoles";
 
 const TechnicianSchema = z.object({
   first_name: z.string().min(2, "Le prénom est requis"),
@@ -33,7 +34,7 @@ const TechnicianSchema = z.object({
   email: z.string().email("Email invalide"),
   telephone: z.string().min(10, "Numéro de téléphone invalide"),
   specialite: z.string().min(1, "Veuillez sélectionner une spécialité"),
-  role: z.string().min(1, "Le rôle est requis"),
+  role_id: z.string().min(1, "Le rôle est requis"),
 });
 
 type TechnicianFormValues = z.infer<typeof TechnicianSchema>;
@@ -44,19 +45,12 @@ interface EditTechnicianFormProps {
 }
 
 const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { roles, isLoading: isRolesLoading } = useRoles();
 
   const nameParts = technician.name.split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
-
-  const getInitialRole = () => {
-    if (technician.role) return technician.role;
-    if (technician.specialty === 'Nouveau compte') return 'technicien_biomedical';
-    if (technician.specialty.toLowerCase().includes('stock')) return 'gestionnaire_stock';
-    if (technician.specialty.toLowerCase().includes('administratif')) return 'secretaire';
-    return 'technicien_biomedical';
-  };
 
   const form = useForm<TechnicianFormValues>({
     resolver: zodResolver(TechnicianSchema),
@@ -66,13 +60,27 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
       email: technician.email === 'N/A' ? '' : technician.email,
       telephone: technician.phone === 'N/A' ? '' : technician.phone,
       specialite: technician.specialty,
-      role: getInitialRole(),
+      // On cherche l'ID du rôle actuel dans la liste des rôles chargée
+      role_id: "", 
     },
   });
 
+  // Synchronisation de l'ID du rôle une fois les rôles chargés
+  React.useEffect(() => {
+    if (roles.length > 0) {
+      const currentRole = roles.find(r => r.name === technician.role_name);
+      if (currentRole) {
+        form.setValue("role_id", currentRole.id);
+      }
+    }
+  }, [roles, technician.role_name]);
+
   const onSubmit = async (data: TechnicianFormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     
+    // On met à jour profile.role_id ET l'ancienne colonne profile.role pour compatibilité
+    const selectedRole = roles.find(r => r.id === data.role_id);
+
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -81,16 +89,17 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
         email: data.email,
         telephone: data.telephone,
         specialite: data.specialite,
-        role: data.role,
+        role_id: data.role_id,
+        role: selectedRole?.name // Compatibilité avec l'ancien système enum
       })
       .eq('id', technician.id);
 
-    setIsLoading(false);
+    setIsSubmitting(false);
 
     if (error) {
       showError(`Erreur: ${error.message}`);
     } else {
-      showSuccess(`Profil mis à jour.`);
+      showSuccess(`Profil mis à jour avec succès.`);
       onSuccess();
     }
   };
@@ -176,21 +185,27 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
           />
           <FormField
             control={form.control}
-            name="role"
+            name="role_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Rôle (Droits d'accès)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormLabel className="flex items-center gap-1">
+                  <Shield size={14} className="text-blue-600" /> Rôle RBAC
+                </FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Sélectionner" />
+                    <SelectTrigger className="rounded-xl border-blue-100 bg-blue-50/30">
+                      <SelectValue placeholder={isRolesLoading ? "Chargement..." : "Attribuer un rôle"} />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrateur</SelectItem>
-                    <SelectItem value="technicien_biomedical">Technicien Biomédical</SelectItem>
-                    <SelectItem value="gestionnaire_stock">Gestionnaire de Stock</SelectItem>
-                    <SelectItem value="secretaire">Secrétaire</SelectItem>
+                  <SelectContent className="rounded-xl">
+                    {roles.map(role => (
+                      <SelectItem key={role.id} value={role.id}>
+                        <div className="flex items-center">
+                          <div className={cn("w-2 h-2 rounded-full mr-2", role.color)} />
+                          {role.label}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -200,9 +215,9 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
         </div>
 
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
-            Enregistrer les modifications
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isSubmitting || isRolesLoading}>
+            {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
+            Mettre à jour le profil
           </Button>
         </div>
       </form>
