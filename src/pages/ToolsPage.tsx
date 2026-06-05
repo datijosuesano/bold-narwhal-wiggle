@@ -38,7 +38,6 @@ interface Tool {
   status: string;
   assigned_to: string | null;
 
-  // NEW FIELDS (GMAO EXTENSION)
   purchase_date: string | null;
   supplier: string | null;
   location: string | null;
@@ -55,6 +54,14 @@ interface Tech {
 }
 
 const ITEMS_PER_PAGE = 12;
+
+const conditionColor = {
+  excellent: "text-green-600 bg-green-50 border-green-200",
+  bon: "text-blue-600 bg-blue-50 border-blue-200",
+  moyen: "text-yellow-600 bg-yellow-50 border-yellow-200",
+  critique: "text-orange-600 bg-orange-50 border-orange-200",
+  hors_service: "text-red-600 bg-red-50 border-red-200",
+};
 
 const ToolsPage: React.FC = () => {
   const [tools, setTools] = useState<Tool[]>([]);
@@ -81,7 +88,21 @@ const ToolsPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('tools')
-        .select('id, name, serial_number, category, status, assigned_to')
+        .select(`
+          id,
+          name,
+          serial_number,
+          category,
+          status,
+          assigned_to,
+          purchase_date,
+          supplier,
+          location,
+          calibration_due_date,
+          maintenance_due_date,
+          condition,
+          notes
+        `)
         .order('name');
 
       if (error) throw error;
@@ -97,22 +118,21 @@ const ToolsPage: React.FC = () => {
     try {
       // Parallel execution for best load performance
       const [toolsRes, profilesRes] = await Promise.all([
-        supabase.from('tools')
-  .select(`
-    id,
-    name,
-    serial_number,
-    category,
-    status,
-    assigned_to,
-    purchase_date,
-    supplier,
-    location,
-    calibration_due_date,
-    maintenance_due_date,
-    condition,
-    notes
-  ).order('name');
+        supabase.from('tools').select(`
+          id,
+          name,
+          serial_number,
+          category,
+          status,
+          assigned_to,
+          purchase_date,
+          supplier,
+          location,
+          calibration_due_date,
+          maintenance_due_date,
+          condition,
+          notes
+        `).order('name'),
         supabase.from('profiles').select('id, first_name, last_name')
       ]);
 
@@ -424,6 +444,7 @@ const ToolsPage: React.FC = () => {
               {paginatedTools.map(tool => {
                 const assignedTechName = tool.assigned_to ? techMap.get(tool.assigned_to) : null;
                 const isUpdating = !!mutationLoading[tool.id];
+                const condColor = tool.condition ? conditionColor[tool.condition] : "text-slate-600 bg-slate-50 border-slate-200";
 
                 return (
                   <Card key={tool.id} className="rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between bg-white border">
@@ -472,6 +493,23 @@ const ToolsPage: React.FC = () => {
                               </span>
                             )}
                           </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-2 border-t">
+                          <div>
+                            <span className="text-slate-400 block">Localisation :</span>
+                            <span className="font-bold">{tool.location ?? "Non renseigné"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">État :</span>
+                            {tool.condition ? (
+                              <Badge variant="outline" className={cn("text-[9px] uppercase font-bold px-1.5 h-4", condColor)}>
+                                {tool.condition}
+                              </Badge>
+                            ) : (
+                              <span className="font-bold">Non renseigné</span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-1 pt-3 border-t">
