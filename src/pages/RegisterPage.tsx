@@ -45,7 +45,7 @@ const RegisterPage: React.FC = () => {
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            specialite: specialty || 'Biomédical'
+            specialite: specialty
           }
         }
       });
@@ -55,13 +55,13 @@ const RegisterPage: React.FC = () => {
       }
 
       if (data.user) {
-        // Optionnel : On essaie une mise à jour directe au cas où le trigger de la DB a besoin d'être complété
+        // Mise à jour directe au cas où
         await supabase
           .from("profiles")
           .update({
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            specialite: specialty || 'Biomédical'
+            specialite: specialty
           })
           .eq("id", data.user.id);
 
