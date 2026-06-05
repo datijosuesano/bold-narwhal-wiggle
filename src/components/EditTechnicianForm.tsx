@@ -52,10 +52,10 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
 
   const getInitialRole = () => {
     if (technician.role) return technician.role;
-    if (technician.specialty === 'Nouveau compte') return 'technicien biomedical';
-    if (technician.specialty.toLowerCase().includes('stock')) return 'gestionnaire de stock';
+    if (technician.specialty === 'Nouveau compte') return 'technicien_biomedical';
+    if (technician.specialty.toLowerCase().includes('stock')) return 'gestionnaire_stock';
     if (technician.specialty.toLowerCase().includes('administratif')) return 'secretaire';
-    return 'technicien biomedical';
+    return 'technicien_biomedical';
   };
 
   const form = useForm<TechnicianFormValues>({
@@ -188,8 +188,8 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="admin">Administrateur</SelectItem>
-                    <SelectItem value="technicien biomedical">Technicien Biomédical</SelectItem>
-                    <SelectItem value="gestionnaire de stock">Gestionnaire de Stock</SelectItem>
+                    <SelectItem value="technicien_biomedical">Technicien Biomédical</SelectItem>
+                    <SelectItem value="gestionnaire_stock">Gestionnaire de Stock</SelectItem>
                     <SelectItem value="secretaire">Secrétaire</SelectItem>
                   </SelectContent>
                 </Select>

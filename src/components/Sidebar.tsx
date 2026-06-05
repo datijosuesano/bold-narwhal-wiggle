@@ -38,22 +38,22 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'] },
-    { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'], badge: chatCount },
-    { to: "/statistics", icon: <BarChart3 size={20} />, label: "Statistiques", roles: ['admin', 'technicien biomedical'] },
-    { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'], badge: breakdownCount },
-    { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
-    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien biomedical', 'secretaire'] },
-    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien biomedical', 'secretaire'] },
-    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien biomedical'] },
-    { to: "/inventory", icon: <Box size={20} />, label: "Pièces Détachées", roles: ['admin', 'gestionnaire de stock'] },
-    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire de stock'] },
-    { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail", roles: ['admin', 'technicien biomedical'] },
+    { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'], badge: chatCount },
+    { to: "/statistics", icon: <BarChart3 size={20} />, label: "Statistiques", roles: ['admin', 'technicien_biomedical'] },
+    { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien_biomedical', 'secretaire'], badge: breakdownCount },
+    { to: "/assets", icon: <Factory size={20} />, label: "Équipements", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'] },
+    { to: "/work-orders", icon: <ClipboardList size={20} />, label: "Ordres de Travail", roles: ['admin', 'technicien_biomedical', 'secretaire'] },
+    { to: "/interventions", icon: <Wrench size={20} />, label: "Interventions", roles: ['admin', 'technicien_biomedical', 'secretaire'] },
+    { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien_biomedical'] },
+    { to: "/inventory", icon: <Box size={20} />, label: "Pièces Détachées", roles: ['admin', 'gestionnaire_stock'] },
+    { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire_stock'] },
+    { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail", roles: ['admin', 'technicien_biomedical'] },
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats", roles: ['admin', 'secretaire'] },
-    { to: "/reports", icon: <FileText size={20} />, label: "Rapports", roles: ['admin', 'technicien biomedical', 'secretaire'] },
-    { to: "/documentation", icon: <BookOpen size={20} />, label: "Documentation", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
+    { to: "/reports", icon: <FileText size={20} />, label: "Rapports", roles: ['admin', 'technicien_biomedical', 'secretaire'] },
+    { to: "/documentation", icon: <BookOpen size={20} />, label: "Documentation", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'] },
     { to: "/technicians", icon: <Users size={20} />, label: "Équipe", roles: ['admin'] },
-    { to: "/profile", icon: <User size={20} />, label: "Mon Profil", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
+    { to: "/profile", icon: <User size={20} />, label: "Mon Profil", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'] },
   ];
 
   return (
@@ -112,3 +112,59 @@ const Sidebar: React.FC = () => {
 };
 
 export default Sidebar;
+</dyad-file>
+
+<dyad-write path="src/utils/constants.ts" description="Harmonisation de formatRole pour identifier les rôles avec underscores provenant de Supabase tout en conservant les libellés de l'interface">
+/**
+ * Constantes métier GMAO Biomédicale - Pipeline Logique
+ */
+
+export const ASSET_CATEGORIES = [
+  { value: "imagerie", label: "Imagerie" },
+  { value: "laboratoire", label: "Laboratoire" },
+  { value: "bloc_operatoire", label: "Bloc Opératoire" },
+  { value: "dentaire", label: "Dentaire" },
+  { value: "sterilisation", label: "Stérilisation" },
+  { value: "autre", label: "Autre" }
+] as const;
+
+export const ASSET_STATUS = ["Opérationnel", "En panne", "En maintenance", "Réformé"] as const;
+
+// Priorités
+export const PRIORITES = ["Faible", "Moyenne", "Élevée", "Critique"] as const;
+export const WORK_ORDER_PRIORITY = PRIORITES;
+
+// Types de maintenance
+export const TYPES_MAINTENANCE = ["Préventive", "Corrective", "Curative", "Palliative", "Améliorative"] as const;
+export const MAINTENANCE_TYPES = TYPES_MAINTENANCE;
+
+/**
+ * Statuts correspondants au Pipeline :
+ * Panne -> Ouvert
+ * Validé/Affecté -> En cours
+ * Intervention finie -> Terminé
+ */
+export const STATUTS_WORK_ORDER = ["Ouvert", "En cours", "En attente de pièce", "Terminé", "Annulé"] as const;
+export const WORK_ORDER_STATUS = STATUTS_WORK_ORDER;
+
+// Catégories de documentation normalisées
+export const DOCUMENT_CATEGORIES = [
+  "Manuel Technique",
+  "Schéma / Plan",
+  "Certificat de conformité",
+  "Procédure d'utilisation",
+  "Autre"
+] as const;
+
+export const formatRole = (role: string | null): string => {
+  if (!role) return "Utilisateur";
+  switch (role.toLowerCase()) {
+    case 'admin': return 'Administrateur';
+    case 'technicien_biomedical': return 'Technicien Biomédical';
+    case 'gestionnaire_stock': return 'Gestionnaire de Stock';
+    case 'secretaire': return 'Administratif';
+    case 'user': return 'Collaborateur';
+    case 'client': return 'Client Hospitalier';
+    default: return role;
+  }
+};

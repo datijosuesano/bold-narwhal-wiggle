@@ -62,7 +62,7 @@ interface Asset {
 
 const AssetDetailView: React.FC<{ asset: Asset }> = ({ asset }) => {
   const { hasRole } = useAuth();
-  const canEdit = hasRole(["admin", "technicien biomedical"]);
+  const canEdit = hasRole(["admin", "technicien_biomedical"]);
 
   const [activeTab, setActiveTab] = useState("details");
   const [isActionOpen, setIsActionOpen] = useState(false);

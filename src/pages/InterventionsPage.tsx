@@ -75,7 +75,7 @@ interface Intervention {
 
 const InterventionsPage: React.FC = () => {
   const { hasRole, role } = useAuth();
-  const canEdit = hasRole(['admin', 'technicien biomedical']);
+  const canEdit = hasRole(['admin', 'technicien_biomedical']);
   const isSec = role === 'secretaire' || role === 'admin';
 
   const [interventions, setInterventions] = useState<Intervention[]>([]);

@@ -45,7 +45,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const AssetsPage: React.FC = () => {
   const { user, hasRole } = useAuth();
 
-  const canEdit = hasRole(['admin', 'technicien biomedical']);
+  const canEdit = hasRole(['admin', 'technicien_biomedical']);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string>("all");

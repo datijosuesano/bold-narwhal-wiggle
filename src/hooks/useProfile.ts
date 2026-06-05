@@ -8,7 +8,7 @@ export interface UserProfile {
   email: string | null;
   phone: string | null;
   specialty: string | null;
-  role: 'admin' | 'technicien biomedical' | 'gestionnaire de stock' | 'secretaire' | 'user';
+  role: 'admin' | 'technicien_biomedical' | 'gestionnaire_stock' | 'secretaire' | 'user' | 'client';
   status: string;
   created_at: string;
 }
@@ -47,6 +47,6 @@ export function useProfile() {
     profile, 
     loading, 
     isAdmin: profile?.role === 'admin',
-    isTechnician: profile?.role === 'technicien biomedical'
+    isTechnician: profile?.role === 'technicien_biomedical'
   };
 }

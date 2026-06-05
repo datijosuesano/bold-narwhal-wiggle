@@ -19,7 +19,7 @@ import { fr } from "date-fns/locale";
 
 const WorkOrdersPage: React.FC = () => {
   const { hasRole } = useAuth();
-  const canEdit = hasRole(['admin', 'technicien biomedical']);
+  const canEdit = hasRole(['admin', 'technicien_biomedical']);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -192,7 +192,7 @@ const WorkOrdersPage: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center text-xs font-medium text-slate-600">
                         <Calendar size={12} className="mr-1 text-slate-400" />
-                        {format(new Date(ot.created_at), 'dd/MM/yyyy', { locale: fr })}
+                        {format(new Date(ot.created_at), 'dd/MM/yyyy')}
                       </div>
                     </td>
                     <td className="px-6 py-4">
