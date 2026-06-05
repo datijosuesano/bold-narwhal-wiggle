@@ -1,111 +1,215 @@
-"use client";
-
-import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Loader2, Hammer } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { showSuccess, showError } from "@/utils/toast";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { showSuccess, showError } from "@/utils/toast";
 
-const ToolSchema = z.object({
-  name: z.string().min(3, "Le nom est requis"),
-  serial_number: z.string().min(2, "N° de série requis"),
-  category: z.string().min(2, "La catégorie est requise"),
-});
-
-type ToolFormValues = z.infer<typeof ToolSchema>;
+type ToolCondition =
+  | "excellent"
+  | "bon"
+  | "moyen"
+  | "critique"
+  | "hors_service";
 
 interface CreateToolFormProps {
   onSuccess: () => void;
 }
 
 const CreateToolForm: React.FC<CreateToolFormProps> = ({ onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const form = useForm<ToolFormValues>({
-    resolver: zodResolver(ToolSchema),
-    defaultValues: {
-      name: "",
-      serial_number: "",
-      category: "Outillage",
-    },
+  const [form, setForm] = useState({
+    name: "",
+    serial_number: "",
+    category: "",
+    status: "Disponible",
+    supplier: "",
+    location: "",
+    condition: "bon" as ToolCondition,
+    purchase_date: "",
+    calibration_due_date: "",
+    maintenance_due_date: "",
+    notes: "",
   });
 
-  const onSubmit = async (data: ToolFormValues) => {
-    if (!user) return;
-    setIsLoading(true);
+  const handleChange = (key: string, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
-    const { error } = await supabase.from('tools').insert({
-      ...data,
-      user_id: user.id,
-      status: 'Disponible'
-    });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-    setIsLoading(false);
+    try {
+      const { error } = await supabase.from("tools").insert([
+        {
+          name: form.name,
+          serial_number: form.serial_number,
+          category: form.category,
+          status: form.status,
+          supplier: form.supplier || null,
+          location: form.location || null,
+          condition: form.condition,
+          purchase_date: form.purchase_date || null,
+          calibration_due_date: form.calibration_due_date || null,
+          maintenance_due_date: form.maintenance_due_date || null,
+          notes: form.notes || null,
+        },
+      ]);
 
-    if (error) {
-      showError(`Erreur: ${error.message}`);
-    } else {
-      showSuccess(`Outil "${data.name}" ajouté.`);
+      if (error) throw error;
+
+      showSuccess("Outil créé avec succès");
       onSuccess();
+
+      // reset form
+      setForm({
+        name: "",
+        serial_number: "",
+        category: "",
+        status: "Disponible",
+        supplier: "",
+        location: "",
+        condition: "bon",
+        purchase_date: "",
+        calibration_due_date: "",
+        maintenance_due_date: "",
+        notes: "",
+      });
+    } catch (error: any) {
+      showError(error.message || "Erreur lors de la création");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nom de l'outil</FormLabel>
-              <FormControl><Input placeholder="Ex: Multimètre Fluke" {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* NOM */}
+      <div className="space-y-1">
+        <Label>Nom de l'outil</Label>
+        <Input
+          value={form.name}
+          onChange={(e) => handleChange("name", e.target.value)}
+          required
         />
-        <FormField
-          control={form.control}
-          name="serial_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Numéro de série / Réf</FormLabel>
-              <FormControl><Input placeholder="Ex: SN-88293" {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      </div>
+
+      {/* SERIAL */}
+      <div className="space-y-1">
+        <Label>Numéro de série</Label>
+        <Input
+          value={form.serial_number}
+          onChange={(e) => handleChange("serial_number", e.target.value)}
+          required
         />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Catégorie</FormLabel>
-              <FormControl><Input placeholder="Ex: Mesure, EPI..." {...field} className="rounded-xl" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      </div>
+
+      {/* CATEGORY */}
+      <div className="space-y-1">
+        <Label>Catégorie</Label>
+        <Input
+          value={form.category}
+          onChange={(e) => handleChange("category", e.target.value)}
         />
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Hammer className="mr-2" size={18} />}
-          Enregistrer l'outil
-        </Button>
-      </form>
-    </Form>
+      </div>
+
+      {/* SUPPLIER + LOCATION */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Fournisseur</Label>
+          <Input
+            value={form.supplier}
+            onChange={(e) => handleChange("supplier", e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label>Localisation</Label>
+          <Input
+            value={form.location}
+            onChange={(e) => handleChange("location", e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* DATES */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label>Date d'achat</Label>
+          <Input
+            type="date"
+            value={form.purchase_date}
+            onChange={(e) => handleChange("purchase_date", e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label>Calibration</Label>
+          <Input
+            type="date"
+            value={form.calibration_due_date}
+            onChange={(e) => handleChange("calibration_due_date", e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label>Maintenance</Label>
+          <Input
+            type="date"
+            value={form.maintenance_due_date}
+            onChange={(e) => handleChange("maintenance_due_date", e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* CONDITION */}
+      <div className="space-y-1">
+        <Label>État de l'équipement</Label>
+        <Select
+          value={form.condition}
+          onValueChange={(val) => handleChange("condition", val)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="excellent">Excellent</SelectItem>
+            <SelectItem value="bon">Bon</SelectItem>
+            <SelectItem value="moyen">Moyen</SelectItem>
+            <SelectItem value="critique">Critique</SelectItem>
+            <SelectItem value="hors_service">Hors service</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* NOTES */}
+      <div className="space-y-1">
+        <Label>Notes</Label>
+        <Textarea
+          value={form.notes}
+          onChange={(e) => handleChange("notes", e.target.value)}
+          placeholder="Observations techniques..."
+        />
+      </div>
+
+      {/* BUTTON */}
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Création..." : "Créer l'outil"}
+      </Button>
+    </form>
   );
 };
 
