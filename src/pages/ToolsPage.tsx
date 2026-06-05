@@ -113,8 +113,7 @@ const ToolsPage: React.FC = () => {
     maintenance_due_date,
     condition,
     notes
-  )
-  .order('name');
+  ).order('name');
         supabase.from('profiles').select('id, first_name, last_name')
       ]);
 
