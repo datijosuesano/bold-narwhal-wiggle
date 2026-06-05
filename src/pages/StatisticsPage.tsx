@@ -1,153 +1,207 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, Calendar, BarChart3, PieChart, MapPin, Warehouse } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { differenceInDays, format, subDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RePie, Pie } from 'recharts';
+import { 
+  TrendingUp, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Loader2, 
+  Calendar, 
+  BarChart3, 
+  PieChart, 
+  MapPin, 
+  Warehouse,
+  Activity,
+  ShieldAlert,
+  RefreshCw
+} from 'lucide-react';
+import { useStatistics } from '@/hooks/useStatistics';
+import { useKpiCalculations } from '@/hooks/useKpiCalculations';
+import { KPICard } from '@/components/KPICard';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Cell, 
+  PieChart as RePie, 
+  Pie 
+} from 'recharts';
+
+// Couleurs centralisées pour les graphiques
+const CHART_COLORS = ['#2563eb', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
 
 const StatisticsPage: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    avgReactionTime: 0,
-    completionRate: 0,
-    totalInterventions: 0,
-    totalOTs: 0,
-    bySite: [] as any[],
-    byType: [] as any[],
-    byPlace: [] as any[],
-  });
+  const [periodDays, setPeriodDays] = useState<number>(30);
+  
+  // Récupération des données via le hook personnalisé
+  const { workOrders, interventions, assets, isLoading, error, refetch } = useStatistics(periodDays);
+  
+  // Calculs des KPIs biomédicaux via le hook dédié
+  const metrics = useKpiCalculations(workOrders, interventions, assets, periodDays);
 
-  const fetchStats = async () => {
-    setIsLoading(true);
-    try {
-      const { data: ots } = await supabase.from('work_orders').select('created_at, status, asset_id');
-      const { data: interventions } = await supabase.from('interventions').select('intervention_date, created_at, maintenance_type, intervention_place, assets(location)');
-
-      if (!ots || !interventions) return;
-
-      let totalDays = 0;
-      let count = 0;
-      interventions.forEach(inv => {
-        const start = new Date(inv.created_at);
-        const end = new Date(inv.intervention_date);
-        const diff = differenceInDays(end, start);
-        if (diff >= 0) {
-          totalDays += diff;
-          count++;
-        }
-      });
-      const avgReaction = count > 0 ? (totalDays / count).toFixed(1) : 0;
-
-      const completed = ots.filter(ot => ot.status === 'Terminé').length;
-      const rate = ots.length > 0 ? Math.round((completed / ots.length) * 100) : 0;
-
-      const siteMap = new Map();
-      const placeMap = new Map();
-      const typeMap = new Map();
-
-      interventions.forEach(inv => {
-        const site = inv.assets?.location || "Inconnu";
-        siteMap.set(site, (siteMap.get(site) || 0) + 1);
-
-        const place = inv.intervention_place || "Sur Site";
-        placeMap.set(place, (placeMap.get(place) || 0) + 1);
-
-        const type = inv.maintenance_type;
-        typeMap.set(type, (typeMap.get(type) || 0) + 1);
-      });
-
-      setStats({
-        avgReactionTime: Number(avgReaction),
-        completionRate: rate,
-        totalInterventions: interventions.length,
-        totalOTs: ots.length,
-        bySite: Array.from(siteMap.entries()).map(([name, value]) => ({ name, value })),
-        byPlace: Array.from(placeMap.entries()).map(([name, value]) => ({ name, value })),
-        byType: Array.from(typeMap.entries()).map(([name, value]) => ({ name, value })),
-      });
-    } catch (error) {
-      console.error("Erreur stats:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchStats(); }, []);
-
-  const COLORS = ['#2563eb', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+  // Skeletons de chargement pour une UX fluide
+  const renderSkeletons = () => (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-64 rounded-xl" />
+          <Skeleton className="h-4 w-96 rounded-xl" />
+        </div>
+        <Skeleton className="h-11 w-40 rounded-xl" />
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Skeleton className="h-[400px] rounded-2xl" />
+        <Skeleton className="h-[400px] rounded-2xl" />
+      </div>
+    </div>
+  );
 
   if (isLoading) {
+    return renderSkeletons();
+  }
+
+  if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-        <p className="text-muted-foreground font-medium">Analyse des données en cours...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4 max-w-md mx-auto text-center">
+        <div className="p-4 bg-red-50 text-red-600 rounded-full shadow-inner">
+          <AlertTriangle size={48} />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 uppercase">Erreur d'analyse</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">{error}</p>
+        <Button onClick={refetch} className="bg-blue-600 rounded-xl font-bold h-11 px-6">
+          <RefreshCw size={16} className="mr-2" /> Réessayer
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center space-x-4">
-        <div className="p-3 bg-blue-100 rounded-2xl">
-          <TrendingUp className="h-8 w-8 text-blue-600" />
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-blue-100 rounded-2xl">
+            <TrendingUp className="h-8 w-8 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-extrabold text-primary tracking-tight">Analyses & Performance</h1>
+            <p className="text-lg text-muted-foreground">Indicateurs de qualité et de fiabilité du service biomédical.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-4xl font-extrabold text-primary tracking-tight">Analyses & Performance</h1>
-          <p className="text-lg text-muted-foreground">Indicateurs de qualité du service technique.</p>
+
+        {/* FILTRE DE PÉRIODE */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar className="text-slate-400 shrink-0" size={18} />
+          <Select
+            value={String(periodDays)}
+            onValueChange={(val) => setPeriodDays(Number(val))}
+          >
+            <SelectTrigger className="w-full sm:w-48 rounded-xl h-11 border-slate-200 bg-white font-bold text-xs">
+              <SelectValue placeholder="Sélectionner la période" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="7">7 derniers jours</SelectItem>
+              <SelectItem value="30">30 derniers jours</SelectItem>
+              <SelectItem value="90">90 derniers jours</SelectItem>
+              <SelectItem value="180">180 derniers jours</SelectItem>
+              <SelectItem value="365">1 an</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
+      {/* GRILLE DES KPIS BIOMÉDICAUX */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-lg border-l-4 border-blue-600">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center">
-              <Clock size={14} className="mr-2" /> Temps de Réaction Moyen
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-blue-600">{stats.avgReactionTime} <span className="text-sm font-normal text-muted-foreground">jours</span></div>
+        <KPICard 
+          title="Temps de Réaction Moyen"
+          value={metrics.avgReactionTime}
+          unit="jours"
+          description="Délai moyen entre la création de l'OT et sa clôture."
+          icon={<Clock size={18} />}
+          borderColorClass="border-l-blue-600"
+          iconBgClass="bg-blue-50 text-blue-600"
+        />
+
+        <KPICard 
+          title="MTTR (Temps de Réparation)"
+          value={metrics.mttr}
+          unit="h"
+          description="Temps moyen passé pour réparer un équipement en panne."
+          icon={<Activity size={18} />}
+          borderColorClass="border-l-red-500"
+          iconBgClass="bg-red-50 text-red-500"
+        />
+
+        <KPICard 
+          title="MTBF (Temps de Bon Fonctionnement)"
+          value={metrics.mtbf}
+          unit="h"
+          description="Temps moyen de fonctionnement entre deux pannes."
+          icon={<TrendingUp size={18} />}
+          borderColorClass="border-l-green-500"
+          iconBgClass="bg-green-50 text-green-500"
+        />
+
+        <KPICard 
+          title="Disponibilité Globale"
+          value={metrics.availability}
+          unit="%"
+          description="Taux d'opérationnalité moyen de l'ensemble du parc."
+          icon={<CheckCircle2 size={18} />}
+          borderColorClass="border-l-purple-600"
+          iconBgClass="bg-purple-50 text-purple-600"
+        />
+      </div>
+
+      {/* DEUXIÈME LIGNE DE KPIS SECONDAIRES */}
+      <div className="grid gap-6 md:grid-cols-3 print:hidden">
+        <Card className="shadow-md bg-white border-none">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Taux de Maintenance Préventive</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{metrics.preventiveRate}%</p>
+            </div>
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full font-bold">ISO 9001</Badge>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center">
-              <CheckCircle2 size={14} className="mr-2" /> Taux de Résolution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-green-600">{stats.completionRate}%</div>
+        <Card className="shadow-md bg-white border-none">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Interventions Réalisées</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{metrics.totalInterventions}</p>
+            </div>
+            <Badge className="bg-blue-100 text-blue-700 border-blue-200 rounded-full font-bold">Activité</Badge>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-l-4 border-purple-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center">
-              <BarChart3 size={14} className="mr-2" /> Volume d'Activité
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-purple-600">{stats.totalInterventions}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-l-4 border-amber-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center">
-              <AlertTriangle size={14} className="mr-2" /> Charge de Travail
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-amber-600">{stats.totalOTs}</div>
+        <Card className="shadow-md bg-white border-none">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ordres de Travail Émis</p>
+              <p className="text-2xl font-black text-slate-800 mt-1">{metrics.totalOTs}</p>
+            </div>
+            <Badge className="bg-purple-100 text-purple-700 border-purple-200 rounded-full font-bold">Flux</Badge>
           </CardContent>
         </Card>
       </div>
 
+      {/* GRAPHIQUES ANALYTIQUES */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* REPARTITION LIEU - NOUVEAU */}
-        <Card className="shadow-xl border-none">
+        {/* LOGISTIQUE D'INTERVENTION */}
+        <Card className="shadow-xl border-none bg-white rounded-2xl">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <Warehouse size={20} className="text-purple-600" /> Logistique d'Intervention
@@ -155,79 +209,96 @@ const StatisticsPage: React.FC = () => {
             <CardDescription>Répartition des travaux entre le Site et l'Atelier.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px] flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <RePie>
-                <Pie
-                  data={stats.byPlace}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {stats.byPlace.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RePie>
-            </ResponsiveContainer>
+            {metrics.byPlace.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RePie>
+                  <Pie
+                    data={metrics.byPlace}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {metrics.byPlace.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RePie>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Aucune donnée logistique disponible.</p>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="shadow-xl border-none">
+        {/* MIX DE MAINTENANCE */}
+        <Card className="shadow-xl border-none bg-white rounded-2xl">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <PieChart size={20} className="text-blue-600" /> Mix de Maintenance
             </CardTitle>
-            <CardDescription>Répartition Préventif vs Curatif.</CardDescription>
+            <CardDescription>Répartition Préventif vs Correctif.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px] flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <RePie>
-                <Pie
-                  data={stats.byType}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {stats.byType.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RePie>
-            </ResponsiveContainer>
+            {metrics.byType.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RePie>
+                  <Pie
+                    data={metrics.byType}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {metrics.byType.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 2) % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RePie>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Aucune donnée de mix disponible.</p>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <Card className="shadow-xl border-none">
+      {/* ACTIVITÉ PAR ÉTABLISSEMENT */}
+      <Card className="shadow-xl border-none bg-white rounded-2xl">
         <CardHeader>
           <CardTitle className="text-lg font-bold flex items-center gap-2">
             <MapPin size={20} className="text-blue-600" /> Activité par Établissement
           </CardTitle>
+          <CardDescription>Nombre d'interventions réalisées par site partenaire.</CardDescription>
         </CardHeader>
         <CardContent className="h-[350px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.bySite} layout="vertical" margin={{ left: 40, right: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" hide />
-              <YAxis dataKey="name" type="category" width={120} style={{ fontSize: '10px', fontWeight: 'bold' }} />
-              <Tooltip cursor={{ fill: '#f1f5f9' }} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={25}>
-                {stats.bySite.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {metrics.bySite.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={metrics.bySite} layout="vertical" margin={{ left: 40, right: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={120} style={{ fontSize: '10px', fontWeight: 'bold' }} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={25}>
+                  {metrics.bySite.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full text-xs text-slate-400 italic">
+              Aucune intervention enregistrée sur cette période.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
