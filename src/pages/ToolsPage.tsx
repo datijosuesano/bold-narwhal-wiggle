@@ -37,6 +37,15 @@ interface Tool {
   category: string;
   status: string;
   assigned_to: string | null;
+
+  // NEW FIELDS (GMAO EXTENSION)
+  purchase_date: string | null;
+  supplier: string | null;
+  location: string | null;
+  calibration_due_date: string | null;
+  maintenance_due_date: string | null;
+  condition: "excellent" | "bon" | "moyen" | "critique" | "hors_service" | null;
+  notes: string | null;
 }
 
 interface Tech {
