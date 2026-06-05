@@ -97,8 +97,7 @@ const ToolsPage: React.FC = () => {
     try {
       // Parallel execution for best load performance
       const [toolsRes, profilesRes] = await Promise.all([
-        supabase
-  .from('tools')
+        supabase.from('tools')
   .select(`
     id,
     name,
