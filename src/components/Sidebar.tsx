@@ -37,7 +37,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
   const { chatCount, breakdownCount } = useSidebarCounts();
 
   const navItems = [
-    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'] },
+    { to: "/", icon: <LayoutDashboard size={20} />, label: "Tableau de bord", roles: ['admin', 'technicien_biomedical', 'secretaire', 'gestionnaire_stock'] },
     { to: "/chat", icon: <MessageSquare size={20} />, label: "Discussions", roles: ['admin', 'technicien biomedical', 'secretaire', 'gestionnaire de stock'], badge: chatCount },
     { to: "/statistics", icon: <BarChart3 size={20} />, label: "Statistiques", roles: ['admin', 'technicien biomedical'] },
     { to: "/reported-breakdowns", icon: <AlertTriangle size={20} />, label: "Pannes Signalées", roles: ['admin', 'technicien biomedical', 'secretaire'], badge: breakdownCount },
