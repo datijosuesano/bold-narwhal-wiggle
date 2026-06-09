@@ -53,7 +53,7 @@ const isLoggedToday = (lastLoginStr: string | null | undefined): boolean => {
 };
 
 const TechniciansPage: React.FC = () => {
-  const { user, hasRole } = useAuth();
+  const { user, role, hasRole } = useAuth();
   const isAdmin = hasRole(['admin']);
   const { roles, isLoading: isRolesLoading } = useRoles();
 
@@ -75,43 +75,34 @@ const TechniciansPage: React.FC = () => {
   const fetchTechnicians = useCallback(async () => {
     setIsLoading(true);
     try {
-      // JOINTURE DYNAMIQUE AVEC LA TABLE ROLES
-      // Note: On utilise role_id pour la liaison
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id, 
-          first_name, 
-          last_name, 
-          email, 
-          telephone, 
-          specialite, 
-          status, 
-          last_login,
-          roles:role_id (
-            name,
-            label,
-            color
-          )
-        `)
-        .order('last_login', { ascending: false });
+      // 1. Récupérer les profils et les rôles en parallèle pour éviter de fausses jointures
+      const [profilesRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('id, first_name, last_name, email, telephone, specialite, status, role, last_login'),
+        supabase.from('roles').select('*')
+      ]);
 
-      if (error) throw error;
+      if (profilesRes.error) throw profilesRes.error;
 
-      const mapped: Technician[] = (data || []).map((p: any) => {
+      const rolesList = rolesRes.data || [];
+      const roleMap = new Map(rolesList.map(r => [r.name.toLowerCase(), r]));
+
+      const mapped: Technician[] = (profilesRes.data || []).map((p: any) => {
         const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+        const roleKey = (p.role || 'user').toLowerCase();
+        const matchedRole = roleMap.get(roleKey);
+
         return {
           id: p.id,
           name: fullName || p.email || 'Utilisateur sans nom',
           specialty: p.specialite || 'Non défini',
           status: mapStatus(p.status),
-          activeOrders: 0, // Sera calculé dynamiquement si besoin
+          activeOrders: 0,
           phone: p.telephone || 'N/A',
           email: p.email || 'N/A',
           last_login: p.last_login,
-          role_name: p.roles?.name || 'user',
-          role_label: p.roles?.label || 'Collaborateur',
-          role_color: p.roles?.color || 'bg-slate-400'
+          role_name: p.role || 'user',
+          role_label: matchedRole?.label || 'Collaborateur',
+          role_color: matchedRole?.color || 'bg-slate-400'
         };
       });
       setTechnicians(mapped);
@@ -132,7 +123,6 @@ const TechniciansPage: React.FC = () => {
     const total = technicians.length;
     const loggedToday = technicians.filter(t => isLoggedToday(t.last_login)).length;
     
-    // Générer des statistiques par rôle présent en base
     const roleStats: Record<string, number> = {};
     roles.forEach(r => roleStats[r.name] = 0);
     
@@ -255,7 +245,6 @@ const TechniciansPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Affichage des KPIs basés sur les rôles dynamiques (Top 3 rôles par exemple) */}
         {roles.slice(0, 2).map(role => (
           <Card key={role.id} className="shadow-sm border-l-4 bg-white" style={{ borderLeftColor: role.color.replace('bg-', '') }}>
             <CardHeader className="pb-1 p-4">

@@ -34,7 +34,7 @@ const TechnicianSchema = z.object({
   email: z.string().email("Email invalide"),
   telephone: z.string().min(10, "Numéro de téléphone invalide"),
   specialite: z.string().min(1, "Veuillez sélectionner une spécialité"),
-  role_id: z.string().min(1, "Le rôle est requis"),
+  role: z.string().min(1, "Le rôle est requis"),
 });
 
 type TechnicianFormValues = z.infer<typeof TechnicianSchema>;
@@ -60,27 +60,13 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
       email: technician.email === 'N/A' ? '' : technician.email,
       telephone: technician.phone === 'N/A' ? '' : technician.phone,
       specialite: technician.specialty,
-      // On cherche l'ID du rôle actuel dans la liste des rôles chargée
-      role_id: "", 
+      role: technician.role_name || "user", 
     },
   });
-
-  // Synchronisation de l'ID du rôle une fois les rôles chargés
-  React.useEffect(() => {
-    if (roles.length > 0) {
-      const currentRole = roles.find(r => r.name === technician.role_name);
-      if (currentRole) {
-        form.setValue("role_id", currentRole.id);
-      }
-    }
-  }, [roles, technician.role_name]);
 
   const onSubmit = async (data: TechnicianFormValues) => {
     setIsSubmitting(true);
     
-    // On met à jour profile.role_id ET l'ancienne colonne profile.role pour compatibilité
-    const selectedRole = roles.find(r => r.id === data.role_id);
-
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -89,8 +75,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
         email: data.email,
         telephone: data.telephone,
         specialite: data.specialite,
-        role_id: data.role_id,
-        role: selectedRole?.name // Compatibilité avec l'ancien système enum
+        role: data.role // Colonne enum 'role' directe
       })
       .eq('id', technician.id);
 
@@ -185,11 +170,11 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
           />
           <FormField
             control={form.control}
-            name="role_id"
+            name="role"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-1">
-                  <Shield size={14} className="text-blue-600" /> Rôle RBAC
+                  <Shield size={14} className="text-blue-600" /> Rôle de l'utilisateur
                 </FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
@@ -199,7 +184,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
                   </FormControl>
                   <SelectContent className="rounded-xl">
                     {roles.map(role => (
-                      <SelectItem key={role.id} value={role.id}>
+                      <SelectItem key={role.id} value={role.name}>
                         <div className="flex items-center">
                           <div className={cn("w-2 h-2 rounded-full mr-2", role.color)} />
                           {role.label}
@@ -216,7 +201,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
 
         <div className="sticky bottom-0 bg-background pt-2 pb-1">
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg h-12 font-bold" disabled={isSubmitting || isRolesLoading}>
-            {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : <Save className="mr-2" size={18} />}
+            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
             Mettre à jour le profil
           </Button>
         </div>

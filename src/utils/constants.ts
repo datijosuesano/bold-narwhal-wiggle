@@ -41,13 +41,26 @@ export const DOCUMENT_CATEGORIES = [
 
 export const formatRole = (role: string | null): string => {
   if (!role) return "Utilisateur";
-  switch (role.toLowerCase()) {
-    case 'admin': return 'Administrateur';
-    case 'technicien biomedical': return 'Technicien Biomédical';
-    case 'gestionnaire de stock': return 'Gestionnaire de Stock';
-    case 'secretaire': return 'Administratif';
-    case 'user': return 'Collaborateur';
-    case 'client': return 'Client Hospitalier';
-    default: return role;
+  const normalized = role.toLowerCase().replace(/_/g, ' ');
+  switch (normalized) {
+    case 'admin':
+    case 'administrateur':
+      return 'Administrateur';
+    case 'technicien biomedical':
+      return 'Technicien Biomédical';
+    case 'gestionnaire stock':
+    case 'gestionnaire de stock':
+    case 'gestionnaire_stock':
+      return 'Gestionnaire de Stock';
+    case 'secretaire':
+    case 'administratif':
+      return 'Administratif';
+    case 'user':
+    case 'collaborateur':
+      return 'Collaborateur';
+    case 'client':
+      return 'Client Hospitalier';
+    default:
+      return role;
   }
 };
