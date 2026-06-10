@@ -23,9 +23,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  /**
-   * SAFE PROFILE FETCH (ne peut jamais bloquer l'app)
-   */
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -35,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
-        console.error("Profile error:", error);
+        console.error("AuthContext profiles fetch error:", error);
         return { role: "user", specialty: null };
       }
 
@@ -43,118 +40,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: data?.role ?? "user",
         specialty: data?.specialite ?? null,
       };
-
-    } catch (e) {
-      console.error("fetchProfile crash:", e);
+    } catch (err) {
+      console.error("AuthContext fetchProfile crash:", err);
       return { role: "user", specialty: null };
     }
   };
 
-  /**
-   * INITIALISATION AUTH (100% SAFE)
-   */
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
-    const init = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
-        if (!mounted) return;
+        if (!active) return;
 
-        if (error) {
-          console.error("Session error:", error);
-          setIsLoading(false);
-          return;
-        }
-
-        const session = data.session;
-
-        if (!session) {
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          const profile = await fetchProfile(currentSession.user.id);
+          if (active) {
+            setRole(profile.role);
+            setSpecialty(profile.specialty);
+          }
+        } else {
           setSession(null);
           setUser(null);
           setRole(null);
           setSpecialty(null);
-          setIsLoading(false);
-          return;
         }
-
-        setSession(session);
-        setUser(session.user);
-
-        const profile = await fetchProfile(session.user.id);
-
-        if (!mounted) return;
-
-        setRole(profile.role);
-        setSpecialty(profile.specialty);
-
-      } catch (error) {
-        console.error("Auth init error:", error);
+      } catch (err) {
+        console.error("AuthContext initialization error:", err);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     };
 
-    init();
+    initializeAuth();
 
-    const { data: { subscription } } =
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        try {
-          setSession(session);
-          setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (!active) return;
 
-          if (!session) {
-            setRole(null);
-            setSpecialty(null);
-            setIsLoading(false);
-            return;
-          }
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-          const profile = await fetchProfile(session.user.id);
-
+      if (currentSession) {
+        const profile = await fetchProfile(currentSession.user.id);
+        if (active) {
           setRole(profile.role);
           setSpecialty(profile.specialty);
-
-        } catch (e) {
-          console.error("Auth change error:", e);
-          setRole("user");
-        } finally {
           setIsLoading(false);
         }
-      });
+      } else {
+        setRole(null);
+        setSpecialty(null);
+        setIsLoading(false);
+      }
+    });
 
     return () => {
-      mounted = false;
+      active = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  /**
-   * SIGN OUT SAFE
-   */
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
-      window.location.href = "/login";
     } catch (error) {
-      console.error("SignOut error:", error);
+      console.error("Sign out error:", error);
+    } finally {
+      setSession(null);
+      setUser(null);
+      setRole(null);
+      setSpecialty(null);
+      setIsLoading(false);
+      window.location.href = "/login";
     }
   };
 
-  /**
-   * ROLE CHECK (simple et fiable)
-   */
   const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
-
-    const normalized = role.toLowerCase().trim();
-
-    if (normalized === "admin") return true;
+    
+    const userRole = role.toLowerCase().trim().replace(/_/g, ' ');
+    if (userRole === "admin") return true;
 
     return allowedRoles
-      .map(r => r.toLowerCase().trim())
-      .includes(normalized);
+      .map((r) => r.toLowerCase().trim().replace(/_/g, ' '))
+      .includes(userRole);
   };
 
   return (
@@ -176,8 +153,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

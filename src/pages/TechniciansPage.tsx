@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import TechniciansTable, { Technician } from '@/components/TechniciansTable';
 import CreateTechnicianForm from '@/components/CreateTechnicianForm';
 import EditTechnicianForm from '@/components/EditTechnicianForm';
@@ -53,7 +52,7 @@ const isLoggedToday = (lastLoginStr: string | null | undefined): boolean => {
 };
 
 const TechniciansPage: React.FC = () => {
-  const { user, role, hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const isAdmin = hasRole(['admin']);
   const { roles, isLoading: isRolesLoading } = useRoles();
 
@@ -75,18 +74,16 @@ const TechniciansPage: React.FC = () => {
   const fetchTechnicians = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Récupérer les profils et les rôles en parallèle pour éviter de fausses jointures
-      const [profilesRes, rolesRes] = await Promise.all([
-        supabase.from('profiles').select('id, first_name, last_name, email, telephone, specialite, status, role, last_login'),
-        supabase.from('roles').select('*')
-      ]);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, telephone, specialite, status, role, last_login')
+        .order('last_login', { ascending: false });
 
-      if (profilesRes.error) throw profilesRes.error;
+      if (error) throw error;
 
-      const rolesList = rolesRes.data || [];
-      const roleMap = new Map(rolesList.map(r => [r.name.toLowerCase(), r]));
+      const roleMap = new Map(roles.map(r => [r.name.toLowerCase(), r]));
 
-      const mapped: Technician[] = (profilesRes.data || []).map((p: any) => {
+      const mapped: Technician[] = (data || []).map((p: any) => {
         const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
         const roleKey = (p.role || 'user').toLowerCase();
         const matchedRole = roleMap.get(roleKey);
@@ -112,13 +109,12 @@ const TechniciansPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [roles]);
 
   useEffect(() => {
     fetchTechnicians();
   }, [fetchTechnicians]);
 
-  // KPI CALCULATIONS - ENTIÈREMENT DYNAMIQUES
   const kpis = useMemo(() => {
     const total = technicians.length;
     const loggedToday = technicians.filter(t => isLoggedToday(t.last_login)).length;
@@ -135,7 +131,6 @@ const TechniciansPage: React.FC = () => {
     return { total, loggedToday, roleStats };
   }, [technicians, roles]);
 
-  // FILTERING
   const filteredTechnicians = useMemo(() => {
     return technicians.filter(tech => {
       const matchesSearch = 
@@ -150,7 +145,6 @@ const TechniciansPage: React.FC = () => {
     });
   }, [technicians, searchTerm, roleFilter, statusFilter]);
 
-  // PAGINATION
   const totalPages = Math.ceil(filteredTechnicians.length / ITEMS_PER_PAGE);
   const paginatedTechnicians = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -201,7 +195,6 @@ const TechniciansPage: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center space-x-4">
           <div className="p-3 bg-blue-100 rounded-2xl">
@@ -231,7 +224,6 @@ const TechniciansPage: React.FC = () => {
         )}
       </div>
 
-      {/* KPI DASHBOARD DYNAMIQUE */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm border-l-4 border-l-blue-600 bg-white">
           <CardHeader className="pb-1 p-4">
@@ -272,7 +264,6 @@ const TechniciansPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* FILTERS & SEARCH */}
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -317,7 +308,6 @@ const TechniciansPage: React.FC = () => {
         </div>
       </div>
 
-      {/* TABLE CARD */}
       <Card className="shadow-xl border-none overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
@@ -355,13 +345,12 @@ const TechniciansPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* MODALS */}
       {isAdmin && (
         <>
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
             <DialogContent className="sm:max-w-[500px] rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">Édition du Profil</DialogTitle>
+                <DialogTitle>Édition du Profil</DialogTitle>
                 <DialogDescription>Mise à jour des informations et attribution du rôle RBAC.</DialogDescription>
               </DialogHeader>
               {selectedTech && (

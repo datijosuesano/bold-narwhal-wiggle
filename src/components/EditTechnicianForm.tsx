@@ -75,7 +75,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
         email: data.email,
         telephone: data.telephone,
         specialite: data.specialite,
-        role: data.role // Colonne enum 'role' directe
+        role: data.role // Enregistrement de l'énumérateur direct
       })
       .eq('id', technician.id);
 
@@ -174,7 +174,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-1">
-                  <Shield size={14} className="text-blue-600" /> Rôle de l'utilisateur
+                  <Shield size={14} className="text-blue-600" /> Rôle
                 </FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
@@ -185,10 +185,7 @@ const EditTechnicianForm: React.FC<EditTechnicianFormProps> = ({ technician, onS
                   <SelectContent className="rounded-xl">
                     {roles.map(role => (
                       <SelectItem key={role.id} value={role.name}>
-                        <div className="flex items-center">
-                          <div className={cn("w-2 h-2 rounded-full mr-2", role.color)} />
-                          {role.label}
-                        </div>
+                        {role.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
