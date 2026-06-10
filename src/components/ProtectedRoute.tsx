@@ -1,33 +1,54 @@
-import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute: React.FC = () => {
   const { user, role, isLoading } = useAuth();
   const location = useLocation();
 
-  // Ne pas rediriger si on est sur le portail public
-  if (location.pathname === '/portal') {
-    return <Outlet />;
-  }
+  console.log("PROTECTED ROUTE", {
+    isLoading,
+    userId: user?.id,
+    role,
+    pathname: location.pathname,
+  });
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          fontSize: "24px",
+          fontWeight: "bold",
+        }}
+      >
+        LOADING AUTH...
       </div>
-    ); 
+    );
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    console.log("REDIRECT LOGIN");
+
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
-  // REDIRECTION SPÉCIFIQUE CLIENT (Services Hospitaliers)
-  if (role === 'client' && location.pathname !== '/portal') {
+  if (role === "client" && location.pathname !== "/portal") {
+    console.log("REDIRECT PORTAL");
+
     return <Navigate to="/portal" replace />;
   }
+
+  console.log("RENDER OUTLET");
 
   return <Outlet />;
 };
