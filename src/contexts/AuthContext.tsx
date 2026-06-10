@@ -23,64 +23,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("role, specialite")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("AuthContext profiles fetch error:", error);
-        return { role: "user", specialty: null };
-      }
-
-      return {
-        role: data?.role ?? "user",
-        specialty: data?.specialite ?? null,
-      };
-    } catch (err) {
-      console.error("AuthContext fetchProfile crash:", err);
-      return { role: "user", specialty: null };
-    }
-  };
-
   useEffect(() => {
     let active = true;
 
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (!active) return;
-
-        if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
-          const profile = await fetchProfile(currentSession.user.id);
-          if (active) {
-            setRole(profile.role);
-            setSpecialty(profile.specialty);
-          }
-        } else {
-          setSession(null);
-          setUser(null);
-          setRole(null);
-          setSpecialty(null);
-        }
-      } catch (err) {
-        console.error("AuthContext initialization error:", err);
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initializeAuth();
-
+    // Supabase appelle immédiatement le callback onAuthStateChange avec la session courante au montage,
+    // ce qui nous évite de devoir appeler getSession de manière concurrente.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (!active) return;
 
@@ -88,15 +35,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentSession?.user ?? null);
 
       if (currentSession) {
-        const profile = await fetchProfile(currentSession.user.id);
-        if (active) {
-          setRole(profile.role);
-          setSpecialty(profile.specialty);
-          setIsLoading(false);
+        try {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("role, specialite")
+            .eq("id", currentSession.user.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error("Erreur profil à l'authentification :", error);
+          }
+
+          if (active) {
+            setRole(data?.role ?? "user");
+            setSpecialty(data?.specialite ?? null);
+          }
+        } catch (err) {
+          console.error("Crash récupération profil :", err);
+          if (active) {
+            setRole("user");
+            setSpecialty(null);
+          }
         }
       } else {
-        setRole(null);
-        setSpecialty(null);
+        if (active) {
+          setRole(null);
+          setSpecialty(null);
+        }
+      }
+
+      // Désactive systématiquement le chargement une fois le flux initial traité
+      if (active) {
         setIsLoading(false);
       }
     });

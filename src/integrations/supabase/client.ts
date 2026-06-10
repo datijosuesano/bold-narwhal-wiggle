@@ -1,15 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error("Missing Supabase environment variables.");
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://jsrzznvsynyvbonvvztz.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impzcnp6bnZzeW55dmJvbnZ2enR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDcxMjMsImV4cCI6MjA4NjMyMzEyM30.9D9vP0pdPFYvM4y7h2eoRPNsr_kDkl6vFuXV0_pMkk4";
 
 export const supabase = createClient(
-  SUPABASE_URL || "",
-  SUPABASE_PUBLISHABLE_KEY || "",
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
       persistSession: true,
