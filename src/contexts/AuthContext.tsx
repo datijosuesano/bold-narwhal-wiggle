@@ -25,42 +25,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      // Récupération du profil de l'utilisateur
       const { data: dbProfile, error } = await supabase
         .from("profiles")
-        .select("role, specialite, first_name, last_name")
+        .select("role, specialite")
         .eq("id", userId)
         .maybeSingle();
 
       if (error) throw error;
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const meta = authUser?.user_metadata || {};
-
-      const finalFirstName = dbProfile?.first_name || meta.first_name || "";
-      const finalLastName = dbProfile?.last_name || meta.last_name || "";
-      const finalSpecialty = dbProfile?.specialite || meta.specialite || "Biomédical";
-
-      if (!dbProfile?.first_name || !dbProfile?.last_name || !dbProfile?.specialite) {
-        await supabase
-          .from("profiles")
-          .update({
-            first_name: finalFirstName,
-            last_name: finalLastName,
-            specialite: finalSpecialty
-          })
-          .eq("id", userId);
-      }
-
-      let finalRole = dbProfile?.role || "user";
-      
-      // FAIL-SAFE DE SÉCURITÉ ADMINISTRATEUR :
-      // Si l'utilisateur connecté possède une adresse de secours administrative,
-      // on force le rôle d'administrateur pour lui redonner immédiatement ses privilèges d'accès.
-      const emailLower = authUser?.email?.toLowerCase() || "";
-      if (emailLower.includes("admin") || emailLower.includes("ange") || emailLower.includes("leticia")) {
-        finalRole = "admin";
-      }
+      const finalRole = dbProfile?.role ?? "user";
+      const finalSpecialty = dbProfile?.specialite ?? null;
 
       return {
         role: finalRole,
@@ -68,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
     } catch (error) {
-      console.error("Erreur de récupération sécurisée du profil :", error);
+      console.error("Erreur profile:", error);
       return {
         role: "user",
         specialty: null,
@@ -77,75 +51,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const {
-          data: { session }
-        } = await supabase.auth.getSession();
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-        if (session) {
-          setSession(session);
-          setUser(session.user);
+      if (session) {
+        setSession(session);
+        setUser(session.user);
 
-          const profile = await fetchProfile(session.user.id);
-          setRole(profile.role);
-          setSpecialty(profile.specialty);
-        }
-      } catch (error) {
-        console.error("Auth init error:", error);
-      } finally {
-        setIsLoading(false);
+        const profile = await fetchProfile(session.user.id);
+        setRole(profile.role);
+        setSpecialty(profile.specialty);
       }
+
+      setIsLoading(false);
     };
 
-    initializeAuth();
+    init();
 
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (!session) {
-        setRole(null);
-        setSpecialty(null);
-        setIsLoading(false);
-        return;
-      }
+        if (!session) {
+          setRole(null);
+          setSpecialty(null);
+          setIsLoading(false);
+          return;
+        }
 
-      setTimeout(async () => {
         const profile = await fetchProfile(session.user.id);
         setRole(profile.role);
         setSpecialty(profile.specialty);
         setIsLoading(false);
-      }, 0);
-    });
+      }
+    );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   };
 
-  const hasRole = (roles: string[]) => {
+  const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
-    const userRole = role.toLowerCase().replace(/_/g, ' ');
 
-    if (userRole === "admin" || userRole === "administrateur") {
-      return true;
-    }
+    const normalizedRole = role.toLowerCase().trim();
 
-    return roles
-      .map((r) => r.toLowerCase().replace(/_/g, ' '))
-      .includes(userRole);
+    // admin ALWAYS full access
+    if (normalizedRole === "admin") return true;
+
+    return allowedRoles
+      .map(r => r.toLowerCase().trim())
+      .includes(normalizedRole);
   };
 
   return (
@@ -167,8 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
