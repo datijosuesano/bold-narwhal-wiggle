@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,62 +16,136 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * Chargement sécurisé du profil
+   */
+  const loadProfile = async (userId: string) => {
+    try {
+      console.log("Chargement profil :", userId);
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role, specialite")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erreur profile :", error);
+        return {
+          role: "user",
+          specialty: null,
+        };
+      }
+
+      console.log("Profil chargé :", data);
+
+      return {
+        role: data?.role ?? "user",
+        specialty: data?.specialite ?? null,
+      };
+    } catch (err) {
+      console.error("Crash profile :", err);
+
+      return {
+        role: "user",
+        specialty: null,
+      };
+    }
+  };
+
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    // Supabase appelle immédiatement le callback onAuthStateChange avec la session courante au montage,
-    // ce qui nous évite de devoir appeler getSession de manière concurrente.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      if (!active) return;
+    const initializeAuth = async () => {
+      try {
+        console.log("AUTH INIT START");
 
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-      if (currentSession) {
-        try {
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("role, specialite")
-            .eq("id", currentSession.user.id)
-            .maybeSingle();
-
-          if (error) {
-            console.error("Erreur profil à l'authentification :", error);
-          }
-
-          if (active) {
-            setRole(data?.role ?? "user");
-            setSpecialty(data?.specialite ?? null);
-          }
-        } catch (err) {
-          console.error("Crash récupération profil :", err);
-          if (active) {
-            setRole("user");
-            setSpecialty(null);
-          }
+        if (error) {
+          console.error("Erreur session :", error);
         }
-      } else {
-        if (active) {
+
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const profile = await loadProfile(session.user.id);
+
+          if (!mounted) return;
+
+          setRole(profile.role);
+          setSpecialty(profile.specialty);
+        } else {
           setRole(null);
           setSpecialty(null);
         }
-      }
+      } catch (err) {
+        console.error("Erreur auth :", err);
 
-      // Désactive systématiquement le chargement une fois le flux initial traité
-      if (active) {
-        setIsLoading(false);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setRole(null);
+          setSpecialty(null);
+        }
+      } finally {
+        if (mounted) {
+          console.log("AUTH INIT END");
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      try {
+        console.log("AUTH EVENT :", _event);
+
+        if (!mounted) return;
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          const profile = await loadProfile(currentSession.user.id);
+
+          if (!mounted) return;
+
+          setRole(profile.role);
+          setSpecialty(profile.specialty);
+        } else {
+          setRole(null);
+          setSpecialty(null);
+        }
+      } catch (err) {
+        console.error("Erreur auth state change :", err);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     });
 
     return () => {
-      active = false;
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -79,28 +153,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       setIsLoading(true);
+
       await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Sign out error:", error);
+    } catch (err) {
+      console.error("Erreur déconnexion :", err);
     } finally {
       setSession(null);
       setUser(null);
       setRole(null);
       setSpecialty(null);
       setIsLoading(false);
+
       window.location.href = "/login";
     }
   };
 
   const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
-    
-    const userRole = role.toLowerCase().trim().replace(/_/g, ' ');
-    if (userRole === "admin") return true;
+
+    const normalizedRole = role
+      .toLowerCase()
+      .trim()
+      .replace(/_/g, " ");
+
+    if (normalizedRole === "admin") {
+      return true;
+    }
 
     return allowedRoles
-      .map((r) => r.toLowerCase().trim().replace(/_/g, ' '))
-      .includes(userRole);
+      .map((r) => r.toLowerCase().trim().replace(/_/g, " "))
+      .includes(normalizedRole);
   };
 
   return (
@@ -122,8 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
   }
+
   return context;
 };
