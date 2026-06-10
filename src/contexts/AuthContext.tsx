@@ -23,89 +23,138 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * SAFE PROFILE FETCH (ne peut jamais bloquer l'app)
+   */
   const fetchProfile = async (userId: string) => {
     try {
-      const { data: dbProfile, error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("role, specialite")
         .eq("id", userId)
         .maybeSingle();
 
-      if (error) throw error;
-
-      const finalRole = dbProfile?.role ?? "user";
-      const finalSpecialty = dbProfile?.specialite ?? null;
+      if (error) {
+        console.error("Profile error:", error);
+        return { role: "user", specialty: null };
+      }
 
       return {
-        role: finalRole,
-        specialty: finalSpecialty,
+        role: data?.role ?? "user",
+        specialty: data?.specialite ?? null,
       };
 
-    } catch (error) {
-      console.error("Erreur profile:", error);
-      return {
-        role: "user",
-        specialty: null,
-      };
+    } catch (e) {
+      console.error("fetchProfile crash:", e);
+      return { role: "user", specialty: null };
     }
   };
 
+  /**
+   * INITIALISATION AUTH (100% SAFE)
+   */
   useEffect(() => {
+    let mounted = true;
+
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-      if (session) {
-        setSession(session);
-        setUser(session.user);
+        if (!mounted) return;
 
-        const profile = await fetchProfile(session.user.id);
-        setRole(profile.role);
-        setSpecialty(profile.specialty);
-      }
+        if (error) {
+          console.error("Session error:", error);
+          setIsLoading(false);
+          return;
+        }
 
-      setIsLoading(false);
-    };
-
-    init();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+        const session = data.session;
 
         if (!session) {
+          setSession(null);
+          setUser(null);
           setRole(null);
           setSpecialty(null);
           setIsLoading(false);
           return;
         }
 
+        setSession(session);
+        setUser(session.user);
+
         const profile = await fetchProfile(session.user.id);
+
+        if (!mounted) return;
+
         setRole(profile.role);
         setSpecialty(profile.specialty);
-        setIsLoading(false);
-      }
-    );
 
-    return () => subscription.unsubscribe();
+      } catch (error) {
+        console.error("Auth init error:", error);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        try {
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (!session) {
+            setRole(null);
+            setSpecialty(null);
+            setIsLoading(false);
+            return;
+          }
+
+          const profile = await fetchProfile(session.user.id);
+
+          setRole(profile.role);
+          setSpecialty(profile.specialty);
+
+        } catch (e) {
+          console.error("Auth change error:", e);
+          setRole("user");
+        } finally {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
+  /**
+   * SIGN OUT SAFE
+   */
   const signOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+    try {
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("SignOut error:", error);
+    }
   };
 
+  /**
+   * ROLE CHECK (simple et fiable)
+   */
   const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
 
-    const normalizedRole = role.toLowerCase().trim();
+    const normalized = role.toLowerCase().trim();
 
-    // admin ALWAYS full access
-    if (normalizedRole === "admin") return true;
+    if (normalized === "admin") return true;
 
     return allowedRoles
       .map(r => r.toLowerCase().trim())
-      .includes(normalizedRole);
+      .includes(normalized);
   };
 
   return (
@@ -127,6 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return context;
 };
