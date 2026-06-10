@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface Role {
   id: string;
@@ -8,30 +7,44 @@ export interface Role {
   color: string;
 }
 
+/**
+ * SOURCE DE VÉRITÉ FIXE (plus de dépendance DB cassée)
+ */
+const DEFAULT_ROLES: Role[] = [
+  {
+    id: '1',
+    name: 'admin',
+    label: 'Administrateur',
+    color: 'bg-red-500'
+  },
+  {
+    id: '2',
+    name: 'technicien_biomedical',
+    label: 'Technicien Biomédical',
+    color: 'bg-blue-500'
+  },
+  {
+    id: '3',
+    name: 'secretaire',
+    label: 'Secrétaire',
+    color: 'bg-green-500'
+  },
+  {
+    id: '4',
+    name: 'gestionnaire_stock',
+    label: 'Gestionnaire Stock',
+    color: 'bg-purple-500'
+  }
+];
+
 export const useRoles = () => {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [roles] = useState<Role[]>(DEFAULT_ROLES);
+  const [isLoading] = useState(false);
 
-  const fetchRoles = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*')
-        .order('label');
-
-      if (error) throw error;
-      setRoles(data || []);
-    } catch (err) {
-      console.error("Erreur lors du chargement des rôles:", err);
-    } finally {
-      setIsLoading(false);
-    }
+  const refetch = async () => {
+    // volontairement vide (plus de DB fragile)
+    console.warn("useRoles: source locale utilisée, pas de refetch nécessaire");
   };
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  return { roles, isLoading, refetch: fetchRoles };
+  return { roles, isLoading, refetch };
 };
