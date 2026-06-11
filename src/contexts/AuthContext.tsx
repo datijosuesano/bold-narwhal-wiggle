@@ -26,8 +26,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Chargement sécurisé du profil
-   */const loadProfile = async (userId: string) => {
+   * Chargement sécurisé du profil*/
+   const loadProfile = async (userId: string) => {
     try {
       console.log("Démarrage du chargement du profil pour :", userId);
 
