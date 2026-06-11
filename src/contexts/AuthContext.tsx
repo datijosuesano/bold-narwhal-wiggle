@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useState, useEffect, useContext } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,151 +16,65 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  /**
-   * Chargement sécurisé du profil*/
-   const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string) => {
     try {
-      console.log("Démarrage du chargement du profil pour :", userId);
-
-      // On ne sélectionne QUE le rôle pour isoler le problème
       const { data, error } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, specialite")
         .eq("id", userId)
-        .single(); // .single() est plus strict et renverra une erreur claire si rien n'est trouvé
+        .maybeSingle();
 
       if (error) {
-        console.error("Erreur retournée par Supabase lors du select :", error.message, error.details);
-        return {
-          role: "user",
-          specialty: null,
-        };
+        console.error("Erreur de profil Supabase :", error.message);
+        return { role: "user", specialty: null };
       }
-
-      console.log("Profil récupéré avec succès depuis la BDD :", data);
-
-      return {
-        role: data?.role ?? "user",
-        specialty: null, // Temporairement mis à null pour tester
-      };
-    } catch (err) {
-      console.error("Crash complet dans la fonction loadProfile :", err);
-      return {
-        role: "user",
-        specialty: null,
-      };
-    }
-  };}
-
-      console.log("Profil chargé :", data);
 
       return {
         role: data?.role ?? "user",
         specialty: data?.specialite ?? null,
       };
     } catch (err) {
-      console.error("Crash profile :", err);
-
-      return {
-        role: "user",
-        specialty: null,
-      };
+      console.error("Crash loadProfile :", err);
+      return { role: "user", specialty: null };
     }
   };
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
-    const initializeAuth = async () => {
-      try {
-        console.log("AUTH INIT START");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (!active) return;
 
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
 
-        if (error) {
-          console.error("Erreur session :", error);
-        }
-
-        if (!mounted) return;
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          const profile = await loadProfile(session.user.id);
-
-          if (!mounted) return;
-
+      if (currentSession?.user) {
+        const profile = await loadProfile(currentSession.user.id);
+        if (active) {
           setRole(profile.role);
           setSpecialty(profile.specialty);
-        } else {
+        }
+      } else {
+        if (active) {
           setRole(null);
           setSpecialty(null);
-        }
-      } catch (err) {
-        console.error("Erreur auth :", err);
-
-        if (mounted) {
-          setSession(null);
-          setUser(null);
-          setRole(null);
-          setSpecialty(null);
-        }
-      } finally {
-        if (mounted) {
-          console.log("AUTH INIT END");
-          setIsLoading(false);
         }
       }
-    };
 
-    initializeAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      try {
-        console.log("AUTH EVENT :", _event);
-
-        if (!mounted) return;
-
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-
-        if (currentSession?.user) {
-          const profile = await loadProfile(currentSession.user.id);
-
-          if (!mounted) return;
-
-          setRole(profile.role);
-          setSpecialty(profile.specialty);
-        } else {
-          setRole(null);
-          setSpecialty(null);
-        }
-      } catch (err) {
-        console.error("Erreur auth state change :", err);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+      if (active) {
+        setIsLoading(false);
       }
     });
 
     return () => {
-      mounted = false;
+      active = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -168,36 +82,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signOut = async () => {
     try {
       setIsLoading(true);
-
       await supabase.auth.signOut();
     } catch (err) {
-      console.error("Erreur déconnexion :", err);
+      console.error("Erreur de déconnexion :", err);
     } finally {
       setSession(null);
       setUser(null);
       setRole(null);
       setSpecialty(null);
       setIsLoading(false);
-
       window.location.href = "/login";
     }
   };
-const hasRole = (allowedRoles: string[]) => {
+
+  const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
 
-    // Normalisation simple (casse et espaces), mais conservation des underscores intacts
-    const normalizedRole = role.toLowerCase().trim();
-
-    // L'administrateur conserve un accès total partout
+    const normalizedRole = role.toLowerCase().trim().replace(/_/g, ' ');
     if (normalizedRole === "admin") {
       return true;
     }
 
-    // Comparaison stricte avec les chaînes exactes (ex: 'technicien_biomedical')
     return allowedRoles
-      .map((r) => r.toLowerCase().trim())
+      .map((r) => r.toLowerCase().trim().replace(/_/g, ' '))
       .includes(normalizedRole);
   };
+
   return (
     <AuthContext.Provider
       value={{
@@ -217,10 +127,8 @@ const hasRole = (allowedRoles: string[]) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
-
   return context;
 };
