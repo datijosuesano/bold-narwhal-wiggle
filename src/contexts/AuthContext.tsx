@@ -27,24 +27,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /**
    * Chargement sécurisé du profil
-   */
-  const loadProfile = async (userId: string) => {
+   */const loadProfile = async (userId: string) => {
     try {
-      console.log("Chargement profil :", userId);
+      console.log("Démarrage du chargement du profil pour :", userId);
 
+      // On ne sélectionne QUE le rôle pour isoler le problème
       const { data, error } = await supabase
         .from("profiles")
-        .select("role, specialite")
+        .select("role")
         .eq("id", userId)
-        .maybeSingle();
+        .single(); // .single() est plus strict et renverra une erreur claire si rien n'est trouvé
 
       if (error) {
-        console.error("Erreur profile :", error);
+        console.error("Erreur retournée par Supabase lors du select :", error.message, error.details);
         return {
           role: "user",
           specialty: null,
         };
       }
+
+      console.log("Profil récupéré avec succès depuis la BDD :", data);
+
+      return {
+        role: data?.role ?? "user",
+        specialty: null, // Temporairement mis à null pour tester
+      };
+    } catch (err) {
+      console.error("Crash complet dans la fonction loadProfile :", err);
+      return {
+        role: "user",
+        specialty: null,
+      };
+    }
+  };}
 
       console.log("Profil chargé :", data);
 
