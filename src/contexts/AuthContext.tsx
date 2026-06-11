@@ -167,24 +167,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       window.location.href = "/login";
     }
   };
-
-  const hasRole = (allowedRoles: string[]) => {
+const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
 
-    const normalizedRole = role
-      .toLowerCase()
-      .trim()
-      .replace(/_/g, " ");
+    // Normalisation simple (casse et espaces), mais conservation des underscores intacts
+    const normalizedRole = role.toLowerCase().trim();
 
+    // L'administrateur conserve un accès total partout
     if (normalizedRole === "admin") {
       return true;
     }
 
+    // Comparaison stricte avec les chaînes exactes (ex: 'technicien_biomedical')
     return allowedRoles
-      .map((r) => r.toLowerCase().trim().replace(/_/g, " "))
+      .map((r) => r.toLowerCase().trim())
       .includes(normalizedRole);
   };
-
   return (
     <AuthContext.Provider
       value={{
