@@ -5,15 +5,15 @@ import {
   Clock, 
   CheckCircle2, 
   AlertTriangle, 
-  Loader2, 
   Calendar, 
   BarChart3, 
   PieChart, 
   MapPin, 
   Warehouse,
   Activity,
-  ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { useStatistics } from '@/hooks/useStatistics';
 import { useKpiCalculations } from '@/hooks/useKpiCalculations';
@@ -32,7 +32,8 @@ import {
   ResponsiveContainer, 
   Cell, 
   PieChart as RePie, 
-  Pie 
+  Pie,
+  Legend
 } from 'recharts';
 
 // Couleurs centralisées pour les graphiques
@@ -46,6 +47,11 @@ const StatisticsPage: React.FC = () => {
   
   // Calculs des KPIs biomédicaux via le hook dédié
   const metrics = useKpiCalculations(workOrders, interventions, assets, periodDays);
+
+  // Fonction native pour déclencher proprement l'impression / sauvegarde PDF
+  const handlePrint = () => {
+    window.print();
+  };
 
   // Skeletons de chargement pour une UX fluide
   const renderSkeletons = () => (
@@ -89,7 +95,17 @@ const StatisticsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 readonly-print-container animate-in fade-in duration-500">
+      
+      {/* BANNIÈRE DE CONFIGURATION PRINT (Invisible à l'écran, visible sur le PDF) */}
+      <div className="hidden print:flex items-center justify-between border-b pb-4 mb-6 border-slate-200">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Rapport Statistique BioPulse</h2>
+          <p className="text-xs text-slate-500">Généré le {new Date().toLocaleDateString('fr-FR')} | Période d'analyse : {periodDays} jours</p>
+        </div>
+        <FileText size={32} className="text-blue-600" />
+      </div>
+
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div className="flex items-center space-x-4">
@@ -102,29 +118,39 @@ const StatisticsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* FILTRE DE PÉRIODE */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Calendar className="text-slate-400 shrink-0" size={18} />
-          <Select
-            value={String(periodDays)}
-            onValueChange={(val) => setPeriodDays(Number(val))}
+        {/* ACTIONS DE FILTRE ET D'EXPORTATION */}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <Button 
+            onClick={handlePrint} 
+            variant="outline" 
+            className="rounded-xl h-11 font-bold text-xs bg-white border-slate-200 shadow-sm hover:bg-slate-50 shrink-0"
           >
-            <SelectTrigger className="w-full sm:w-48 rounded-xl h-11 border-slate-200 bg-white font-bold text-xs">
-              <SelectValue placeholder="Sélectionner la période" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="7">7 derniers jours</SelectItem>
-              <SelectItem value="30">30 derniers jours</SelectItem>
-              <SelectItem value="90">90 derniers jours</SelectItem>
-              <SelectItem value="180">180 derniers jours</SelectItem>
-              <SelectItem value="365">1 an</SelectItem>
-            </SelectContent>
-          </Select>
+            <Printer size={16} className="mr-2 text-slate-500" /> Exporter en PDF
+          </Button>
+
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm h-11">
+            <Calendar className="text-slate-400 shrink-0" size={16} />
+            <Select
+              value={String(periodDays)}
+              onValueChange={(val) => setPeriodDays(Number(val))}
+            >
+              <SelectTrigger className="w-full sm:w-40 border-none bg-transparent font-bold text-xs p-0 focus:ring-0 shadow-none h-auto">
+                <SelectValue placeholder="Sélectionner la période" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="7">7 derniers jours</SelectItem>
+                <SelectItem value="30">30 derniers jours</SelectItem>
+                <SelectItem value="90">90 derniers jours</SelectItem>
+                <SelectItem value="180">180 derniers jours</SelectItem>
+                <SelectItem value="365">1 an</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* GRILLE DES KPIS BIOMÉDICAUX */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {/* GRILLE DES KPIS BIOMÉDICAUX (Optimisée pour le rendu de grille lors de la génération PDF) */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 print:gap-4">
         <KPICard 
           title="Temps de Réaction Moyen"
           value={metrics.avgReactionTime}
@@ -136,17 +162,17 @@ const StatisticsPage: React.FC = () => {
         />
 
         <KPICard 
-          title="MTTR (Temps de Réparation)"
+          title="MTTR (Réparation)"
           value={metrics.mttr}
           unit="h"
-          description="Temps moyen passé pour réparer un équipement en panne."
+          description="Temps moyen passé pour réparer un équipement."
           icon={<Activity size={18} />}
           borderColorClass="border-l-red-500"
           iconBgClass="bg-red-50 text-red-500"
         />
 
         <KPICard 
-          title="MTBF (Temps de Bon Fonctionnement)"
+          title="MTBF (Fiabilité)"
           value={metrics.mtbf}
           unit="h"
           description="Temps moyen de fonctionnement entre deux pannes."
@@ -159,67 +185,67 @@ const StatisticsPage: React.FC = () => {
           title="Disponibilité Globale"
           value={metrics.availability}
           unit="%"
-          description="Taux d'opérationnalité moyen de l'ensemble du parc."
+          description="Taux d'opérationnalité moyen du parc d'équipements."
           icon={<CheckCircle2 size={18} />}
           borderColorClass="border-l-purple-600"
           iconBgClass="bg-purple-50 text-purple-600"
         />
       </div>
 
-      {/* DEUXIÈME LIGNE DE KPIS SECONDAIRES */}
-      <div className="grid gap-6 md:grid-cols-3 print:hidden">
-        <Card className="shadow-md bg-white border-none">
+      {/* DEUXIÈME LIGNE DE KPIS SECONDAIRES (Optimisée print) */}
+      <div className="grid gap-6 md:grid-cols-3 print:grid-cols-3 print:gap-4">
+        <Card className="shadow-md bg-white border-none print:border print:border-slate-100 print:shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Taux de Maintenance Préventive</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Taux Maintenance Préventive</p>
               <p className="text-2xl font-black text-slate-800 mt-1">{metrics.preventiveRate}%</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full font-bold">ISO 9001</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full font-bold print:bg-slate-100 print:text-slate-800">ISO 9001</Badge>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md bg-white border-none">
+        <Card className="shadow-md bg-white border-none print:border print:border-slate-100 print:shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Interventions Réalisées</p>
               <p className="text-2xl font-black text-slate-800 mt-1">{metrics.totalInterventions}</p>
             </div>
-            <Badge className="bg-blue-100 text-blue-700 border-blue-200 rounded-full font-bold">Activité</Badge>
+            <Badge className="bg-blue-100 text-blue-700 border-blue-200 rounded-full font-bold print:bg-slate-100 print:text-slate-800">Activité</Badge>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md bg-white border-none">
+        <Card className="shadow-md bg-white border-none print:border print:border-slate-100 print:shadow-none">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ordres de Travail Émis</p>
               <p className="text-2xl font-black text-slate-800 mt-1">{metrics.totalOTs}</p>
             </div>
-            <Badge className="bg-purple-100 text-purple-700 border-purple-200 rounded-full font-bold">Flux</Badge>
+            <Badge className="bg-purple-100 text-purple-700 border-purple-200 rounded-full font-bold print:bg-slate-100 print:text-slate-800">Flux</Badge>
           </CardContent>
         </Card>
       </div>
 
-      {/* GRAPHIQUES ANALYTIQUES */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* GRAPHIQUES ANALYTIQUES (Ajout de dimensions fixes spécifiques pour éviter que le PDF ne coupe les graphiques) */}
+      <div className="grid gap-6 md:grid-cols-2 print:grid-cols-2 print:gap-4 break-inside-avoid">
         {/* LOGISTIQUE D'INTERVENTION */}
-        <Card className="shadow-xl border-none bg-white rounded-2xl">
-          <CardHeader>
+        <Card className="shadow-xl border-none bg-white rounded-2xl print:border print:border-slate-100 print:shadow-none">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Warehouse size={20} className="text-purple-600" /> Logistique d'Intervention
+              <Warehouse size={20} className="text-purple-600 print:text-slate-700" /> Logistique d'Intervention
             </CardTitle>
             <CardDescription>Répartition des travaux entre le Site et l'Atelier.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px] flex items-center justify-center">
+          <CardContent className="h-[280px] w-full flex items-center justify-center print:h-[240px]">
             {metrics.byPlace.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                 <RePie>
                   <Pie
                     data={metrics.byPlace}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
+                    cy="45%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={4}
                     dataKey="value"
                     label={({ name, value }) => `${name}: ${value}`}
                   >
@@ -228,6 +254,7 @@ const StatisticsPage: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                 </RePie>
               </ResponsiveContainer>
             ) : (
@@ -237,24 +264,24 @@ const StatisticsPage: React.FC = () => {
         </Card>
 
         {/* MIX DE MAINTENANCE */}
-        <Card className="shadow-xl border-none bg-white rounded-2xl">
-          <CardHeader>
+        <Card className="shadow-xl border-none bg-white rounded-2xl print:border print:border-slate-100 print:shadow-none">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <PieChart size={20} className="text-blue-600" /> Mix de Maintenance
+              <PieChart size={20} className="text-blue-600 print:text-slate-700" /> Mix de Maintenance
             </CardTitle>
             <CardDescription>Répartition Préventif vs Correctif.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px] flex items-center justify-center">
+          <CardContent className="h-[280px] w-full flex items-center justify-center print:h-[240px]">
             {metrics.byType.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                 <RePie>
                   <Pie
                     data={metrics.byType}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
+                    cy="45%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={4}
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
@@ -263,6 +290,7 @@ const StatisticsPage: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                 </RePie>
               </ResponsiveContainer>
             ) : (
@@ -273,22 +301,22 @@ const StatisticsPage: React.FC = () => {
       </div>
 
       {/* ACTIVITÉ PAR ÉTABLISSEMENT */}
-      <Card className="shadow-xl border-none bg-white rounded-2xl">
+      <Card className="shadow-xl border-none bg-white rounded-2xl break-inside-avoid print:border print:border-slate-100 print:shadow-none">
         <CardHeader>
           <CardTitle className="text-lg font-bold flex items-center gap-2">
-            <MapPin size={20} className="text-blue-600" /> Activité par Établissement
+            <MapPin size={20} className="text-blue-600 print:text-slate-700" /> Activité par Établissement
           </CardTitle>
           <CardDescription>Nombre d'interventions réalisées par site partenaire.</CardDescription>
         </CardHeader>
-        <CardContent className="h-[350px]">
+        <CardContent className="h-[350px] w-full print:h-[280px]">
           {metrics.bySite.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metrics.bySite} layout="vertical" margin={{ left: 40, right: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <BarChart data={metrics.bySite} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={120} style={{ fontSize: '10px', fontWeight: 'bold' }} />
-                <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={25}>
+                <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '10px', fontWeight: 'bold', fill: '#475569' }} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
                   {metrics.bySite.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
