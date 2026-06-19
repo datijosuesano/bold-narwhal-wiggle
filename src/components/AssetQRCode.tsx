@@ -31,7 +31,9 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
   const loadToken = async () => {
     setLoading(true);
     try {
-      // Rechercher le token le plus récent pour cet équipement (actif ou inactif)
+      if (!assetId) throw new Error("ID de l'équipement manquant.");
+
+      // 1. Chercher un token existant
       const { data, error } = await supabase
         .from("portal_access_tokens")
         .select("*")
@@ -40,14 +42,20 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur lors du SELECT du token :", error);
+        throw error;
+      }
 
       if (data) {
         setToken(data.token);
         setIsActive(data.active);
       } else {
-        // Si aucun token n'existe, on en génère un par défaut (actif)
-        const newToken = crypto.randomUUID?.() || Math.random().toString(36).substring(2);
+        // 2. Création d'un token (Génération sécurisée compatible HTTP local)
+        const newToken = (window.crypto && window.crypto.randomUUID) 
+          ? window.crypto.randomUUID() 
+          : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
         const { data: inserted, error: insertError } = await supabase
           .from("portal_access_tokens")
           .insert({
@@ -58,7 +66,10 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
           .select()
           .single();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("Erreur lors de l'INSERT du token :", insertError);
+          throw insertError;
+        }
 
         if (inserted) {
           setToken(inserted.token);
@@ -66,8 +77,8 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
         }
       }
     } catch (err: any) {
-      console.error("Erreur de chargement du token QR:", err);
-      showError("Impossible de configurer l'accès portail de cet appareil.");
+      console.error("Erreur critique de chargement du token QR:", err);
+      showError("Impossible de configurer l'accès. Vérifiez la console (F12).");
     } finally {
       setLoading(false);
     }
@@ -77,7 +88,6 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
     loadToken();
   }, [assetId]);
 
-  // Désactiver ou réactiver le Token QR Code
   const handleToggleActive = async () => {
     if (!token) return;
     setActionLoading(true);
@@ -110,7 +120,7 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
     if (!printWindow || !token) return;
 
     const doc = printWindow.document;
-    doc.title = "Étiquette QR";
+    doc.title = `QR_${assetName}`;
 
     const style = doc.createElement("style");
     style.textContent = `
@@ -134,7 +144,6 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
     subtitle.textContent = `S/N: ${serialNumber}`;
 
     const qr = doc.createElement("div");
-
     const svg = document.getElementById(`asset-qr-${safeAssetId}`);
     if (svg) qr.appendChild(doc.importNode(svg, true));
 
@@ -163,15 +172,13 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
 
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-2xl border shadow-sm space-y-6">
-      
-      {/* Alerte du statut d'activité */}
       <div className="w-full">
         {isActive ? (
           <Alert className="bg-green-50 border-green-200 text-green-800 rounded-xl">
             <ShieldCheck className="h-4 w-4 text-green-600" />
             <AlertTitle className="font-bold text-xs uppercase">Accès Activé</AlertTitle>
             <AlertDescription className="text-[11px] text-green-700 leading-tight">
-              Le QR Code est actuellement opérationnel. Les clients peuvent scanner pour signaler une panne.
+              Le QR Code est opérationnel. Les clients peuvent scanner pour signaler une panne.
             </AlertDescription>
           </Alert>
         ) : (
@@ -228,12 +235,12 @@ const AssetQRCode: React.FC<AssetQRCodeProps> = ({
           ) : isActive ? (
             <>
               <PowerOff className="mr-2 h-4 w-4" />
-              Désactiver l'accès QR Code
+              Désactiver l'accès
             </>
           ) : (
             <>
               <Power className="mr-2 h-4 w-4" />
-              Réactiver l'accès QR Code
+              Réactiver l'accès
             </>
           )}
         </Button>
