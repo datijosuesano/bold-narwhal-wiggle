@@ -41,38 +41,34 @@ import AssetQRCode from "@/components/AssetQRCode";
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+// ... (garder tes imports identiques)
 
 const AssetsPage: React.FC = () => {
   const { user, hasRole } = useAuth();
-
-  const canEdit = hasRole(['admin', 'technicien_biomedical']);
-
+  // Attention à la cohérence de la casse : tes enums SQL utilisent 'technician' 
+  // mais ton hook utilise 'technicien_biomedical'. Assure-toi que les chaînes correspondent.
+  const canEdit = hasRole(['admin', 'technician', 'technicien_biomedical']);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string>("all");
-
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
   const [isQrOpen, setIsQrOpen] = useState(false);
-
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
-
   const [equipments, setEquipments] = useState<any[]>([]);
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
     setIsLoading(true);
-
     try {
+      // On sélectionne les assets ET on récupère les infos du client lié en une seule requête
       const [assetsRes, clientsRes] = await Promise.all([
         supabase
           .from('assets')
-          .select('*')
+          .select('*, clients(id, name)')
           .order('name'),
-
         supabase
           .from('clients')
           .select('id, name')
@@ -95,27 +91,30 @@ const AssetsPage: React.FC = () => {
     fetchData();
   }, [user]);
 
+  // Filtrage logique corrigé
   const filteredEquipments = useMemo(() => {
     const lowerCaseSearch = searchTerm.toLowerCase();
-
     return equipments.filter(item => {
       const name = (item.name || "").toLowerCase();
       const location = (item.location || "").toLowerCase();
       const sn = (item.serial_number || "").toLowerCase();
-
+      const model = (item.model || "").toLowerCase();
+      
       const matchesSearch =
         name.includes(lowerCaseSearch) ||
         location.includes(lowerCaseSearch) ||
+        model.includes(lowerCaseSearch) ||
         sn.includes(lowerCaseSearch);
 
       const matchesClient =
         selectedClient === "all" ||
-        item.location === selectedClient;
+        item.client_id === selectedClient; // Filtrage par ID plutôt que par chaîne brute
 
       return matchesSearch && matchesClient;
     });
   }, [equipments, searchTerm, selectedClient]);
 
+  // ... (Reste de ton JSX de la page avec le select mis à jour sur client.id)
   return (
     <div className="space-y-8">
 
