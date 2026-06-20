@@ -92,10 +92,22 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
             <FormItem><FormLabel>Référence</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="lot_number" render={({ field }) => (
-            <FormItem><FormLabel>N° de Lot</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
-          )} />
+        // ... (garder les imports précédents)
+
+// Ajoutez ces deux champs dans votre grid grid-cols-2 gap-4
+<div className="grid grid-cols-2 gap-4">
+  <FormField control={form.control} name="packaging" render={({ field }) => (
+    <FormItem><FormLabel>Conditionnement</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+  )} />
+  <FormField control={form.control} name="purchase_cost" render={({ field }) => (
+    <FormItem><FormLabel>Coût Achat</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
+  )} />
+</div>
+
+// Et ajoutez celui-ci en dessous
+<FormField control={form.control} name="supplier" render={({ field }) => (
+  <FormItem><FormLabel>Fournisseur</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+)} /> )} />
           <FormField control={form.control} name="expiry_date" render={({ field }) => (
             <FormItem><FormLabel>Date d'Expiration</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
