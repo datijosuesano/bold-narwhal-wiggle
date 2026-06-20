@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Loader2, ArrowUpCircle, ArrowDownCircle, ShieldCheck, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Package, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { showSuccess, showError } from "@/utils/toast";
@@ -24,13 +24,37 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
   reagentName,
   onSuccess 
 }) => {
+  const { user } = useAuth();
+  
+  // États de base
   const [amount, setAmount] = useState<string>("1");
   const [isLoading, setIsLoading] = useState(false);
-  const [isDoubleAuthOpen, setIsDoubleAuthOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'IN' | 'OUT' | null>(null);
-  const [reason, setReason] = useState("Utilisation Labo");
-  const [supervisorConfirm, setSupervisorConfirm] = useState(false);
-  const { user } = useAuth();
+  
+  // États des données relationnelles
+  const [customers, setCustomers] = useState<any[]>([]);
+  
+  // États du formulaire de mouvement
+  const [selectedCustomer, setSelectedCustomer] = useState<string>("none");
+  const [batchNumber, setBatchNumber] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
+  const [reason, setReason] = useState("");
+
+  // Récupérer la liste des clients commerciaux au montage
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data, error } = await supabase
+        .from('reagent_customers')
+        .select('id, name, customer_type')
+        .order('name');
+      
+      if (!error && data) {
+        setCustomers(data);
+      }
+    };
+    fetchCustomers();
+  }, []);
 
   const handleOpenValidation = (type: 'IN' | 'OUT') => {
     const qty = parseInt(amount);
@@ -45,57 +69,72 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
     }
 
     setActionType(type);
-    if (type === 'OUT') {
-      // Forcer la double validation de sécurité ISO pour les sorties
-      setIsDoubleAuthOpen(true);
-      setSupervisorConfirm(false);
-    } else {
-      // Entrée simple
-      executeAdjustment(type, qty, "Réapprovisionnement");
-    }
+    // Pré-remplir la raison selon le type d'action
+    setReason(type === 'OUT' ? "Vente à un client" : "Réception de commande fournisseur");
+    setBatchNumber("");
+    setExpirationDate("");
+    setSelectedCustomer("none");
+    setIsModalOpen(true);
   };
 
-  const handleDoubleAuthSubmit = () => {
+  const handleConfirmMovement = async () => {
     const qty = parseInt(amount);
-    if (!supervisorConfirm) {
-      showError("Veuillez cocher la case de confirmation de conformité ISO.");
+
+    // Validations obligatoires
+    if (!batchNumber) {
+      showError("Le numéro de lot (Batch) est obligatoire pour la traçabilité.");
       return;
     }
-    setIsDoubleAuthOpen(false);
-    if (actionType) {
-      executeAdjustment(actionType, qty, reason);
+
+    if (actionType === 'OUT' && selectedCustomer === "none") {
+      showError("Veuillez sélectionner le client acheteur pour cette sortie.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // 1. Insérer la trace dans l'historique des mouvements
+      const { error: movementError } = await supabase
+        .from('reagent_stock_movements')
+        .insert({
+          reagent_id: reagentId,
+          technician_id: user?.id,
+          customer_id: actionType === 'OUT' ? selectedCustomer : null, // On lie le client si c'est une vente
+          movement_type: actionType,
+          quantity: actionType === 'OUT' ? -qty : qty, // Négatif si sortie
+          batch_number: batchNumber,
+          expiration_date: expirationDate || null,
+          reason: reason
+        });
+
+      if (movementError) throw movementError;
+
+      // 2. Mettre à jour la quantité globale du réactif
+      const newStock = actionType === 'OUT' ? currentStock - qty : currentStock + qty;
+      const { error: updateError } = await supabase
+        .from('lab_reagents')
+        .update({ quantity: newStock })
+        .eq('id', reagentId);
+
+      if (updateError) throw updateError;
+
+      showSuccess(
+        `Traçabilité : ${actionType === "IN" ? "Entrée" : "Sortie"} de ${qty} unité(s) enregistrée avec succès.`
+      );
+
+      setIsModalOpen(false);
+      setAmount("1");
+      onSuccess(); // Rafraîchit la liste de la page principale
+
+    } catch (error: any) {
+      console.error(error);
+      showError(error.message || "Erreur lors de l'enregistrement du mouvement");
+    } finally {
+      setIsLoading(false);
     }
   };
-const executeAdjustment = async (
-  type: "IN" | "OUT",
-  qty: number,
-  finalReason: string
-) => {
-  setIsLoading(true);
 
-  try {
-    const { error } = await supabase.rpc("adjust_reagent_stock", {
-      p_reagent_id: reagentId,
-      p_user_id: user?.id,
-      p_quantity: qty,
-      p_type: type,
-      p_reason: finalReason,
-    });
-
-    if (error) throw error;
-
-    showSuccess(
-      `Audit ISO : ${type === "IN" ? "Entrée" : "Sortie"} de ${qty} unité(s) enregistrée.`
-    );
-
-    setAmount("1");
-    onSuccess();
-  } catch (error: any) {
-    showError(error.message || "Erreur lors de l’ajustement");
-  } finally {
-    setIsLoading(false);
-  }
-};
   return (
     <div className="flex items-center gap-2">
       <Input 
@@ -112,9 +151,9 @@ const executeAdjustment = async (
           className="h-9 px-2.5 rounded-xl text-red-600 border-red-200 hover:bg-red-50 flex items-center text-xs font-bold"
           onClick={() => handleOpenValidation('OUT')}
           disabled={isLoading}
-          title="Retrait / Sortie de Stock"
+          title="Vendre / Sortir du Stock"
         >
-          {isLoading ? <Loader2 className="animate-spin h-3 w-3" /> : <><ArrowDownCircle size={14} className="mr-1" /> Sortie</>}
+          {isLoading && actionType === 'OUT' ? <Loader2 className="animate-spin h-3 w-3" /> : <><ArrowDownCircle size={14} className="mr-1" /> Sortie</>}
         </Button>
         <Button 
           size="sm" 
@@ -122,64 +161,89 @@ const executeAdjustment = async (
           className="h-9 px-2.5 rounded-xl text-green-600 border-green-200 hover:bg-green-50 flex items-center text-xs font-bold"
           onClick={() => handleOpenValidation('IN')}
           disabled={isLoading}
-          title="Ajout de Stock"
+          title="Réceptionner / Ajouter au Stock"
         >
-          {isLoading ? <Loader2 className="animate-spin h-3 w-3" /> : <><ArrowUpCircle size={14} className="mr-1" /> Entrée</>}
+          {isLoading && actionType === 'IN' ? <Loader2 className="animate-spin h-3 w-3" /> : <><ArrowUpCircle size={14} className="mr-1" /> Entrée</>}
         </Button>
       </div>
 
-      {/* DOUBLE VALIDATION DIALOG (SÉCURITÉ ISO 9001) */}
-      <Dialog open={isDoubleAuthOpen} onOpenChange={setIsDoubleAuthOpen}>
+      {/* DIALOG DE MOUVEMENT DE STOCK */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black uppercase text-slate-900 tracking-tight flex items-center">
-              <ShieldCheck className="mr-2 text-blue-600" /> Double Validation ISO
+              {actionType === 'OUT' ? (
+                <><ShoppingCart className="mr-2 h-5 w-5 text-red-600" /> Sortie / Vente</>
+              ) : (
+                <><Package className="mr-2 h-5 w-5 text-green-600" /> Réception Stock</>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Une double validation est requise pour toute sortie de réactif biologique de la base BioPulse.
+              Enregistrement d'un mouvement pour <strong className="text-slate-800">{reagentName}</strong>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-3">
-            <div className="p-3 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 space-y-1">
-              <p className="text-xs font-bold">Réactif : {reagentName}</p>
-              <p className="text-xs font-medium">Quantité demandée : <strong className="text-slate-900">{amount} unité(s)</strong></p>
+            <div className={`p-3 rounded-xl border space-y-1 ${actionType === 'OUT' ? 'bg-red-50 border-red-100 text-red-800' : 'bg-green-50 border-green-100 text-green-800'}`}>
+              <p className="text-xs font-medium">Quantité à traiter : <strong className="text-slate-900 text-sm">{amount} unité(s)</strong></p>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase text-slate-500">N° de Lot (Batch) <span className="text-red-500">*</span></Label>
+                <Input 
+                  value={batchNumber} 
+                  onChange={(e) => setBatchNumber(e.target.value)} 
+                  placeholder="Ex: L-2026X"
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase text-slate-500">Péremption (Optionnel)</Label>
+                <Input 
+                  type="date"
+                  value={expirationDate} 
+                  onChange={(e) => setExpirationDate(e.target.value)} 
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Le champ Client n'apparaît que si c'est une sortie (Vente) */}
+            {actionType === 'OUT' && (
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase text-slate-500">Client Acheteur <span className="text-red-500">*</span></Label>
+                <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                  <SelectTrigger className="rounded-xl h-10 text-xs">
+                    <SelectValue placeholder="Sélectionnez un client..." />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="none" disabled>Sélectionnez un client...</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.customer_type === 'revendeur' ? '(Revendeur)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase text-slate-500">Motif de la sortie stock</Label>
-              <Select value={reason} onValueChange={setReason}>
-                <SelectTrigger className="rounded-xl h-10 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="Utilisation Labo">Utilisation Labo (Analyse standard)</SelectItem>
-                  <SelectItem value="Contrôle Qualité">Contrôle Qualité (CQ)</SelectItem>
-                  <SelectItem value="Calibration Appareil">Calibration Appareil</SelectItem>
-                  <SelectItem value="Ajustement Inventaire">Ajustement Inventaire / Perte</SelectItem>
-                  <SelectItem value="Péremption">Mise au rebut (Périmé)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-start gap-2.5 p-3 border rounded-xl bg-slate-50/50">
-              <input 
-                type="checkbox" 
-                id="iso-confirm" 
-                checked={supervisorConfirm} 
-                onChange={(e) => setSupervisorConfirm(e.target.checked)} 
-                className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+              <Label className="text-xs font-black uppercase text-slate-500">Motif / Raison</Label>
+              <Input 
+                value={reason} 
+                onChange={(e) => setReason(e.target.value)} 
+                className="rounded-xl h-10 text-xs"
               />
-              <label htmlFor="iso-confirm" className="text-[11px] text-slate-600 leading-tight cursor-pointer">
-                Je confirme que cette sortie de stock est autorisée par le biologiste responsable et conforme à la norme de traçabilité ISO.
-              </label>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setIsDoubleAuthOpen(false)} className="rounded-xl">Annuler</Button>
-            <Button onClick={handleDoubleAuthSubmit} className="rounded-xl bg-blue-600 text-white font-bold">
-              Confirmer la sortie
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="rounded-xl">Annuler</Button>
+            <Button onClick={handleConfirmMovement} disabled={isLoading} className={`rounded-xl text-white font-bold ${actionType === 'OUT' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
+              {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+              Confirmer {actionType === 'OUT' ? 'la sortie' : "l'entrée"}
             </Button>
           </DialogFooter>
         </DialogContent>
