@@ -12,7 +12,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { showSuccess, showError } from "@/utils/toast";
@@ -45,9 +44,16 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
   const form = useForm<ReagentFormValues>({
     resolver: zodResolver(ReagentSchema),
     defaultValues: {
-      name: "", reference: "", packaging: "", lot_number: "",
-      expiry_date: "", current_stock: 0, min_stock: 1,
-      unit: "Unité", supplier: "", purchase_cost: 0,
+      name: "",
+      reference: "",
+      packaging: "",
+      lot_number: "",
+      expiry_date: "",
+      current_stock: 0,
+      min_stock: 1,
+      unit: "Unité",
+      supplier: "",
+      purchase_cost: 0,
     },
   });
 
@@ -75,6 +81,7 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
       form.reset();
       onSuccess();
     } catch (err: any) {
+      console.error("Erreur d'insertion:", err);
       showError(`Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -83,7 +90,10 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+      <form 
+        onSubmit={form.handleSubmit(onSubmit, (errors) => console.log("Erreurs de formulaire:", errors))} 
+        className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar"
+      >
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
@@ -92,29 +102,32 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
             <FormItem><FormLabel>Référence</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
-        // ... (garder les imports précédents)
 
-// Ajoutez ces deux champs dans votre grid grid-cols-2 gap-4
-<div className="grid grid-cols-2 gap-4">
-  <FormField control={form.control} name="packaging" render={({ field }) => (
-    <FormItem><FormLabel>Conditionnement</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
-  )} />
-  <FormField control={form.control} name="purchase_cost" render={({ field }) => (
-    <FormItem><FormLabel>Coût Achat</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
-  )} />
-</div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="packaging" render={({ field }) => (
+            <FormItem><FormLabel>Conditionnement</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+          )} />
+          <FormField control={form.control} name="purchase_cost" render={({ field }) => (
+            <FormItem><FormLabel>Coût Achat</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
+          )} />
+        </div>
 
-// Et ajoutez celui-ci en dessous
-<FormField control={form.control} name="supplier" render={({ field }) => (
-  <FormItem><FormLabel>Fournisseur</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
-)} /> )} />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="lot_number" render={({ field }) => (
+            <FormItem><FormLabel>N° de Lot</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+          )} />
           <FormField control={form.control} name="expiry_date" render={({ field }) => (
             <FormItem><FormLabel>Date d'Expiration</FormLabel><FormControl><Input type="date" {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
+
+        <FormField control={form.control} name="supplier" render={({ field }) => (
+          <FormItem><FormLabel>Fournisseur</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+        )} />
+
         <div className="grid grid-cols-3 gap-4">
           <FormField control={form.control} name="current_stock" render={({ field }) => (
-            <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>Stock Actuel</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="min_stock" render={({ field }) => (
             <FormItem><FormLabel>Alerte Min.</FormLabel><FormControl><Input type="number" {...field} className="rounded-xl" /></FormControl></FormItem>
@@ -123,6 +136,7 @@ const CreateReagentForm: React.FC<CreateReagentFormProps> = ({ onSuccess }) => {
             <FormItem><FormLabel>Unité</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
+
         <Button type="submit" className="w-full bg-blue-600 h-12 rounded-xl mt-4" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin" /> : <FlaskConical className="mr-2" />}
           Enregistrer
