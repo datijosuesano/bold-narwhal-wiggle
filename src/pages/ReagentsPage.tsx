@@ -18,15 +18,11 @@ import {
   Calendar,
   Hash,
   History,
-  FileSpreadsheet,
   Printer,
   TrendingUp,
-  PackageOpen,
-  CheckCircle,
   Database,
-  ArrowUpRight,
-  MessageSquare,
-  Share2
+  Share2,
+  Activity
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -55,9 +51,8 @@ import ReagentStockAdjustment from "@/components/ReagentStockAdjustment";
 import ReagentHistoryDialog from "@/components/ReagentHistoryDialog";
 
 import { supabase } from "@/integrations/supabase/client";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { format, differenceInDays, isBefore } from "date-fns";
-import { fr } from "date-fns/locale";
 
 interface Reagent {
   id: string;
@@ -74,6 +69,7 @@ interface Reagent {
 
 interface AuditLog {
   id: string;
+  reagent_id: string;
   reagent_name: string;
   type: string;
   quantity: number;
@@ -99,9 +95,17 @@ const ReagentsPage: React.FC = () => {
     try {
       setIsLoading(true);
 
+      // On récupère les mouvements des 30 derniers jours pour le calcul de gestion des stocks
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+
       const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
         supabase.from("lab_reagents").select("*").order("name"),
-        supabase.from("lab_reagent_movements").select("*, lab_reagents(name)").order("created_at", { ascending: false }).limit(20),
+        supabase.from("lab_reagent_movements")
+                .select("*, lab_reagents(name)")
+                .gte("created_at", thirtyDaysAgoStr)
+                .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id, first_name, last_name")
       ]);
 
@@ -113,6 +117,7 @@ const ReagentsPage: React.FC = () => {
       const techMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
       const formattedLogs: AuditLog[] = (movementsRes.data || []).map((m: any) => ({
         id: m.id,
+        reagent_id: m.reagent_id,
         reagent_name: m.lab_reagents?.name || "Réactif Supprimé",
         type: m.type,
         quantity: m.quantity,
@@ -133,6 +138,28 @@ const ReagentsPage: React.FC = () => {
   useEffect(() => {
     fetchReagentsAndAudit();
   }, [fetchReagentsAndAudit]);
+
+  // ===== LOGIQUE DE GESTION DES STOCKS (COURS GLT) =====
+  const calculateStockStatus = useCallback((reagent: Reagent) => {
+    // 1. Filtrer les mouvements des 30 derniers jours pour CE réactif
+    const reagentMovements = auditLogs.filter(m => m.reagent_id === reagent.id && m.type === 'OUT');
+    
+    // 2. Consommation totale sur 30 jours
+    const consumption30d = reagentMovements.reduce((sum, m) => sum + Math.abs(m.quantity), 0);
+    
+    // 3. Consommation journalière
+    const dailyConsumption = consumption30d / 30;
+    
+    // 4. Point de commande (Stock sécu + Consommation pendant le délai de livraison de 7 jours)
+    const deliveryDelay = 7;
+    const reorderPoint = Math.ceil(reagent.min_stock + (dailyConsumption * deliveryDelay));
+    
+    // 5. Alerte si le stock actuel franchit le point de commande
+    const isCritical = reagent.current_stock <= reorderPoint;
+
+    return { isCritical, dailyConsumption, reorderPoint, consumption30d };
+  }, [auditLogs]);
+
 
   // ===== FILTRAGE REACTIFS =====
   const filteredReagents = useMemo(() => {
@@ -178,7 +205,12 @@ const ReagentsPage: React.FC = () => {
   // ===== STATISTIQUES & ANALYSE DE CONSOMMATION =====
   const stats = useMemo(() => {
     const totalValuation = reagents.reduce((sum, r) => sum + (r.current_stock * (r.purchase_cost || 0)), 0);
-    const totalCritical = reagents.filter(r => r.current_stock <= r.min_stock).length;
+    
+    // On compte les alertes intelligentes (basées sur le point de commande calculé)
+    let totalCritical = 0;
+    reagents.forEach(r => {
+      if (calculateStockStatus(r).isCritical) totalCritical++;
+    });
     
     // Compter les expirations critiques
     let totalExpiredOrExpiring = 0;
@@ -192,13 +224,13 @@ const ReagentsPage: React.FC = () => {
     // Données consommation mensuelle (Recharts)
     const consumptionMap: Record<string, number> = {};
     auditLogs.filter(l => l.type === 'OUT').forEach(log => {
-      consumptionMap[log.reagent_name] = (consumptionMap[log.reagent_name] || 0) + log.quantity;
+      consumptionMap[log.reagent_name] = (consumptionMap[log.reagent_name] || 0) + Math.abs(log.quantity);
     });
 
     const chartData = Object.entries(consumptionMap).map(([name, value]) => ({
       name: name.substring(0, 15) + "...",
       valeur: value
-    })).slice(0, 5); // Top 5
+    })).sort((a, b) => b.valeur - a.valeur).slice(0, 5); // Top 5 des plus consommés
 
     return {
       totalValuation,
@@ -206,11 +238,12 @@ const ReagentsPage: React.FC = () => {
       totalExpiredOrExpiring,
       chartData
     };
-  }, [reagents, auditLogs]);
+  }, [reagents, auditLogs, calculateStockStatus]);
 
   // ===== NOTIFICATION WHATSAPP DIRECTE (ALERTES INTELLIGENTES) =====
   const sendWhatsAppAlert = (reagent: Reagent) => {
-    const text = `⚠️ *ALERTE BIO-PULSE GMAO*\n\nLe réactif *${reagent.name}* (Ref: ${reagent.reference}) est en stock critique.\n\n*Stock actuel :* ${reagent.current_stock} ${reagent.unit}\n*Seuil d'alerte :* ${reagent.min_stock} ${reagent.unit}\n\nUne commande d'urgence de réapprovisionnement biomédical est requise pour cet établissement.`;
+    const { dailyConsumption, reorderPoint } = calculateStockStatus(reagent);
+    const text = `⚠️ *ALERTE BIO-PULSE GMAO*\n\nLe réactif *${reagent.name}* (Ref: ${reagent.reference}) nécessite un réapprovisionnement.\n\n*Stock actuel :* ${reagent.current_stock} ${reagent.unit}\n*Point de commande :* ${reorderPoint} ${reagent.unit}\n*Consommation moyenne :* ${dailyConsumption.toFixed(2)} / jour\n\nMerci de déclencher une commande d'urgence auprès du fournisseur.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -234,7 +267,7 @@ const ReagentsPage: React.FC = () => {
               Traçabilité & Réactifs
             </h1>
             <p className="text-lg text-muted-foreground">
-              Rigueur ISO 9001 biomédicale pour les laboratoires partenaires.
+              Gestion intelligente des approvisionnements (Méthode du Point de Commande)
             </p>
           </div>
         </div>
@@ -276,11 +309,11 @@ const ReagentsPage: React.FC = () => {
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3 print:hidden">
         <Card className="shadow-sm border-l-4 border-l-amber-500 bg-white">
           <CardHeader className="pb-1">
-            <CardDescription className="text-[10px] font-black uppercase text-slate-400">Ruptures & Alertes</CardDescription>
+            <CardDescription className="text-[10px] font-black uppercase text-slate-400">À Commander (Point de Cde)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-amber-600">{stats.totalCritical}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Produits sous le seuil critique d'approvisionnement</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Produits ayant franchi leur point de commande dynamique</p>
           </CardContent>
         </Card>
 
@@ -313,10 +346,10 @@ const ReagentsPage: React.FC = () => {
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-5 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
             <CardTitle className="text-base font-black flex items-center text-slate-900 uppercase tracking-tight">
-              <TrendingUp size={18} className="mr-2 text-blue-600" /> Top Consommation
+              <TrendingUp size={18} className="mr-2 text-blue-600" /> Top Consommation (30 Jours)
             </CardTitle>
             <CardDescription className="text-xs">
-              Mouvements de sortie de stock les plus élevés sur le mois.
+              Mouvements de sortie de stock les plus élevés ce mois-ci.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 h-[250px] flex items-center justify-center">
@@ -340,27 +373,27 @@ const ReagentsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Audit Log ISO 9001 (7/12) */}
+        {/* Audit Log ISO 9001 (7/12) - Affichage limité aux 20 derniers pour l'interface */}
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-7 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
             <CardTitle className="text-base font-black flex items-center text-slate-900 uppercase tracking-tight">
               <Database size={18} className="mr-2 text-emerald-600" /> Registre d'Audit des Mouvements
             </CardTitle>
             <CardDescription className="text-xs">
-              Audit ISO 9001 complet et traçabilité de chaque action d'ajustement.
+              Traçabilité des derniers ajustements (Entrées/Sorties).
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 max-h-[250px] overflow-y-auto custom-scrollbar">
             {auditLogs.length > 0 ? (
               <div className="divide-y text-xs">
-                {auditLogs.map((log) => (
+                {auditLogs.slice(0, 30).map((log) => (
                   <div key={log.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "p-1.5 rounded-lg text-white font-bold",
+                        "p-1.5 rounded-lg text-white font-bold min-w-[36px] text-center",
                         log.type === 'IN' ? "bg-green-600" : "bg-red-500"
                       )}>
-                        {log.type === 'IN' ? '+ ' : '- '}{log.quantity}
+                        {log.type === 'IN' ? '+' : '-'}{Math.abs(log.quantity)}
                       </div>
                       <div>
                         <p className="font-bold text-slate-900">{log.reagent_name}</p>
@@ -386,7 +419,7 @@ const ReagentsPage: React.FC = () => {
         <CardHeader className="border-b bg-slate-50/50 print:bg-transparent">
           <div className="flex justify-between items-center print:hidden">
             <CardTitle className="text-base font-bold flex items-center gap-1.5">
-              <FlaskConical size={16} className="text-blue-600" /> Inventaire des Réactifs Actifs
+              <FlaskConical size={16} className="text-blue-600" /> Inventaire & Pilotage des Stocks
             </CardTitle>
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -411,9 +444,9 @@ const ReagentsPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">Nom du Produit / Lot</th>
                   <th className="px-6 py-4">Péremption</th>
-                  <th className="px-6 py-4">Stock</th>
+                  <th className="px-6 py-4">Niveau de Stock</th>
                   <th className="px-6 py-4 print:hidden">Ajustement</th>
-                  <th className="px-6 py-4 text-right print:hidden">Audit</th>
+                  <th className="px-6 py-4 text-right print:hidden">Audit / Action</th>
                 </tr>
               </thead>
 
@@ -427,7 +460,8 @@ const ReagentsPage: React.FC = () => {
                 ) : filteredReagents.length > 0 ? (
                   filteredReagents.map((reagent) => {
                     const expiry = getExpiryStatus(reagent.expiry_date);
-                    const isCritical = reagent.current_stock <= reagent.min_stock;
+                    // Utilisation de notre nouvelle logique pour l'affichage
+                    const { isCritical, dailyConsumption, reorderPoint } = calculateStockStatus(reagent);
 
                     return (
                       <tr
@@ -484,7 +518,7 @@ const ReagentsPage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* STOCK */}
+                        {/* STOCK & ANALYSE DE CONSOMMATION */}
                         <td className="px-6 py-4">
                           <div className="flex items-center">
                             <span
@@ -495,10 +529,24 @@ const ReagentsPage: React.FC = () => {
                             >
                               {reagent.current_stock}
                             </span>
-
                             <span className="text-xs text-muted-foreground uppercase font-bold">
                               {reagent.unit}
                             </span>
+                          </div>
+                          {/* Indicateurs de gestion des stocks */}
+                          <div className="mt-1 flex flex-col gap-0.5">
+                            <div className="text-[10px] text-slate-500 flex items-center">
+                              <Activity size={10} className="mr-1 text-slate-400"/> Conso moyenne: {dailyConsumption.toFixed(1)}/jour
+                            </div>
+                            {isCritical ? (
+                              <div className="text-[10px] text-red-600 font-bold">
+                                ⚠️ Point de cde ({reorderPoint}) franchi !
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-emerald-600 font-medium">
+                                Point de cde: {reorderPoint} {reagent.unit}
+                              </div>
+                            )}
                           </div>
                         </td>
 
@@ -521,7 +569,7 @@ const ReagentsPage: React.FC = () => {
                                 size="icon"
                                 className="h-9 w-9 rounded-xl text-amber-600 hover:bg-amber-50"
                                 onClick={() => sendWhatsAppAlert(reagent)}
-                                title="Envoyer une alerte WhatsApp d'urgence"
+                                title="Envoyer une alerte WhatsApp d'urgence au fournisseur"
                               >
                                 <Share2 size={16} />
                               </Button>
