@@ -78,6 +78,7 @@ const App = () => {
                   <Route path="/documentation" element={<DocumentationPage />} />
                   <Route path="/statistics" element={<StatisticsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                 <Route path="/reagent-customers" element={<ReagentCustomersPage />} />
                 </Route>
               </Route>
               
