@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 import {
   Card,
   CardContent,
@@ -13,16 +14,16 @@ import {
   FlaskConical,
   Plus,
   Search,
-  AlertTriangle,
   Loader2,
-  Calendar,
   Hash,
   History,
   Printer,
   TrendingUp,
   Database,
   Share2,
-  Activity
+  Activity,
+  Eye,
+  FileCheck2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   BarChart,
@@ -82,13 +84,15 @@ const ReagentsPage: React.FC = () => {
   const [reagents, setReagents] = useState<Reagent[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [historyReagent, setHistoryReagent] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [historyReagent, setHistoryReagent] = useState<{ id: string; name: string } | null>(null);
+
+  // 1. Référence pour l'impression
+  const printRef = useRef<HTMLDivElement>(null);
 
   const fetchReagentsAndAudit = useCallback(async () => {
     try {
@@ -104,7 +108,6 @@ const ReagentsPage: React.FC = () => {
       ]);
 
       if (reagentsRes.error) throw reagentsRes.error;
-
       setReagents((reagentsRes.data as Reagent[]) ?? []);
 
       const techMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
@@ -150,12 +153,8 @@ const ReagentsPage: React.FC = () => {
     const today = new Date();
     const daysLeft = differenceInDays(date, today);
 
-    if (isBefore(date, today)) {
-      return { label: "PÉRIMÉ", class: "bg-red-600 text-white animate-pulse", critical: true };
-    }
-    if (daysLeft <= 45) {
-      return { label: `Alerte Expiration : ${daysLeft} jours`, class: "bg-amber-500 text-white font-bold", critical: true };
-    }
+    if (isBefore(date, today)) return { label: "PÉRIMÉ (REBUT)", class: "bg-red-600 text-white animate-pulse", critical: true };
+    if (daysLeft <= 45) return { label: `Expire dans ${daysLeft} j`, class: "bg-amber-500 text-white font-bold", critical: true };
     return null;
   };
 
@@ -188,22 +187,36 @@ const ReagentsPage: React.FC = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // Déclenchement de l'impression native
-  const handlePrintAudit = () => {
-    window.print();
-  };
-
   const filteredReagents = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return reagents;
     return reagents.filter(r => r.name.toLowerCase().includes(term) || r.reference.toLowerCase().includes(term));
   }, [reagents, searchTerm]);
 
+  // 2. Configuration de react-to-print
+  const handleConfirmPrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Inventaire_Reactifs_${format(new Date(), "yyyy-MM-dd")}`,
+    onAfterPrint: () => setIsPreviewOpen(false), // Ferme la modale automatiquement après impression
+    pageStyle: `
+      @page {
+        size: landscape;
+        margin: 15mm;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    `,
+  });
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 print-container">
+    <div className="space-y-8 animate-in fade-in duration-300">
       
-      {/* ===== HEADER (Caché à l'impression) ===== */}
-      <div className="flex justify-between items-center print:hidden">
+      {/* HEADER ECRAN */}
+      <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <div className="p-3 bg-blue-100 rounded-2xl">
             <FlaskConical className="h-8 w-8 text-blue-600" />
@@ -215,13 +228,13 @@ const ReagentsPage: React.FC = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={handlePrintAudit} variant="outline" className="rounded-xl border-slate-200 font-bold h-11">
-            <Printer size={16} className="mr-1.5" /> Exporter PDF Inventaire
+          <Button onClick={() => setIsPreviewOpen(true)} variant="outline" className="rounded-xl border-slate-200 font-bold h-11 hover:bg-slate-50">
+            <FileCheck2 size={16} className="mr-1.5 text-blue-600" /> Aperçu & Exporter
           </Button>
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 rounded-xl shadow-md font-bold h-11">
+              <Button className="bg-blue-600 rounded-xl shadow-md font-bold h-11 hover:bg-blue-700">
                 <Plus className="mr-2 h-4 w-4" /> Enregistrer Réactif
               </Button>
             </DialogTrigger>
@@ -236,8 +249,8 @@ const ReagentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== KPIS (Cachés à l'impression) ===== */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-3 print:hidden">
+      {/* KPIS ECRAN */}
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <Card className="shadow-sm border-l-4 border-l-amber-500 bg-white">
           <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">À Commander</CardDescription></CardHeader>
           <CardContent>
@@ -261,8 +274,8 @@ const ReagentsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* ===== GRAPHIQUE ET AUDIT (Cachés à l'impression) ===== */}
-      <div className="grid gap-8 lg:grid-cols-12 print:hidden">
+      {/* GRAPHIQUE ET AUDIT ECRAN */}
+      <div className="grid gap-8 lg:grid-cols-12">
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-5 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
             <CardTitle className="text-base font-black flex items-center text-slate-900 uppercase tracking-tight">
@@ -285,7 +298,7 @@ const ReagentsPage: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-xs text-slate-400 italic">Aucune sortie de réactifs enregistrée.</p>
+              <p className="text-xs text-slate-400 italic">Aucune sortie enregistrée.</p>
             )}
           </CardContent>
         </Card>
@@ -293,7 +306,7 @@ const ReagentsPage: React.FC = () => {
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-7 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
             <CardTitle className="text-base font-black flex items-center text-slate-900 uppercase tracking-tight">
-              <Database size={18} className="mr-2 text-emerald-600" /> Registre d'Audit des Mouvements
+              <Database size={18} className="mr-2 text-emerald-600" /> Registre d'Audit
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 max-h-[250px] overflow-y-auto custom-scrollbar">
@@ -324,12 +337,10 @@ const ReagentsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* ===== TABLE DE STOCK ===== */}
-      <Card className="shadow-lg overflow-hidden border-none bg-white rounded-2xl print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
-        <CardHeader className="border-b bg-slate-50/50 print:bg-transparent print:border-none print:p-0">
-          
-          {/* Version Écran */}
-          <div className="flex justify-between items-center print:hidden">
+      {/* TABLE ECRAN PRINCIPALE */}
+      <Card className="shadow-lg overflow-hidden border-none bg-white rounded-2xl">
+        <CardHeader className="border-b bg-slate-50/50">
+          <div className="flex justify-between items-center">
             <CardTitle className="text-base font-bold flex items-center gap-1.5">
               <FlaskConical size={16} className="text-blue-600" /> Inventaire & Pilotage des Stocks
             </CardTitle>
@@ -338,82 +349,60 @@ const ReagentsPage: React.FC = () => {
               <Input placeholder="Rechercher par nom ou référence..." className="pl-10 rounded-xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
           </div>
-
-          {/* En-tête officiel visible uniquement à l'impression */}
-          <div className="hidden print:block print:mb-6">
-            <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
-              <div>
-                <h1 className="text-xl font-black uppercase text-black">Rapport d'Inventaire</h1>
-                <p className="text-sm font-bold text-gray-700">Stocks de Réactifs Biologiques</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold">BioPulse GMAO</p>
-                <p className="text-xs font-mono mt-1">Édité le : {format(new Date(), 'dd/MM/yyyy à HH:mm')}</p>
-              </div>
-            </div>
-          </div>
         </CardHeader>
-
-        <CardContent className="p-0 print:p-0">
-          <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full text-left print-table">
-              <thead className="bg-muted/50 text-[10px] uppercase font-bold text-muted-foreground border-b print:bg-gray-100 print:text-black">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-muted/50 text-[10px] uppercase font-bold text-muted-foreground border-b">
                 <tr>
-                  <th className="px-6 py-4 print:py-2 print:px-2 print:border">Nom du Produit / Lot</th>
-                  <th className="px-6 py-4 print:py-2 print:px-2 print:border">Péremption</th>
-                  <th className="px-6 py-4 print:py-2 print:px-2 print:border">Niveau de Stock</th>
-                  <th className="px-6 py-4 print:hidden">Ajustement</th>
-                  <th className="px-6 py-4 text-right print:hidden">Audit / Action</th>
+                  <th className="px-6 py-4">Produit / Réf</th>
+                  <th className="px-6 py-4">Péremption</th>
+                  <th className="px-6 py-4">Niveau de Stock</th>
+                  <th className="px-6 py-4">Ajustement</th>
+                  <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y print:divide-gray-300">
+              <tbody className="divide-y">
                 {isLoading ? (
-                  <tr><td colSpan={5} className="text-center py-10 print:hidden"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
+                  <tr><td colSpan={5} className="text-center py-10"><Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" /></td></tr>
                 ) : filteredReagents.length > 0 ? (
                   filteredReagents.map((reagent) => {
                     const expiry = getExpiryStatus(reagent.expiry_date);
                     const { isCritical, dailyConsumption, reorderPoint } = calculateStockStatus(reagent);
-
                     return (
-                      <tr key={reagent.id} className={cn("hover:bg-accent/50 transition-colors", isCritical && "bg-amber-50/20 print:bg-gray-50")}>
-                        <td className="px-6 py-4 print:py-2 print:px-2 print:border">
-                          <div className="font-bold text-slate-900 text-sm print:text-black">{reagent.name}</div>
-                          <div className="flex gap-2 mt-1 print:hidden">
+                      <tr key={reagent.id} className={cn("hover:bg-accent/50 transition-colors", isCritical && "bg-amber-50/20")}>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-900 text-sm">{reagent.name}</div>
+                          <div className="flex gap-2 mt-1">
                             <Badge variant="outline" className="text-[9px] font-mono flex items-center bg-white shadow-sm"><Hash size={8} className="mr-1" />LOT: {reagent.lot_number || "SANS LOT"}</Badge>
                             <Badge variant="outline" className="text-[9px] bg-white shadow-sm">REF: {reagent.reference}</Badge>
                           </div>
-                          <div className="hidden print:block text-xs mt-1 text-gray-600">
-                            Ref: {reagent.reference} | Lot: {reagent.lot_number || "N/A"}
-                          </div>
                         </td>
-                        <td className="px-6 py-4 print:py-2 print:px-2 print:border">
-                          <div className="text-xs font-semibold print:text-black">{reagent.expiry_date ? format(new Date(reagent.expiry_date), "dd/MM/yyyy") : "---"}</div>
-                          <div className="print:hidden">
-                            {expiry && <Badge className={cn("mt-1 rounded-full text-[9px] font-bold text-white", expiry.class)}>{expiry.label}</Badge>}
-                          </div>
-                          {expiry?.critical && <div className="hidden print:block text-xs font-bold mt-1 uppercase text-black">* {expiry.label}</div>}
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-semibold">{reagent.expiry_date ? format(new Date(reagent.expiry_date), "dd/MM/yyyy") : "---"}</div>
+                          {expiry && <Badge className={cn("mt-1 rounded-full text-[9px] font-bold text-white", expiry.class)}>{expiry.label}</Badge>}
                         </td>
-                        <td className="px-6 py-4 print:py-2 print:px-2 print:border">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
-                            <span className={cn("text-lg font-black mr-2 print:text-black", isCritical ? "text-red-600" : "text-blue-600")}>{reagent.current_stock}</span>
-                            <span className="text-xs text-muted-foreground uppercase font-bold print:text-gray-700">{reagent.unit}</span>
+                            <span className={cn("text-lg font-black mr-2", isCritical ? "text-red-600" : "text-blue-600")}>{reagent.current_stock}</span>
+                            <span className="text-xs text-muted-foreground uppercase font-bold">{reagent.unit}</span>
                           </div>
-                          <div className="mt-1 flex flex-col gap-0.5 print:text-gray-600">
-                            <div className="text-[10px] text-slate-500 flex items-center print:text-xs print:text-gray-700">Conso moy: {dailyConsumption.toFixed(1)}/j</div>
+                          <div className="mt-1 flex flex-col gap-0.5">
+                            <div className="text-[10px] text-slate-500 flex items-center"><Activity size={10} className="mr-1 text-slate-400"/> Conso moy: {dailyConsumption.toFixed(1)}/j</div>
                             {isCritical ? (
-                              <div className="text-[10px] text-red-600 font-bold print:text-xs print:text-black print:font-bold">* Alerte Seuil ({reorderPoint})</div>
+                              <div className="text-[10px] text-red-600 font-bold">⚠️ Alerte Seuil ({reorderPoint})</div>
                             ) : (
-                              <div className="text-[10px] text-emerald-600 font-medium print:text-xs print:text-gray-700">Seuil: {reorderPoint}</div>
+                              <div className="text-[10px] text-emerald-600 font-medium">Seuil: {reorderPoint}</div>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 print:hidden">
+                        <td className="px-6 py-4">
                           <ReagentStockAdjustment reagentId={reagent.id} currentStock={reagent.current_stock} reagentName={reagent.name} onSuccess={fetchReagentsAndAudit} />
                         </td>
-                        <td className="px-6 py-4 text-right print:hidden">
+                        <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1.5">
                             {isCritical && (
-                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-amber-600 hover:bg-amber-50" onClick={() => sendWhatsAppAlert(reagent)} title="Alerte WhatsApp">
+                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-amber-600 hover:bg-amber-50" onClick={() => sendWhatsAppAlert(reagent)}>
                                 <Share2 size={16} />
                               </Button>
                             )}
@@ -426,7 +415,7 @@ const ReagentsPage: React.FC = () => {
                     );
                   })
                 ) : (
-                  <tr><td colSpan={5} className="text-center py-10 text-muted-foreground italic print:text-black">Aucun réactif en stock.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-10 text-muted-foreground italic">Aucun réactif en stock.</td></tr>
                 )}
               </tbody>
             </table>
@@ -434,40 +423,98 @@ const ReagentsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <ReagentHistoryDialog reagentId={historyReagent?.id || null} reagentName={historyReagent?.name || null} isOpen={!!historyReagent} onClose={() => setHistoryReagent(null)} />
+      {/* MODALE D'APERÇU WYSIWYG & EXPORT */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col rounded-2xl p-0 overflow-hidden bg-slate-50">
+          <DialogHeader className="p-6 bg-white border-b shrink-0 shadow-sm z-10">
+            <DialogTitle className="flex items-center text-xl font-black text-slate-800">
+              <Eye className="w-5 h-5 mr-2 text-blue-600" /> Aperçu du Document Final
+            </DialogTitle>
+            <DialogDescription>
+              Vérifiez la mise en page avant d'exporter en PDF ou d'imprimer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto p-6 bg-slate-200 flex justify-center custom-scrollbar">
+            
+            {/* 3. Le Container attachée à react-to-print */}
+            <div 
+              ref={printRef} 
+              className="bg-white p-10 shadow-lg border w-full max-w-[1000px] min-h-[700px]"
+            >
+              <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-black uppercase text-black tracking-tight">Rapport d'Inventaire</h1>
+                  <p className="text-sm font-bold text-gray-700">État du stock des réactifs biologiques</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-blue-600 uppercase">BioPulse GMAO</p>
+                  <p className="text-xs font-mono mt-1 text-gray-500">Édité le {format(new Date(), 'dd/MM/yyyy à HH:mm')}</p>
+                </div>
+              </div>
 
-      {/* ===== STYLES D'IMPRESSION PROPRES ET SÉCURISÉS ===== */}
-      <style>{`
-        @media print {
-          /* Cacher la barre de navigation et autres éléments d'interface globaux */
-          aside, nav, header, [role="navigation"] {
-            display: none !important;
-          }
-          /* Forcer la zone de contenu principal à prendre toute la page */
-          body, main, #root, .print-container {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            max-width: none !important;
-            background: white !important;
-          }
-          /* Amélioration de la lisibilité du tableau sur papier */
-          .print-table th, .print-table td {
-            border: 1px solid #000 !important;
-            color: #000 !important;
-          }
-          /* Paramètres de la page d'impression */
-          @page {
-            margin: 1.5cm;
-            size: landscape;
-          }
-          /* Assurer l'impression des couleurs d'arrière-plan si nécessaire (Chrome/Safari) */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        }
-      `}</style>
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-100 border-b-2 border-black">
+                  <tr>
+                    <th className="py-3 px-3 border border-gray-300 text-xs font-bold uppercase text-black">Produit</th>
+                    <th className="py-3 px-3 border border-gray-300 text-xs font-bold uppercase text-black">Péremption</th>
+                    <th className="py-3 px-3 border border-gray-300 text-xs font-bold uppercase text-black">Niveau de Stock</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300">
+                  {filteredReagents.map((reagent) => {
+                    const expiry = getExpiryStatus(reagent.expiry_date);
+                    const { isCritical, dailyConsumption, reorderPoint } = calculateStockStatus(reagent);
+                    return (
+                      <tr key={reagent.id} className={cn(isCritical && "bg-amber-50/40")}>
+                        <td className="py-3 px-3 border border-gray-300">
+                          <div className="font-bold text-black text-sm">{reagent.name}</div>
+                          <div className="text-xs mt-1 text-gray-600 font-mono">
+                            Ref: {reagent.reference} | Lot: {reagent.lot_number || "N/A"}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 border border-gray-300">
+                          <div className="text-sm font-medium text-black">{reagent.expiry_date ? format(new Date(reagent.expiry_date), "dd/MM/yyyy") : "---"}</div>
+                          {expiry?.critical && <div className="text-xs font-bold mt-1 text-red-600 uppercase tracking-tight">• {expiry.label}</div>}
+                        </td>
+                        <td className="py-3 px-3 border border-gray-300">
+                          <div className="flex items-center">
+                            <span className={cn("text-lg font-black mr-2", isCritical ? "text-red-600" : "text-black")}>{reagent.current_stock}</span>
+                            <span className="text-xs font-bold text-gray-600">{reagent.unit}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            Conso: {dailyConsumption.toFixed(1)}/j • {isCritical ? <span className="text-red-600 font-bold">Seuil ({reorderPoint}) dépassé</span> : <span>Seuil: {reorderPoint}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <div className="mt-10 pt-4 border-t border-gray-300 flex justify-between text-xs text-gray-500">
+                <p>Généré automatiquement par le système BioPulse.</p>
+                <p>Page 1 sur 1</p>
+              </div>
+            </div>
+            
+          </div>
+
+          <DialogFooter className="p-4 bg-white border-t shrink-0 flex items-center justify-between">
+            <p className="text-xs text-slate-500 italic hidden sm:block">
+              * Astuce : Dans la fenêtre système, choisissez "Enregistrer au format PDF".
+            </p>
+            <div className="flex gap-3 w-full sm:w-auto">
+              <Button variant="ghost" className="rounded-xl font-medium" onClick={() => setIsPreviewOpen(false)}>Annuler</Button>
+              <Button onClick={() => handleConfirmPrint()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md">
+                <Printer className="w-4 h-4 mr-2" /> Valider & Imprimer
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ReagentHistoryDialog reagentId={historyReagent?.id || null} reagentName={historyReagent?.name || null} isOpen={!!historyReagent} onClose={() => setHistoryReagent(null)} />
     </div>
   );
 };
