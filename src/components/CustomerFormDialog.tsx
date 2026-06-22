@@ -106,13 +106,13 @@ const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
     try {
       const payload = {
         name: data.name,
-        contact_email: data.contact_email || null,
-        contact_phone: data.contact_phone || null,
+        email: data.contact_email || null, // <-- Remplacer contact_email par email
+        phone: data.contact_phone || null, // <-- Remplacer contact_phone par phone
         address: data.address || null,
         credit_limit: data.credit_limit,
         payment_terms: data.payment_terms,
         is_active: data.is_active,
-      };
+      }; 
 
       if (customerToEdit) {
         // Mode Édition
