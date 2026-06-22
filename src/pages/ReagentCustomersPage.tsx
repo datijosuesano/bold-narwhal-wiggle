@@ -18,17 +18,18 @@ import {
   Phone, 
   Mail, 
   MapPin, 
-  MoreVertical,
   Wallet,
   AlertCircle,
   Ban,
-  CheckCircle2
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { cn } from "@/lib/utils";
+import CustomerFormDialog from "@/components/CustomerFormDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-// Interface mise à jour avec les champs financiers
 interface ReagentCustomer {
   id: string;
   name: string;
@@ -46,6 +47,13 @@ const ReagentCustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<ReagentCustomer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // États pour le formulaire d'ajout/édition
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<ReagentCustomer | null>(null);
+
+  // États pour la suppression
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const fetchCustomers = async () => {
     try {
@@ -80,7 +88,25 @@ const ReagentCustomersPage: React.FC = () => {
     );
   }, [customers, searchTerm]);
 
-  // Fonction utilitaire pour formater en FCFA
+  const handleDelete = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const { error } = await supabase
+        .from("reagent_customers")
+        .delete()
+        .eq("id", selectedCustomer.id);
+
+      if (error) throw error;
+      showSuccess(`Le client "${selectedCustomer.name}" a été supprimé.`);
+      fetchCustomers();
+    } catch (err: any) {
+      showError(`Erreur lors de la suppression : ${err.message}`);
+    } finally {
+      setIsDeleteOpen(false);
+      setSelectedCustomer(null);
+    }
+  };
+
   const formatFCFA = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + " FCFA";
   };
@@ -100,7 +126,13 @@ const ReagentCustomersPage: React.FC = () => {
           </div>
         </div>
 
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md h-11 font-bold">
+        <Button 
+          onClick={() => {
+            setSelectedCustomer(null);
+            setIsFormOpen(true);
+          }}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md h-11 font-bold"
+        >
           <Plus className="mr-2 h-4 w-4" /> Nouveau Client
         </Button>
       </div>
@@ -147,7 +179,6 @@ const ReagentCustomersPage: React.FC = () => {
                   </tr>
                 ) : filteredCustomers.length > 0 ? (
                   filteredCustomers.map((customer) => {
-                    // Logique métier pour les alertes de crédit
                     const isOverLimit = customer.credit_limit > 0 && customer.current_debt >= customer.credit_limit;
                     const isNearLimit = customer.credit_limit > 0 && customer.current_debt >= (customer.credit_limit * 0.8) && !isOverLimit;
 
@@ -197,7 +228,6 @@ const ReagentCustomersPage: React.FC = () => {
                               Limite : {customer.credit_limit > 0 ? formatFCFA(customer.credit_limit) : "Aucune limite"}
                             </div>
 
-                            {/* Petite barre de progression visuelle si une limite est définie */}
                             {customer.credit_limit > 0 && (
                               <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1 overflow-hidden">
                                 <div 
@@ -218,9 +248,30 @@ const ReagentCustomersPage: React.FC = () => {
 
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
-                            <MoreVertical size={16} />
-                          </Button>
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50"
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setIsFormOpen(true);
+                              }}
+                            >
+                              <Edit2 size={14} />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50"
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setIsDeleteOpen(true);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -238,6 +289,35 @@ const ReagentCustomersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* MODALE FORMULAIRE CLIENT */}
+      <CustomerFormDialog 
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setSelectedCustomer(null);
+        }}
+        onSuccess={fetchCustomers}
+        customerToEdit={selectedCustomer}
+      />
+
+      {/* ALERTE DE SUPPRESSION */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold">Supprimer ce client ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le client <strong>{selectedCustomer?.name}</strong> ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
