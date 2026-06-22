@@ -3,12 +3,12 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { ROLE_MAP } from "@/lib/roles"; // Ton dictionnaire de traduction
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   role: string | null;
-  specialty: string | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
   hasRole: (roles: string[]) => boolean;
@@ -20,7 +20,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [specialty, setSessionSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   /**
@@ -28,68 +27,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const loadProfile = async (userId: string) => {
     try {
-      console.log("AuthContext - Chargement du profil pour l'ID :", userId);
-
       const { data, error } = await supabase
         .from("profiles")
-        .select("role") // Extraction du rôle brut
+        .select("role")
         .eq("id", userId)
         .maybeSingle();
 
-      if (error) {
-        console.error("AuthContext - Erreur de profil Supabase :", error.message);
-        // Si erreur RLS ou réseau, on évite le crash et applique "user" (Collaborateur)
-        return { role: "user", specialty: null };
+      if (error || !data) {
+        console.error("AuthContext - Erreur lors du chargement du profil:", error?.message);
+        return "client"; // Rôle par défaut sécurisé
       }
 
-      console.log("AuthContext - Rôle chargé depuis la base de données :", data?.role);
+      // Vérification que le rôle existe dans notre ROLE_MAP (donc dans le role_enum)
+      const isRoleValid = data.role in ROLE_MAP;
+      return isRoleValid ? data.role : "client";
 
-      return {
-        role: data?.role ?? "user",
-        specialty: null, // Initialisé à null pour écarter tout conflit avec la colonne 'specialite'
-      };
     } catch (err) {
-      console.error("AuthContext - Crash critique lors du loadProfile :", err);
-      return { role: "user", specialty: null };
+      console.error("AuthContext - Crash critique loadProfile:", err);
+      return "client";
     }
   };
 
   useEffect(() => {
     let active = true;
 
-    // Déclaration d'une fonction asynchrone interne pour assurer le cycle complet, même en cas d'erreur
     const handleStateChange = async (event: string, currentSession: Session | null) => {
       try {
         if (!active) return;
-
-        console.log("AuthContext - Changement d'état Auth :", event);
-
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          const profile = await loadProfile(currentSession.user.id);
-          if (active) {
-            setRole(profile.role);
-            setSessionSpecialty(profile.specialty);
-          }
+          const fetchedRole = await loadProfile(currentSession.user.id);
+          if (active) setRole(fetchedRole);
         } else {
-          if (active) {
-            setRole(null);
-            setSessionSpecialty(null);
-          }
+          if (active) setRole(null);
         }
       } catch (error) {
-        console.error("AuthContext - Erreur dans le traitement de onAuthStateChange :", error);
+        console.error("AuthContext - Erreur onAuthStateChange :", error);
       } finally {
-        // Cette section s'exécute QUOI QU'IL ARRIVE pour éviter que l'application reste figée sur isLoading: true
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     };
 
-    // Initialisation et écoute des sessions de Supabase Auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       handleStateChange(event, currentSession);
     });
@@ -100,44 +80,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  /**
-   * Action de déconnexion globale
-   */
   const signOut = async () => {
-    try {
-      setIsLoading(true);
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("AuthContext - Erreur lors de la déconnexion :", err);
-    } finally {
-      setSession(null);
-      setUser(null);
-      setRole(null);
-      setSessionSpecialty(null);
-      setIsLoading(false);
-      window.location.href = "/login";
-    }
+    setIsLoading(true);
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setRole(null);
+    setIsLoading(false);
+    window.location.href = "/login";
   };
 
-  /**
-   * Vérification stricte et nettoyage des rôles
-   */
   const hasRole = (allowedRoles: string[]) => {
     if (!role) return false;
-
-    // Normalisation basique (minuscules et nettoyage des espaces externes)
-    // Nous conservons les underscores intacts ("technicien_biomedical")
-    const normalizedRole = role.toLowerCase().trim();
-
-    // L'administrateur contourne toutes les restrictions de menus
-    if (normalizedRole === "admin") {
-      return true;
-    }
-
-    // Comparaison avec le tableau fourni par la Sidebar
-    return allowedRoles
-      .map((r) => r.toLowerCase().trim())
-      .includes(normalizedRole);
+    // L'admin a accès à tout
+    if (role === "admin") return true;
+    // Vérification stricte contre la liste fournie
+    return allowedRoles.includes(role);
   };
 
   return (
@@ -146,7 +104,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         user,
         role,
-        specialty,
         isLoading,
         signOut,
         hasRole,
