@@ -1,55 +1,18 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  FlaskConical,
-  Plus,
-  Search,
-  AlertTriangle,
-  Loader2,
-  Calendar,
-  Hash,
-  History,
-  Printer,
-  TrendingUp,
-  Database,
-  Share2,
-  Activity
-} from "lucide-react";
+import { FlaskConical, Plus, Search, AlertTriangle, Loader2, Calendar, Hash, History, Printer, TrendingUp, Database, Activity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell
-} from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 import CreateReagentForm from "@/components/CreateReagentForm";
 import ReagentStockAdjustment from "@/components/ReagentStockAdjustment";
 import ReagentHistoryDialog from "@/components/ReagentHistoryDialog";
-
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { format, differenceInDays, isBefore } from "date-fns";
@@ -61,7 +24,6 @@ interface Reagent {
   current_stock: number;
   min_stock: number;
   unit: string;
-  packaging: string | null;
   lot_number: string | null;
   expiry_date: string | null;
   purchase_cost?: number;
@@ -84,44 +46,30 @@ const ReagentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [historyReagent, setHistoryReagent] = useState<{ id: string; name: string } | null>(null);
 
-  const [historyReagent, setHistoryReagent] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-// MODIFIE CETTE PARTIE DANS ReagentsPage.tsx
-const fetchReagentsAndAudit = useCallback(async () => {
-  try {
-    setIsLoading(true);
+  const fetchReagentsAndAudit = useCallback(async () => {
+    try {
+      setIsLoading(true);
 
-    // SUPPRIME OU COMMENTE CES LIGNES DE FILTRE DE DATE
-    // const thirtyDaysAgo = new Date();
-    // thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    // const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
-
-    const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
-      supabase.from("lab_reagents").select("*").order("name"),
-      supabase.from("reagent_stock_movements")
-              .select("*, lab_reagents(name)")
-              // .gte("created_at", thirtyDaysAgoStr) // SUPPRIME CETTE LIGNE
-              .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, first_name, last_name")
-    ]);
-    
-    // ... reste du code
+      const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
+        supabase.from("lab_reagents").select("*").order("name"),
+        supabase.from("reagent_stock_movements")
+                .select("*, lab_reagents(name)")
+                .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, first_name, last_name")
+      ]);
 
       if (reagentsRes.error) throw reagentsRes.error;
-
       setReagents((reagentsRes.data as Reagent[]) ?? []);
 
       const techMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
       
-      // Adaptation du mapping selon les colonnes de reagent_stock_movements
       const formattedLogs: AuditLog[] = (movementsRes.data || []).map((m: any) => ({
         id: m.id,
         reagent_id: m.reagent_id,
-        reagent_name: m.lab_reagents?.name || "Réactif Supprimé",
-        type: m.movement_type, // Correspond à la colonne de ta table
+        reagent_name: m.lab_reagents?.name || "Inconnu",
+        type: m.movement_type, 
         quantity: m.quantity,
         reason: m.reason || "Non renseigné",
         created_at: m.created_at,
@@ -161,20 +109,47 @@ const fetchReagentsAndAudit = useCallback(async () => {
     });
 
     const chartData = Object.entries(consumptionMap).map(([name, value]) => ({
-      name: name.substring(0, 15) + "...",
+      name: name.substring(0, 10),
       valeur: value
     })).sort((a, b) => b.valeur - a.valeur).slice(0, 5);
 
     return { totalValuation, totalCritical, chartData };
   }, [reagents, auditLogs, calculateStockStatus]);
 
-  // Reste du composant...
-  // (Le reste du JSX reste identique, l'affichage sera alimenté par le fetch corrigé)
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* ... ton code existant ... */}
-      {/* Assure-toi que les appels à fetchReagentsAndAudit sont présents partout */}
+    <div className="space-y-8 p-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-black">Traçabilité Réactifs</h1>
+        <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 rounded-xl">
+          <Plus className="mr-2 h-4 w-4" /> Enregistrer Réactif
+        </Button>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Ton contenu de Dashboard existant... */}
+      </div>
+
+      {/* Registre d'audit */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center"><Database size={18} className="mr-2 text-emerald-600" /> Registre d'Audit</CardTitle>
+        </CardHeader>
+        <CardContent className="max-h-[300px] overflow-y-auto">
+          {auditLogs.map((log) => (
+            <div key={log.id} className="p-3 border-b flex justify-between items-center text-xs">
+              <div>
+                <span className={cn("font-bold", log.type === 'IN' ? "text-green-600" : "text-red-600")}>
+                  {log.type === 'IN' ? '+' : '-'}{Math.abs(log.quantity)}
+                </span>
+                <span className="ml-2 font-semibold">{log.reagent_name}</span>
+              </div>
+              <div className="text-slate-400">{format(new Date(log.created_at), 'dd/MM HH:mm')}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      
+      {/* ... Suite de ton tableau des réactifs ... */}
     </div>
   );
 };
