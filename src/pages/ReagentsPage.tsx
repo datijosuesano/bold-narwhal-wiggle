@@ -110,7 +110,7 @@ const ReagentsPage: React.FC = () => {
       if (reagentsRes.error) throw reagentsRes.error;
       setReagents((reagentsRes.data as Reagent[]) ?? []);
 
-      const techMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
+      const textMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
       
       const formattedLogs: AuditLog[] = (movementsRes.data || []).map((m: any) => ({
         id: m.id,
@@ -120,7 +120,7 @@ const ReagentsPage: React.FC = () => {
         quantity: m.quantity,
         reason: m.reason || "Non renseigné",
         created_at: m.created_at,
-        tech_name: m.technician_id ? techMap.get(m.technician_id) || "Technicien" : "Système"
+        tech_name: m.technician_id ? textMap.get(m.technician_id) || "Technicien" : "Système"
       }));
 
       setAuditLogs(formattedLogs);
@@ -372,10 +372,12 @@ const ReagentsPage: React.FC = () => {
                     return (
                       <tr key={reagent.id} className={cn("hover:bg-accent/50 transition-colors", isCritical && "bg-amber-50/20")}>
                         <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900 text-sm">{reagent.name}</div>
-                          <div className="flex gap-2 mt-1">
-                            <Badge variant="outline" className="text-[9px] font-mono flex items-center bg-white shadow-sm"><Hash size={8} className="mr-1" />LOT: {reagent.lot_number || "SANS LOT"}</Badge>
-                            <Badge variant="outline" className="text-[9px] bg-white shadow-sm">REF: {reagent.reference}</Badge>
+                          <div className="font-bold text-slate-900">
+                            {reagent.name}
+                          </div>
+
+                          <div className="text-[10px] font-mono text-slate-400 uppercase">
+                            Ref: {reagent.reference}
                           </div>
                         </td>
                         <td className="px-6 py-4">

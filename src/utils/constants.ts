@@ -1,3 +1,5 @@
+import { getRoleLabel } from "@/lib/roles";
+
 /**
  * Constantes métier GMAO Biomédicale - Pipeline Logique
  */
@@ -40,27 +42,5 @@ export const DOCUMENT_CATEGORIES = [
 ] as const;
 
 export const formatRole = (role: string | null): string => {
-  if (!role) return "Utilisateur";
-  const normalized = role.toLowerCase().replace(/_/g, ' ');
-  switch (normalized) {
-    case 'admin':
-    case 'administrateur':
-      return 'Administrateur';
-    case 'technicien biomedical':
-      return 'Technicien Biomédical';
-    case 'gestionnaire stock':
-    case 'gestionnaire de stock':
-    case 'gestionnaire_stock':
-      return 'Gestionnaire de Stock';
-    case 'secretaire':
-    case 'administratif':
-      return 'Administratif';
-    case 'user':
-    case 'collaborateur':
-      return 'Collaborateur';
-    case 'client':
-      return 'Client Hospitalier';
-    default:
-      return role;
-  }
+  return getRoleLabel(role);
 };
