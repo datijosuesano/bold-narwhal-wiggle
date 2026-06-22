@@ -89,25 +89,26 @@ const ReagentsPage: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
+// MODIFIE CETTE PARTIE DANS ReagentsPage.tsx
+const fetchReagentsAndAudit = useCallback(async () => {
+  try {
+    setIsLoading(true);
 
-  // ===== CHARGEMENT DES REACTIFS ET DES AUDITS (ISO 9001) =====
-  const fetchReagentsAndAudit = useCallback(async () => {
-    try {
-      setIsLoading(true);
+    // SUPPRIME OU COMMENTE CES LIGNES DE FILTRE DE DATE
+    // const thirtyDaysAgo = new Date();
+    // thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
 
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
-
-      // CORRECTION ICI : Utilisation de la table réelle "reagent_stock_movements"
-      const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
-        supabase.from("lab_reagents").select("*").order("name"),
-        supabase.from("reagent_stock_movements") 
-                .select("*, lab_reagents(name)")
-                .gte("created_at", thirtyDaysAgoStr)
-                .order("created_at", { ascending: false }),
-        supabase.from("profiles").select("id, first_name, last_name")
-      ]);
+    const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
+      supabase.from("lab_reagents").select("*").order("name"),
+      supabase.from("reagent_stock_movements")
+              .select("*, lab_reagents(name)")
+              // .gte("created_at", thirtyDaysAgoStr) // SUPPRIME CETTE LIGNE
+              .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id, first_name, last_name")
+    ]);
+    
+    // ... reste du code
 
       if (reagentsRes.error) throw reagentsRes.error;
 
