@@ -54,7 +54,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { format, differenceInDays, isBefore } from "date-fns";
 
-// 1. DÉFINITION DES INTERFACES (Très important pour TypeScript)
 interface Reagent {
   id: string;
   name: string;
@@ -79,7 +78,6 @@ interface AuditLog {
   tech_name?: string;
 }
 
-// 2. COMPOSANT PRINCIPAL
 const ReagentsPage: React.FC = () => {
   const [reagents, setReagents] = useState<Reagent[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -92,7 +90,6 @@ const ReagentsPage: React.FC = () => {
     name: string;
   } | null>(null);
 
-  // FETCH DES DONNÉES DEPUIS SUPABASE
   const fetchReagentsAndAudit = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -102,7 +99,7 @@ const ReagentsPage: React.FC = () => {
         supabase.from("reagent_stock_movements")
                 .select("*, lab_reagents(name)")
                 .order("created_at", { ascending: false })
-                .limit(100), // On limite aux 100 derniers mouvements pour la performance
+                .limit(100),
         supabase.from("profiles").select("id, first_name, last_name")
       ]);
 
@@ -116,7 +113,7 @@ const ReagentsPage: React.FC = () => {
         id: m.id,
         reagent_id: m.reagent_id,
         reagent_name: m.lab_reagents?.name || "Réactif",
-        type: m.movement_type, // Correction clé ici
+        type: m.movement_type, 
         quantity: m.quantity,
         reason: m.reason || "Non renseigné",
         created_at: m.created_at,
@@ -136,19 +133,17 @@ const ReagentsPage: React.FC = () => {
     fetchReagentsAndAudit();
   }, [fetchReagentsAndAudit]);
 
-  // CALCUL DES ALERTES ET POINTS DE COMMANDE
   const calculateStockStatus = useCallback((reagent: Reagent) => {
     const reagentMovements = auditLogs.filter(m => m.reagent_id === reagent.id && m.type === 'OUT');
     const consumption30d = reagentMovements.reduce((sum, m) => sum + Math.abs(m.quantity), 0);
     const dailyConsumption = consumption30d / 30;
-    const deliveryDelay = 7; // Jours
+    const deliveryDelay = 7;
     const reorderPoint = Math.ceil(reagent.min_stock + (dailyConsumption * deliveryDelay));
     const isCritical = reagent.current_stock <= reorderPoint;
 
     return { isCritical, dailyConsumption, reorderPoint, consumption30d };
   }, [auditLogs]);
 
-  // GESTION DES DATES DE PÉREMPTION
   const getExpiryStatus = (expiryDate: string | null) => {
     if (!expiryDate) return null;
     const date = new Date(expiryDate);
@@ -156,15 +151,14 @@ const ReagentsPage: React.FC = () => {
     const daysLeft = differenceInDays(date, today);
 
     if (isBefore(date, today)) {
-      return { label: "PÉRIMÉ", class: "bg-red-600 text-white animate-pulse", critical: true };
+      return { label: "PÉRIMÉ (ISO REBUT)", class: "bg-red-600 text-white animate-pulse", critical: true };
     }
     if (daysLeft <= 45) {
-      return { label: `Alerte: ${daysLeft} jours`, class: "bg-amber-500 text-white font-bold", critical: true };
+      return { label: `Alerte Expiration : ${daysLeft} jours`, class: "bg-amber-500 text-white font-bold", critical: true };
     }
     return null;
   };
 
-  // STATISTIQUES GLOBALES POUR LE HAUT DE PAGE
   const stats = useMemo(() => {
     const totalValuation = reagents.reduce((sum, r) => sum + (r.current_stock * (r.purchase_cost || 0)), 0);
     let totalCritical = 0;
@@ -188,14 +182,15 @@ const ReagentsPage: React.FC = () => {
     return { totalValuation, totalCritical, totalExpiredOrExpiring, chartData };
   }, [reagents, auditLogs, calculateStockStatus]);
 
-  // FONCTION WHATSAPP
   const sendWhatsAppAlert = (reagent: Reagent) => {
     const { dailyConsumption, reorderPoint } = calculateStockStatus(reagent);
     const text = `⚠️ *ALERTE BIO-PULSE GMAO*\n\nLe réactif *${reagent.name}* (Ref: ${reagent.reference}) nécessite un réapprovisionnement.\n\n*Stock actuel :* ${reagent.current_stock} ${reagent.unit}\n*Point de commande :* ${reorderPoint} ${reagent.unit}\n*Consommation moyenne :* ${dailyConsumption.toFixed(2)} / jour\n\nMerci de déclencher une commande d'urgence.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const handlePrintAudit = () => window.print();
+  const handlePrintAudit = () => {
+    window.print();
+  };
 
   const filteredReagents = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -203,11 +198,10 @@ const ReagentsPage: React.FC = () => {
     return reagents.filter(r => r.name.toLowerCase().includes(term) || r.reference.toLowerCase().includes(term));
   }, [reagents, searchTerm]);
 
-  // 3. LE RENDU VISUEL (JSX)
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       
-      {/* HEADER */}
+      {/* ===== HEADER (Caché à l'impression) ===== */}
       <div className="flex justify-between items-center print:hidden">
         <div className="flex items-center space-x-4">
           <div className="p-3 bg-blue-100 rounded-2xl">
@@ -221,7 +215,7 @@ const ReagentsPage: React.FC = () => {
 
         <div className="flex gap-2">
           <Button onClick={handlePrintAudit} variant="outline" className="rounded-xl border-slate-200 font-bold h-11">
-            <Printer size={16} className="mr-1.5" /> Exporter PDF
+            <Printer size={16} className="mr-1.5" /> Exporter PDF Inventaire
           </Button>
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -241,7 +235,7 @@ const ReagentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPIS */}
+      {/* ===== KPIS (Cachés à l'impression) ===== */}
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3 print:hidden">
         <Card className="shadow-sm border-l-4 border-l-amber-500 bg-white">
           <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">À Commander</CardDescription></CardHeader>
@@ -258,15 +252,15 @@ const ReagentsPage: React.FC = () => {
           </CardContent>
         </Card>
         <Card className="shadow-sm border-l-4 border-l-indigo-600 bg-white">
-          <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">Valorisation</CardDescription></CardHeader>
+          <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">Valorisation du Stock</CardDescription></CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-indigo-700">{stats.totalValuation.toLocaleString()} <span className="text-sm font-normal">FCFA</span></div>
-            <p className="text-[10px] text-muted-foreground mt-1">Valeur totale stockée</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Valeur financière totale des réactifs stockés</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* GRAPHIQUE ET AUDIT */}
+      {/* ===== GRAPHIQUE ET AUDIT (Cachés à l'impression) ===== */}
       <div className="grid gap-8 lg:grid-cols-12 print:hidden">
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-5 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
@@ -290,7 +284,7 @@ const ReagentsPage: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-xs text-slate-400 italic">Aucune donnée de sortie.</p>
+              <p className="text-xs text-slate-400 italic">Aucune sortie de réactifs enregistrée.</p>
             )}
           </CardContent>
         </Card>
@@ -329,17 +323,27 @@ const ReagentsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* TABLE DE STOCK */}
+      {/* ===== TABLE DE STOCK (Adaptée pour l'impression) ===== */}
       <Card className="shadow-lg overflow-hidden border-none bg-white rounded-2xl print:shadow-none print:border-none">
-        <CardHeader className="border-b bg-slate-50/50 print:bg-transparent">
+        <CardHeader className="border-b bg-slate-50/50 print:bg-transparent print:border-none">
+          {/* Version Écran */}
           <div className="flex justify-between items-center print:hidden">
             <CardTitle className="text-base font-bold flex items-center gap-1.5">
-              <FlaskConical size={16} className="text-blue-600" /> Inventaire & Pilotage
+              <FlaskConical size={16} className="text-blue-600" /> Inventaire & Pilotage des Stocks
             </CardTitle>
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input placeholder="Rechercher..." className="pl-10 rounded-xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input placeholder="Rechercher par nom ou référence..." className="pl-10 rounded-xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
+          </div>
+          {/* Version Papier (Cachée sur l'écran) */}
+          <div className="hidden print:block">
+            <h1 className="text-center font-black text-2xl uppercase border-b-4 border-black pb-3">
+              RAPPORT D'INVENTAIRE ET D'AUDIT DES STOCKS DE RÉACTIFS BIOLOGIQUES
+            </h1>
+            <p className="text-right text-xs mt-2 font-mono">
+              Date d'édition : {format(new Date(), 'dd/MM/yyyy HH:mm')}
+            </p>
           </div>
         </CardHeader>
 
@@ -348,11 +352,11 @@ const ReagentsPage: React.FC = () => {
             <table className="w-full text-left">
               <thead className="bg-muted/50 text-[10px] uppercase font-bold text-muted-foreground border-b print:bg-slate-200">
                 <tr>
-                  <th className="px-6 py-4">Nom / Lot</th>
+                  <th className="px-6 py-4">Nom du Produit / Lot</th>
                   <th className="px-6 py-4">Péremption</th>
                   <th className="px-6 py-4">Niveau de Stock</th>
                   <th className="px-6 py-4 print:hidden">Ajustement</th>
-                  <th className="px-6 py-4 text-right print:hidden">Action</th>
+                  <th className="px-6 py-4 text-right print:hidden">Audit / Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -409,7 +413,7 @@ const ReagentsPage: React.FC = () => {
                     );
                   })
                 ) : (
-                  <tr><td colSpan={5} className="text-center py-10 text-muted-foreground italic">Aucun réactif.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-10 text-muted-foreground italic">Aucun réactif en stock.</td></tr>
                 )}
               </tbody>
             </table>
@@ -419,19 +423,42 @@ const ReagentsPage: React.FC = () => {
 
       <ReagentHistoryDialog reagentId={historyReagent?.id || null} reagentName={historyReagent?.name || null} isOpen={!!historyReagent} onClose={() => setHistoryReagent(null)} />
 
+      {/* ===== STYLES D'IMPRESSION (Ton système original) ===== */}
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          .print\\:hidden, button, header, nav, aside, footer { display: none !important; }
-          .bg-white.rounded-2xl { visibility: visible; position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
-          .bg-white.rounded-2xl * { visibility: visible; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th, td { border: 1px solid #ddd !important; padding: 10px !important; }
+          body * {
+            visibility: hidden;
+          }
+          .print\\:hidden, button, header, nav, aside, footer {
+            display: none !important;
+          }
+          .bg-white.rounded-2xl {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .bg-white.rounded-2xl * {
+            visibility: visible;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+          th, td {
+            border: 1px solid #ddd !important;
+            padding: 10px !important;
+          }
         }
       `}</style>
     </div>
   );
 };
 
-// 4. L'EXPORT OBLIGATOIRE
 export default ReagentsPage;
