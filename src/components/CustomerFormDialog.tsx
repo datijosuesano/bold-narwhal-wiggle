@@ -80,8 +80,8 @@ const CustomerFormDialog: React.FC<CustomerFormDialogProps> = ({
       if (customerToEdit) {
         form.reset({
           name: customerToEdit.name || "",
-          contact_email: customerToEdit.contact_email || "",
-          contact_phone: customerToEdit.contact_phone || "",
+          contact_email: customerToEdit.email || "", // <-- Lire depuis email
+          contact_phone: customerToEdit.phone || "", // <-- Lire depuis phone
           address: customerToEdit.address || "",
           credit_limit: customerToEdit.credit_limit || 0,
           payment_terms: customerToEdit.payment_terms || "Comptant",
