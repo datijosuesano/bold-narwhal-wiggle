@@ -4,7 +4,7 @@ export const ROLE_MAP: Record<string, string> = {
   admin: "Administrateur",
   technicien_biomedical: "Technicien Biomédical",
   gestionnaire_stock: "Gestionnaire de Stock",
-  secretaire: "administratif", 
+  secretaire: "Secretaire", 
   client: "Client"
 };
 
