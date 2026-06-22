@@ -28,6 +28,8 @@ import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import ReagentsPage from "./pages/ReagentsPage";
+// Tout en haut avec tes autres imports
+import ReagentCustomersPage from "./pages/ReagentCustomersPage";
 
 const queryClient = new QueryClient();
 
