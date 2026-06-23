@@ -11,7 +11,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { History, Loader2, Banknote, CalendarDays, FileText } from "lucide-center";
+import { History, Loader2, Banknote, CalendarDays, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface PaymentHistory {
