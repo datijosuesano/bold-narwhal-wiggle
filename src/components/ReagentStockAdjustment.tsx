@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Scale, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { cn } from "@/lib/utils";
 
 interface ReagentStockAdjustmentProps {
@@ -127,6 +127,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
       const finalQuantity = movementType === "IN" ? qtyNumber : -qtyNumber;
       const newStockValue = currentStock + finalQuantity;
 
+      // 1. Enregistrer le mouvement avec le customer_id s'il existe !
       const { error: movementError } = await supabase
         .from("reagent_stock_movements")
         .insert({
@@ -134,10 +135,12 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
           movement_type: movementType,
           quantity: finalQuantity,
           reason: reason || (movementType === "IN" ? "Réapprovisionnement" : "Consommation / Vente"),
+          customer_id: movementType === "OUT" && selectedCustomerId ? selectedCustomerId : null, // Liaison établie !
         });
 
       if (movementError) throw movementError;
 
+      // 2. Mettre à jour le stock actuel
       const { error: reagentUpdateError } = await supabase
         .from("lab_reagents")
         .update({ current_stock: newStockValue })
@@ -145,6 +148,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
 
       if (reagentUpdateError) throw reagentUpdateError;
 
+      // 3. Mettre à jour la dette si crédit
       if (movementType === "OUT" && isCreditPurchase && selectedCustomerId) {
         const newDebt = (currentSelectedCustomer?.current_debt || 0) + transactionTotal;
 
@@ -156,7 +160,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
         if (customerUpdateError) throw customerUpdateError;
       }
 
-      showSuccess("Le stock a été ajusté avec succès.");
+      showSuccess("Le stock a été ajusté et tracé avec succès.");
       onSuccess();
       setIsOpen(false);
     } catch (err: any) {
@@ -181,7 +185,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
             Ajustement : {reagentName}
           </DialogTitle>
           <DialogDescription>
-            Modifier le niveau de stock. Le stock actuel disponible est de <strong className="text-blue-600">{currentStock}</strong>.
+            Modifier le niveau de stock. Stock disponible : <strong className="text-blue-600">{currentStock}</strong>.
           </DialogDescription>
         </DialogHeader>
 
@@ -258,7 +262,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
                   <div className="flex items-center justify-between pt-2 border-t border-indigo-100">
                     <div>
                       <Label htmlFor="credit-toggle" className="text-xs font-bold text-slate-700 block">Achat à crédit / Facturation ultérieure</Label>
-                      <span className="text-[10px] text-slate-500">Ajouter le coût de {transactionTotal.toLocaleString()} FCFA à la dette</span>
+                      <span className="text-[10px] text-slate-500">Ajouter {transactionTotal.toLocaleString()} FCFA à la dette</span>
                     </div>
                     <Switch
                       id="credit-toggle"
@@ -271,7 +275,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
                     <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-start gap-2 animate-pulse">
                       <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold">Alerte Plafond :</span> Ce client va dépasser sa limite de crédit autorisée (Max: {currentSelectedCustomer?.credit_limit.toLocaleString()} FCFA).
+                        <span className="font-bold">Alerte Plafond :</span> Limite dépassée (Max: {currentSelectedCustomer?.credit_limit.toLocaleString()} FCFA).
                       </div>
                     </div>
                   )}
