@@ -1,5 +1,6 @@
 "use client";
-
+import CustomerPaymentHistoryDialog from "@/components/CustomerPaymentHistoryDialog";
+import { History as HistoryIcon } from "lucide-react"; // Ajoute cette icône
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerPaymentDialog from "@/components/CustomerPaymentDialog";
 import {
