@@ -47,7 +47,6 @@ const CustomerPaymentDialog: React.FC<CustomerPaymentDialogProps> = ({
   const [paymentMethod, setPaymentMethod] = useState("Espèces");
   const [reference, setReference] = useState("");
 
-  // Réinitialiser les champs à l'ouverture
   useEffect(() => {
     if (isOpen) {
       setPaymentAmount("");
@@ -79,18 +78,32 @@ const CustomerPaymentDialog: React.FC<CustomerPaymentDialogProps> = ({
     try {
       setIsLoading(true);
 
-      // Calculer la nouvelle dette après paiement
-      const newDebt = customer.current_debt - amount;
+      // 1. Récupérer l'utilisateur connecté (pour savoir qui a encaissé)
+      const { data: { user } } = await supabase.auth.getUser();
 
-      // Mettre à jour la dette du client dans Supabase
-      const { error } = await supabase
+      // 2. Enregistrer l'historique dans customer_payments
+      const { error: historyError } = await supabase
+        .from("customer_payments")
+        .insert({
+          customer_id: customer.id,
+          amount: amount,
+          payment_method: paymentMethod,
+          reference: reference || null,
+          created_by: user?.id
+        });
+
+      if (historyError) throw historyError;
+
+      // 3. Mettre à jour la dette du client
+      const newDebt = customer.current_debt - amount;
+      const { error: debtError } = await supabase
         .from("reagent_customers")
         .update({ current_debt: newDebt })
         .eq("id", customer.id);
 
-      if (error) throw error;
+      if (debtError) throw debtError;
 
-      showSuccess(`Règlement de ${formatFCFA(amount)} enregistré pour ${customer.name}.`);
+      showSuccess(`Règlement de ${formatFCFA(amount)} enregistré avec succès.`);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -145,7 +158,7 @@ const CustomerPaymentDialog: React.FC<CustomerPaymentDialogProps> = ({
                   <SelectItem value="Espèces">Espèces</SelectItem>
                   <SelectItem value="Chèque">Chèque</SelectItem>
                   <SelectItem value="Virement Bancaire">Virement Bancaire</SelectItem>
-                  <SelectItem value="Mobile Money">Mobile Money (Orange/MTN/Moov)</SelectItem>
+                  <SelectItem value="Mobile Money">Mobile Money</SelectItem>
                 </SelectContent>
               </Select>
             </div>
