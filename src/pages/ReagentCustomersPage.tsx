@@ -1,8 +1,8 @@
 "use client";
-import CustomerPaymentHistoryDialog from "@/components/CustomerPaymentHistoryDialog";
-import { History as HistoryIcon } from "lucide-react"; // Ajoute cette icône
+
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerPaymentDialog from "@/components/CustomerPaymentDialog";
+import CustomerPaymentHistoryDialog from "@/components/CustomerPaymentHistoryDialog";
 import {
   Card,
   CardContent,
@@ -24,7 +24,8 @@ import {
   AlertCircle,
   Ban,
   Edit2,
-  Trash2
+  Trash2,
+  History as HistoryIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -32,7 +33,6 @@ import { cn } from "@/lib/utils";
 import CustomerFormDialog from "@/components/CustomerFormDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-// Interface mise à jour avec contact_email et contact_phone
 interface ReagentCustomer {
   id: string;
   name: string;
@@ -62,6 +62,10 @@ const ReagentCustomersPage: React.FC = () => {
   // États pour le paiement
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [customerToPay, setCustomerToPay] = useState<ReagentCustomer | null>(null);
+
+  // États pour l'historique
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [customerForHistory, setCustomerForHistory] = useState<{id: string, name: string} | null>(null);
 
   const fetchCustomers = async () => {
     try {
@@ -195,8 +199,14 @@ const ReagentCustomersPage: React.FC = () => {
                         
                         {/* Structure & Statut */}
                         <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                          <div className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
                             {customer.name}
+                            {customer.customer_type === 'Revendeur' && (
+                              <Badge variant="outline" className="text-[9px] py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">Revendeur</Badge>
+                            )}
+                            {customer.customer_type === 'Client final' && (
+                              <Badge variant="outline" className="text-[9px] py-0 h-4 bg-blue-50 text-blue-700 border-blue-200">Client final</Badge>
+                            )}
                             {!customer.is_active && (
                               <Badge variant="destructive" className="text-[9px] py-0 h-4 flex items-center">
                                 <Ban size={10} className="mr-1" /> Bloqué
@@ -257,6 +267,21 @@ const ReagentCustomersPage: React.FC = () => {
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            
+                            {/* Bouton Historique */}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                              title="Voir l'historique des paiements"
+                              onClick={() => {
+                                setCustomerForHistory({ id: customer.id, name: customer.name });
+                                setIsHistoryOpen(true);
+                              }}
+                            >
+                              <HistoryIcon size={14} />
+                            </Button>
+
                             {/* Bouton Encaisser */}
                             <Button 
                               variant="ghost" 
@@ -333,6 +358,16 @@ const ReagentCustomersPage: React.FC = () => {
         }}
         onSuccess={fetchCustomers}
         customer={customerToPay}
+      />
+
+      {/* MODALE HISTORIQUE DES PAIEMENTS */}
+      <CustomerPaymentHistoryDialog 
+        isOpen={isHistoryOpen}
+        onClose={() => {
+          setIsHistoryOpen(false);
+          setCustomerForHistory(null);
+        }}
+        customer={customerForHistory}
       />
 
       {/* ALERTE DE SUPPRESSION */}
