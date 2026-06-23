@@ -30,11 +30,12 @@ import { cn } from "@/lib/utils";
 import CustomerFormDialog from "@/components/CustomerFormDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+// Interface mise à jour avec contact_email et contact_phone
 interface ReagentCustomer {
   id: string;
   name: string;
-  email: string | null;
-  phone: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
   address: string | null;
   current_debt: number;
   credit_limit: number;
@@ -83,8 +84,8 @@ const ReagentCustomersPage: React.FC = () => {
     return customers.filter(
       (c) =>
         c.name.toLowerCase().includes(term) ||
-        (c.email && c.email.toLowerCase().includes(term)) ||
-        (c.phone && c.phone.includes(term))
+        (c.contact_email && c.contact_email.toLowerCase().includes(term)) ||
+        (c.contact_phone && c.contact_phone.includes(term))
     );
   }, [customers, searchTerm]);
 
@@ -205,11 +206,11 @@ const ReagentCustomersPage: React.FC = () => {
                         <td className="px-6 py-4 space-y-1">
                           <div className="flex items-center text-xs text-slate-600 font-medium">
                             <Phone size={12} className="mr-1.5 text-slate-400" />
-                            {customer.phone || "---"}
+                            {customer.contact_phone || "---"}
                           </div>
                           <div className="flex items-center text-xs text-slate-600">
                             <Mail size={12} className="mr-1.5 text-slate-400" />
-                            {customer.email || "---"}
+                            {customer.contact_email || "---"}
                           </div>
                         </td>
 
