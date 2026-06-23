@@ -1,5 +1,5 @@
 "use client";
-
+import CustomerPaymentDialog from "@/components/CustomerPaymentDialog";
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
