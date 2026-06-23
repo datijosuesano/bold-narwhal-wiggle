@@ -24,7 +24,7 @@ import {
 import { Loader2, Scale, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface ReagentStockAdjustmentProps {
   reagentId: string;
@@ -50,23 +50,19 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // États du mouvement de stock
   const [movementType, setMovementType] = useState<"IN" | "OUT">("OUT");
   const [quantity, setQuantity] = useState<number | "">("");
   const [reason, setReason] = useState("");
   const [purchaseCost, setPurchaseCost] = useState<number>(0);
 
-  // États pour la liaison client & recouvrement
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [isCreditPurchase, setIsCreditPurchase] = useState(false);
 
-  // Charger les clients actifs et le coût unitaire du réactif au moment de l'ouverture
   useEffect(() => {
     if (isOpen) {
       const loadAdjustmentData = async () => {
         try {
-          // 1. Récupérer le prix du réactif
           const { data: reagentData } = await supabase
             .from("lab_reagents")
             .select("purchase_cost")
@@ -77,7 +73,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
             setPurchaseCost(reagentData.purchase_cost);
           }
 
-          // 2. Récupérer les clients actifs pour la liste déroulante
           const { data: customersData, error } = await supabase
             .from("reagent_customers")
             .select("id, name, current_debt, credit_limit, customer_type")
@@ -92,7 +87,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
       };
 
       loadAdjustmentData();
-      // Reset des états internes
       setQuantity("");
       setReason("");
       setSelectedCustomerId("");
@@ -101,7 +95,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
     }
   }, [isOpen, reagentId]);
 
-  // Trouver les informations du client sélectionné pour afficher des alertes dynamiques
   const currentSelectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const transactionTotal = (Number(quantity) || 0) * purchaseCost;
   
@@ -131,11 +124,9 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
     try {
       setIsLoading(true);
 
-      // Déterminer la valeur finale de la quantité (négative si sortie)
       const finalQuantity = movementType === "IN" ? qtyNumber : -qtyNumber;
       const newStockValue = currentStock + finalQuantity;
 
-      // 1. Enregistrer le mouvement dans reagent_stock_movements
       const { error: movementError } = await supabase
         .from("reagent_stock_movements")
         .insert({
@@ -147,7 +138,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
 
       if (movementError) throw movementError;
 
-      // 2. Mettre à jour le stock actuel dans lab_reagents
       const { error: reagentUpdateError } = await supabase
         .from("lab_reagents")
         .update({ current_stock: newStockValue })
@@ -155,7 +145,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
 
       if (reagentUpdateError) throw reagentUpdateError;
 
-      // 3. SI SORTIE À CRÉDIT : Mettre à jour la dette du client (current_debt)
       if (movementType === "OUT" && isCreditPurchase && selectedCustomerId) {
         const newDebt = (currentSelectedCustomer?.current_debt || 0) + transactionTotal;
 
@@ -197,7 +186,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
-          {/* Type de mouvement (Entrée / Sortie) */}
           <div className="space-y-2">
             <Label>Type d'opération</Label>
             <Select
@@ -218,7 +206,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Quantité */}
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantité à ajuster</Label>
               <Input
@@ -233,7 +220,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
               />
             </div>
 
-            {/* Motif / Commentaire */}
             <div className="space-y-2">
               <Label htmlFor="reason">Motif ou Commentaire</Label>
               <Input
@@ -246,7 +232,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
             </div>
           </div>
 
-          {/* ===== SECTION SUIVI CLIENT & CRÉDIT (Visible uniquement sur les sorties) ===== */}
           {movementType === "OUT" && (
             <div className="p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-4">
               <div className="flex items-center justify-between">
@@ -282,7 +267,6 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
                     />
                   </div>
 
-                  {/* Alerte si le client dépasse son plafond de crédit autorisé */}
                   {isCreditPurchase && wouldExceedLimit && (
                     <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-start gap-2 animate-pulse">
                       <AlertTriangle size={16} className="shrink-0 mt-0.5" />
@@ -303,7 +287,7 @@ const ReagentStockAdjustment: React.FC<ReagentStockAdjustmentProps> = ({
             <Button 
               type="submit" 
               className={cn("rounded-xl font-bold text-white shadow-md", movementType === "IN" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700")}
-              disabled={isLoading || (isCreditPurchase && wouldExceedLimit)} // Bloque la validation si la limite de crédit est enfoncée !
+              disabled={isLoading || (isCreditPurchase && wouldExceedLimit)}
             >
               {isLoading ? (
                 <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Traitement...</>
