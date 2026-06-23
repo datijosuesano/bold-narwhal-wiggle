@@ -20,7 +20,8 @@ import {
   BarChart3, 
   User,
   Hammer,
-  MessageSquare
+  MessageSquare,
+  Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const SidebarContent: React.FC<{ closeSheet?: () => void }> = ({ closeSheet }) =
     { to: "/planning", icon: <CalendarDays size={20} />, label: "Planification", roles: ['admin', 'technicien_biomedical'] },
     { to: "/inventory", icon: <Box size={20} />, label: "Pièces Détachées", roles: ['admin', 'gestionnaire_stock'] },
     { to: "/reagents", icon: <FlaskConical size={20} />, label: "Réactifs Labo", roles: ['admin', 'gestionnaire_stock'] },
+    { to: "/reagent-customers", icon: <Wallet size={20} />, label: "Clients Réactifs", roles: ['admin', 'secretaire', 'gestionnaire_stock'] },
     { to: "/tools", icon: <Hammer size={20} />, label: "Outils de Travail", roles: ['admin', 'technicien_biomedical'] },
     { to: "/clients", icon: <Building2 size={20} />, label: "Clients & Sites", roles: ['admin', 'secretaire'] },
     { to: "/contracts", icon: <ShieldCheck size={20} />, label: "Contrats", roles: ['admin', 'secretaire'] },
