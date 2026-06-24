@@ -1,4 +1,5 @@
 "use client";
+
 import CreateOrderDialog from "@/components/CreateOrderDialog";
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerPaymentDialog from "@/components/CustomerPaymentDialog";
@@ -73,6 +74,9 @@ const ReagentCustomersPage: React.FC = () => {
   const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
   const [customerForPurchaseHistory, setCustomerForPurchaseHistory] = useState<{id: string, name: string} | null>(null);
 
+  // État pour le panier (nouvelle commande groupée)
+  const [isOrderOpen, setIsOrderOpen] = useState(false);
+
   const fetchCustomers = async () => {
     try {
       setIsLoading(true);
@@ -144,15 +148,24 @@ const ReagentCustomersPage: React.FC = () => {
           </div>
         </div>
 
-        <Button 
-          onClick={() => {
-            setSelectedCustomer(null);
-            setIsFormOpen(true);
-          }}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md h-11 font-bold"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Nouveau Client
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => setIsOrderOpen(true)}
+            className="bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm h-11 font-bold"
+          >
+            <ShoppingBag className="mr-2 h-4 w-4" /> Nouvelle Sortie Groupée
+          </Button>
+
+          <Button 
+            onClick={() => {
+              setSelectedCustomer(null);
+              setIsFormOpen(true);
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md h-11 font-bold"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nouveau Client
+          </Button>
+        </div>
       </div>
 
       {/* TABLEAU DES CLIENTS */}
@@ -398,6 +411,13 @@ const ReagentCustomersPage: React.FC = () => {
           setCustomerForPurchaseHistory(null);
         }}
         customer={customerForPurchaseHistory}
+      />
+
+      {/* MODALE CRÉATION COMMANDE COMPLÈTE / PANIER */}
+      <CreateOrderDialog 
+        isOpen={isOrderOpen}
+        onClose={() => setIsOrderOpen(false)}
+        onSuccess={fetchCustomers}
       />
 
       {/* ALERTE DE SUPPRESSION */}
