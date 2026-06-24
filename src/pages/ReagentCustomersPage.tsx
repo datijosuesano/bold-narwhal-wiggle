@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerPaymentDialog from "@/components/CustomerPaymentDialog";
 import CustomerPaymentHistoryDialog from "@/components/CustomerPaymentHistoryDialog";
+import CustomerPurchaseHistoryDialog from "@/components/CustomerPurchaseHistoryDialog";
 import {
   Card,
   CardContent,
@@ -25,7 +26,8 @@ import {
   Ban,
   Edit2,
   Trash2,
-  History as HistoryIcon
+  History as HistoryIcon,
+  ShoppingBag
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -63,9 +65,13 @@ const ReagentCustomersPage: React.FC = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [customerToPay, setCustomerToPay] = useState<ReagentCustomer | null>(null);
 
-  // États pour l'historique
+  // États pour l'historique financier des encaissements
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [customerForHistory, setCustomerForHistory] = useState<{id: string, name: string} | null>(null);
+
+  // États pour l'historique matériel des achats/livraisons
+  const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
+  const [customerForPurchaseHistory, setCustomerForPurchaseHistory] = useState<{id: string, name: string} | null>(null);
 
   const fetchCustomers = async () => {
     try {
@@ -268,7 +274,21 @@ const ReagentCustomersPage: React.FC = () => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             
-                            {/* Bouton Historique */}
+                            {/* Bouton Historique des réactifs achetés */}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
+                              title="Voir les articles livrés"
+                              onClick={() => {
+                                setCustomerForPurchaseHistory({ id: customer.id, name: customer.name });
+                                setIsPurchaseHistoryOpen(true);
+                              }}
+                            >
+                              <ShoppingBag size={14} />
+                            </Button>
+
+                            {/* Bouton Historique financier des paiements */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -282,7 +302,7 @@ const ReagentCustomersPage: React.FC = () => {
                               <HistoryIcon size={14} />
                             </Button>
 
-                            {/* Bouton Encaisser */}
+                            {/* Bouton Encaisser règlement */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -368,6 +388,16 @@ const ReagentCustomersPage: React.FC = () => {
           setCustomerForHistory(null);
         }}
         customer={customerForHistory}
+      />
+
+      {/* MODALE HISTORIQUE DES ARTICLES / LIVRAISONS */}
+      <CustomerPurchaseHistoryDialog 
+        isOpen={isPurchaseHistoryOpen}
+        onClose={() => {
+          setIsPurchaseHistoryOpen(false);
+          setCustomerForPurchaseHistory(null);
+        }}
+        customer={customerForPurchaseHistory}
       />
 
       {/* ALERTE DE SUPPRESSION */}
