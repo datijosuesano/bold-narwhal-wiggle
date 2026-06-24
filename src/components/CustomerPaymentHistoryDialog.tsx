@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { History, Loader2, Banknote, CalendarDays, FileText, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface PaymentHistory {
   id: string;
@@ -50,7 +51,6 @@ const CustomerPaymentHistoryDialog: React.FC<CustomerPaymentHistoryDialogProps> 
   // Déclencher l'impression dès que la structure HTML du reçu est chargée
   useEffect(() => {
     if (activeReceipt) {
-      // Un mini timeout pour s'assurer que le DOM s'est mis à jour avec les infos du reçu
       setTimeout(() => {
         triggerPrint();
       }, 150);
@@ -127,7 +127,6 @@ const CustomerPaymentHistoryDialog: React.FC<CustomerPaymentHistoryDialogProps> 
                         <FileText size={10} className="mr-1" /> Réf: {payment.reference}
                       </Badge>
                     )}
-                    {/* Bouton pour imprimer le reçu PDF */}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -149,11 +148,10 @@ const CustomerPaymentHistoryDialog: React.FC<CustomerPaymentHistoryDialogProps> 
           )}
         </div>
 
-        {/* ===== ZONE CACHÉE DÉDIÉE À L'IMPRESSION DU REÇU PDF ===== */}
+        {/* ZONE CACHÉE DÉDIÉE À L'IMPRESSION DU REÇU PDF */}
         <div className="hidden">
           {activeReceipt && (
             <div ref={printRef} className="p-16 bg-white text-black font-sans w-[800px]">
-              {/* Header Reçu */}
               <div className="flex justify-between items-center border-b-2 border-black pb-6 mb-8">
                 <div>
                   <h1 className="text-2xl font-black uppercase tracking-wide">REÇU DE PAIEMENT</h1>
@@ -165,7 +163,6 @@ const CustomerPaymentHistoryDialog: React.FC<CustomerPaymentHistoryDialogProps> 
                 </div>
               </div>
 
-              {/* Contenu Reçu */}
               <div className="space-y-6 text-sm">
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-gray-200">
                   <div>
@@ -198,7 +195,6 @@ const CustomerPaymentHistoryDialog: React.FC<CustomerPaymentHistoryDialogProps> 
                   </tbody>
                 </table>
 
-                {/* Pied de page Reçu */}
                 <div className="pt-16 mt-12 border-t border-gray-200 flex justify-between items-center">
                   <div className="text-center w-40 border-t border-dashed border-gray-400 pt-2">
                     <p className="text-[10px] uppercase font-bold text-gray-400">Cachet / Signature</p>
