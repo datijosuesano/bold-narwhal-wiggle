@@ -28,7 +28,11 @@ import {
   Edit2,
   Trash2,
   History as HistoryIcon,
-  ShoppingBag
+  ShoppingBag,
+  Trophy,
+  Flame,
+  TrendingUp,
+  BarChart3
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -50,8 +54,14 @@ interface ReagentCustomer {
   created_at: string;
 }
 
+interface TopProduct {
+  name: string;
+  quantity: number;
+}
+
 const ReagentCustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<ReagentCustomer[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -77,27 +87,65 @@ const ReagentCustomersPage: React.FC = () => {
   // État pour le panier (nouvelle commande groupée)
   const [isOrderOpen, setIsOrderOpen] = useState(false);
 
-  const fetchCustomers = async () => {
+  const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+
+      // 1. Charger la liste des clients
+      const { data: customersData, error: custError } = await supabase
         .from("reagent_customers")
         .select("*")
         .order("name", { ascending: true });
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (custError) throw custError;
+      setCustomers(customersData || []);
+
+      // 2. Charger les mouvements de stock OUT pour classer les produits les plus vendus
+      const { data: movementsData, error: moveError } = await supabase
+        .from("reagent_stock_movements")
+        .select(`
+          quantity,
+          lab_reagents ( name )
+        `)
+        .eq("movement_type", "OUT");
+
+      if (moveError) throw moveError;
+
+      // Calcul de l'agrégation du Top Produits en React
+      const productMap: Record<string, number> = {};
+      (movementsData || []).forEach((movement: any) => {
+        const name = movement.lab_reagents?.name || "Réactif Inconnu";
+        const qty = Math.abs(movement.quantity);
+        productMap[name] = (productMap[name] || 0) + qty;
+      });
+
+      // Trier et prendre le Top 3 des produits
+      const sortedProducts = Object.entries(productMap)
+        .map(([name, quantity]) => ({ name, quantity }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 3);
+
+      setTopProducts(sortedProducts);
+
     } catch (err: any) {
-      console.error("Erreur lors du chargement des clients:", err);
-      showError("Impossible de charger la liste des clients.");
+      console.error("Erreur lors du chargement des statistiques:", err);
+      showError("Impossible de charger les données du tableau de bord.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCustomers();
+    loadDashboardData();
   }, []);
+
+  // Calculer le Top 3 des clients débiteurs à partir du tableau existant
+  const topDebtors = useMemo(() => {
+    return [...customers]
+      .sort((a, b) => b.current_debt - a.current_debt)
+      .filter(c => c.current_debt > 0)
+      .slice(0, 3);
+  }, [customers]);
 
   const filteredCustomers = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -120,7 +168,7 @@ const ReagentCustomersPage: React.FC = () => {
 
       if (error) throw error;
       showSuccess(`Le client "${selectedCustomer.name}" a été supprimé.`);
-      fetchCustomers();
+      loadDashboardData();
     } catch (err: any) {
       showError(`Erreur lors de la suppression : ${err.message}`);
     } finally {
@@ -168,13 +216,78 @@ const ReagentCustomersPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ===== PANEL DE CLASSEMENT STATISTIQUE ===== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* CARTE : CLASSEMENT DES CLIENTS DÉBITEURS */}
+        <Card className="shadow-md border-none bg-white rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-red-50 to-amber-50/30 border-b pb-3">
+            <CardTitle className="text-sm font-black uppercase text-red-900 flex items-center gap-2 tracking-wider">
+              <Trophy size={16} className="text-red-600" /> 🏆 Top 3 Clients - Encours de Dette
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {topDebtors.length > 0 ? (
+              topDebtors.map((debtor, index) => (
+                <div key={debtor.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 border border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <span className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-black",
+                      index === 0 ? "bg-red-600 text-white" : index === 1 ? "bg-orange-500 text-white" : "bg-amber-500 text-white"
+                    )}>
+                      {index + 1}
+                    </span>
+                    <span className="font-bold text-slate-800 text-sm">{debtor.name}</span>
+                  </div>
+                  <span className="font-black text-red-600 text-sm">{formatFCFA(debtor.current_debt)}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 italic text-center py-4">Aucune dette en cours sur l'ensemble des comptes.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* CARTE : CLASSEMENT DES PRODUITS LES PLUS SORTIS */}
+        <Card className="shadow-md border-none bg-white rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50/30 border-b pb-3">
+            <CardTitle className="text-sm font-black uppercase text-indigo-900 flex items-center gap-2 tracking-wider">
+              <Flame size={16} className="text-indigo-600" /> 🔥 Top 3 Réactifs les plus distribués
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {topProducts.length > 0 ? (
+              topProducts.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 border border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <span className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-black",
+                      index === 0 ? "bg-indigo-600 text-white" : index === 1 ? "bg-blue-500 text-white" : "bg-sky-500 text-white"
+                    )}>
+                      {index + 1}
+                    </span>
+                    <span className="font-bold text-slate-800 text-sm">{product.name}</span>
+                  </div>
+                  <Badge className="bg-indigo-50 text-indigo-700 font-black border-indigo-200" variant="outline">
+                    {product.quantity} unités sorties
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 italic text-center py-4">Aucun mouvement de vente enregistré pour le moment.</p>
+            )}
+          </CardContent>
+        </Card>
+
+      </div>
+
       {/* TABLEAU DES CLIENTS */}
       <Card className="shadow-lg border-none bg-white rounded-2xl">
         <CardHeader className="border-b bg-slate-50/50">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base font-bold flex items-center text-slate-800">
-              <Wallet size={18} className="mr-2 text-indigo-600" /> 
-              Suivi des Comptes Clients ({customers.length})
+              <BarChart3 size={18} className="mr-2 text-indigo-600" /> 
+              Suivi général des Comptes Clients ({customers.length})
             </CardTitle>
             <div className="relative w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -201,14 +314,7 @@ const ReagentCustomersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-12">
-                      <Loader2 className="animate-spin h-8 w-8 mx-auto text-indigo-600 mb-2" />
-                      <p className="text-sm text-slate-500">Chargement des données financières...</p>
-                    </td>
-                  </tr>
-                ) : filteredCustomers.length > 0 ? (
+                {filteredCustomers.length > 0 ? (
                   filteredCustomers.map((customer) => {
                     const isOverLimit = customer.credit_limit > 0 && customer.current_debt >= customer.credit_limit;
                     const isNearLimit = customer.credit_limit > 0 && customer.current_debt >= (customer.credit_limit * 0.8) && !isOverLimit;
@@ -216,7 +322,6 @@ const ReagentCustomersPage: React.FC = () => {
                     return (
                       <tr key={customer.id} className={cn("hover:bg-slate-50/80 transition-colors group", !customer.is_active && "bg-slate-50 opacity-75")}>
                         
-                        {/* Structure & Statut */}
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-2 flex-wrap">
                             {customer.name}
@@ -238,7 +343,6 @@ const ReagentCustomersPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Contact */}
                         <td className="px-6 py-4 space-y-1">
                           <div className="flex items-center text-xs text-slate-600 font-medium">
                             <Phone size={12} className="mr-1.5 text-slate-400" />
@@ -250,7 +354,6 @@ const ReagentCustomersPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Situation Financière */}
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             <div className={cn(
@@ -276,18 +379,15 @@ const ReagentCustomersPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Conditions de paiement */}
                         <td className="px-6 py-4">
                           <Badge variant="outline" className="text-[10px] bg-white text-slate-600 font-medium border-slate-200">
                             {customer.payment_terms || "Non définies"}
                           </Badge>
                         </td>
 
-                        {/* Actions */}
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             
-                            {/* Bouton Historique des réactifs achetés */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -301,7 +401,6 @@ const ReagentCustomersPage: React.FC = () => {
                               <ShoppingBag size={14} />
                             </Button>
 
-                            {/* Bouton Historique financier des paiements */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -315,7 +414,6 @@ const ReagentCustomersPage: React.FC = () => {
                               <HistoryIcon size={14} />
                             </Button>
 
-                            {/* Bouton Encaisser règlement */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -371,29 +469,27 @@ const ReagentCustomersPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* MODALE FORMULAIRE CLIENT */}
+      {/* MODALES ET DIALOGUES RESTE INCHANGÉS */}
       <CustomerFormDialog 
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setSelectedCustomer(null);
         }}
-        onSuccess={fetchCustomers}
+        onSuccess={loadDashboardData}
         customerToEdit={selectedCustomer}
       />
 
-      {/* MODALE ENCAISSEMENT PAIEMENT */}
       <CustomerPaymentDialog 
         isOpen={isPaymentOpen}
         onClose={() => {
           setIsPaymentOpen(false);
           setCustomerToPay(null);
         }}
-        onSuccess={fetchCustomers}
+        onSuccess={loadDashboardData}
         customer={customerToPay}
       />
 
-      {/* MODALE HISTORIQUE DES PAIEMENTS */}
       <CustomerPaymentHistoryDialog 
         isOpen={isHistoryOpen}
         onClose={() => {
@@ -403,7 +499,6 @@ const ReagentCustomersPage: React.FC = () => {
         customer={customerForHistory}
       />
 
-      {/* MODALE HISTORIQUE DES ARTICLES / LIVRAISONS */}
       <CustomerPurchaseHistoryDialog 
         isOpen={isPurchaseHistoryOpen}
         onClose={() => {
@@ -413,14 +508,12 @@ const ReagentCustomersPage: React.FC = () => {
         customer={customerForPurchaseHistory}
       />
 
-      {/* MODALE CRÉATION COMMANDE COMPLÈTE / PANIER */}
       <CreateOrderDialog 
         isOpen={isOrderOpen}
         onClose={() => setIsOrderOpen(false)}
-        onSuccess={fetchCustomers}
+        onSuccess={loadDashboardData}
       />
 
-      {/* ALERTE DE SUPPRESSION */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
