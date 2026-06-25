@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Save, User } from "lucide-react";
+import { CalendarIcon, Loader2, Save, User, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,7 +40,8 @@ const AssetSchema = z.object({
   model: z.string().min(1, "Le modèle est requis."),
   brand: z.string().min(1, "La marque est requise."),
   manufacturer: z.string().min(1, "Le fabricant est requis."),
-  location: z.string().min(1, "Le site est requis."),
+  client_id: z.string().min(1, "Le client est requis."),
+  location: z.string().min(1, "La localisation (salle) est requise."),
   assignedTo: z.string().optional().nullable(),
   manufacturingDate: z.date().optional().nullable(),
   commissioningDate: z.date({
@@ -60,6 +60,7 @@ interface Asset {
   id: string;
   name: string;
   category: string;
+  client_id?: string; // Ajout du client_id
   location: string;
   status: string;
   serialNumber: string;
@@ -95,7 +96,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
       model: asset.model,
       brand: asset.brand || "",
       manufacturer: asset.manufacturer,
-      location: asset.location,
+      client_id: asset.client_id || "", // Injection du client actuel
+      location: asset.location || "",
       assignedTo: asset.assigned_to || "none",
       manufacturingDate: asset.manufacturingDate || null,
       commissioningDate: asset.commissioningDate,
@@ -106,7 +108,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: clientData } = await supabase.from('clients').select('id, name');
+      const { data: clientData } = await supabase.from('clients').select('id, name').order('name');
       setClients(clientData || []);
       
       const { data: techData } = await supabase.from('profiles').select('id, first_name, last_name');
@@ -129,7 +131,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         model: data.model,
         brand: data.brand,
         manufacturer: data.manufacturer,
-        location: data.location,
+        client_id: data.client_id, // Mise à jour du client
+        location: data.location,   // Mise à jour de la localisation
         assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
         manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
@@ -151,257 +154,185 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
+        
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nom</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Statut</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Opérationnel">Opérationnel</SelectItem>
-                    <SelectItem value="Maintenance">Maintenance</SelectItem>
-                    <SelectItem value="En Panne">En Panne</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="assignedTo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable Actuel</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Non assigné" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">-- Aucun --</SelectItem>
-                    {techs.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Site / Localisation</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Choisir un site" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.name}>{client.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="brand"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Marque</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Catégorie</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="serialNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>N° de Série</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="model"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Modèle</FormLabel>
-                <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
+          <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl><Textarea {...field} className="rounded-xl resize-none" /></FormControl>
+              <FormLabel>Nom</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl" /></FormControl>
               <FormMessage />
             </FormItem>
-          )}
-        />
+          )} />
+          <FormField control={form.control} name="status" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Statut</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="Opérationnel">Opérationnel</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="En Panne">En Panne</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+          {/* NOUVEAU CHAMP : Sélecteur de Client */}
+          <FormField control={form.control} name="client_id" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center"><Building2 size={14} className="mr-1 text-blue-600" /> Client Propriétaire</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value || ""}>
+                <FormControl><SelectTrigger className="rounded-xl border-blue-200"><SelectValue placeholder="Choisir un client" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {clients.map(client => (
+                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          
+          {/* CHAMP LOCALISATION : Simple texte */}
+          <FormField control={form.control} name="location" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Localisation (Salle/Site)</FormLabel>
+              <FormControl><Input placeholder="Ex: Laboratoire central..." {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="manufacturingDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date de fabrication</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
-                        <CalendarIcon size={16} className="opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar 
-                      mode="single" 
-                      selected={field.value || undefined} 
-                      onSelect={field.onChange} 
-                      locale={fr} 
-                      captionLayout="dropdown" 
-                      fromYear={1980} 
-                      toYear={2050}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="commissioningDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Mise en service</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
-                        <CalendarIcon size={16} className="opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar 
-                      mode="single" 
-                      selected={field.value} 
-                      onSelect={field.onChange} 
-                      locale={fr} 
-                      captionLayout="dropdown" 
-                      fromYear={1980} 
-                      toYear={2050}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormItem>
-            )}
-          />
+          <FormField control={form.control} name="brand" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Marque</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="category" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Catégorie</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="serialNumber" render={({ field }) => (
+            <FormItem>
+              <FormLabel>N° de Série</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl font-mono uppercase" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="model" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Modèle</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+        
+        <FormField control={form.control} name="assignedTo" render={({ field }) => (
+          <FormItem>
+            <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable Actuel</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+              <FormControl>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Non assigné" /></SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="none">-- Aucun --</SelectItem>
+                {techs.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <FormField control={form.control} name="description" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl><Textarea {...field} className="rounded-xl resize-none" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+          <FormField control={form.control} name="manufacturingDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Date de fabrication</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                </PopoverContent>
+              </Popover>
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="commissioningDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Mise en service</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                </PopoverContent>
+              </Popover>
+            </FormItem>
+          )} />
         </div>
 
         <div className="grid grid-cols-2 gap-4 pb-4">
-          <FormField
-            control={form.control}
-            name="expiryDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Péremption / Expire</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className="rounded-xl flex justify-between font-normal">
-                        {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
-                        <CalendarIcon size={16} className="opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar 
-                      mode="single" 
-                      selected={field.value || undefined} 
-                      onSelect={field.onChange} 
-                      locale={fr} 
-                      captionLayout="dropdown" 
-                      fromYear={1980} 
-                      toYear={2060}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="purchaseCost"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Coût (FCFA)</FormLabel>
-                <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl font-bold" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FormField control={form.control} name="expiryDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Péremption / Expire</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button variant="outline" className="rounded-xl flex justify-between font-normal">
+                      {field.value ? format(field.value, "dd/MM/yyyy") : "Choisir"}
+                      <CalendarIcon size={16} className="opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2060} />
+                </PopoverContent>
+              </Popover>
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="purchaseCost" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Coût (FCFA)</FormLabel>
+              <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl font-bold" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl mt-4 h-12 font-bold" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl mt-4 h-12 font-bold" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />} 
           Enregistrer les modifications
         </Button>
