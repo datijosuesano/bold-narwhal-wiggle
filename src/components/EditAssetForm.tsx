@@ -60,7 +60,7 @@ interface Asset {
   id: string;
   name: string;
   category: string;
-  client_id?: string; // Ajout du client_id
+  client_id?: string;
   location: string;
   status: string;
   serialNumber: string;
@@ -96,7 +96,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
       model: asset.model,
       brand: asset.brand || "",
       manufacturer: asset.manufacturer,
-      client_id: asset.client_id || "", // Injection du client actuel
+      client_id: asset.client_id || "", 
       location: asset.location || "",
       assignedTo: asset.assigned_to || "none",
       manufacturingDate: asset.manufacturingDate || null,
@@ -131,8 +131,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         model: data.model,
         brand: data.brand,
         manufacturer: data.manufacturer,
-        client_id: data.client_id, // Mise à jour du client
-        location: data.location,   // Mise à jour de la localisation
+        client_id: data.client_id, 
+        location: data.location,   
         assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
         manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
         commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
@@ -181,7 +181,6 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-          {/* NOUVEAU CHAMP : Sélecteur de Client */}
           <FormField control={form.control} name="client_id" render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Building2 size={14} className="mr-1 text-blue-600" /> Client Propriétaire</FormLabel>
@@ -197,7 +196,6 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
             </FormItem>
           )} />
           
-          {/* CHAMP LOCALISATION : Simple texte */}
           <FormField control={form.control} name="location" render={({ field }) => (
             <FormItem>
               <FormLabel>Localisation (Salle/Site)</FormLabel>
@@ -279,7 +277,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
@@ -297,7 +295,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
@@ -318,7 +316,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2060} />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
