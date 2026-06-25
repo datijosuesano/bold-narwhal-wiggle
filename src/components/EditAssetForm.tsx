@@ -4,8 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, User, Building2 } from "lucide-react";
+import { CalendarIcon, Loader2, Save, User, Building2 } from "lucide-react";
 import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -27,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ASSET_STATUS } from "@/utils/constants";
 
 const AssetSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -117,12 +121,23 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const onSubmit = async (data: AssetFormValues) => {
     setIsLoading(true);
 
+    // --- CORRECTION AUTOMATIQUE DU STATUT ---
+    // On force la casse exacte attendue par la base de données PostgreSQL
+    let dbStatus = data.status;
+    if (dbStatus.toLowerCase() === "en panne") {
+      dbStatus = "En panne"; 
+    } else if (dbStatus.toLowerCase() === "maintenance" || dbStatus.toLowerCase() === "en maintenance") {
+      dbStatus = "En maintenance"; 
+    } else if (dbStatus.toLowerCase() === "opérationnel" || dbStatus.toLowerCase() === "en service") {
+      dbStatus = "En service"; // (Ou "Opérationnel" si ta base de données utilise ça)
+    }
+
     const { error } = await supabase
       .from('assets')
       .update({
         name: data.name,
         category: data.category,
-        status: data.status,
+        status: dbStatus, // On utilise le statut corrigé
         description: data.description,
         serial_number: data.serialNumber,
         model: data.model,
@@ -167,9 +182,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
-                  <SelectItem value="Opérationnel">Opérationnel</SelectItem>
-                  <SelectItem value="Maintenance">Maintenance</SelectItem>
-                  <SelectItem value="En Panne">En Panne</SelectItem>
+                  {ASSET_STATUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -260,7 +273,6 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           </FormItem>
         )} />
 
-        {/* REMPLACEMENT DES CALENDRIERS PAR DES CHAMPS INPUT NATIVÉS */}
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
           <FormField control={form.control} name="manufacturingDate" render={({ field }) => (
             <FormItem>
