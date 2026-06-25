@@ -110,8 +110,8 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         model: data.model,
         brand: data.brand,
         manufacturer: data.manufacturer,
-        client_id: data.client_id, // Ajout du vrai lien vers le client
-        location: data.location,   // La vraie localisation textuelle
+        client_id: data.client_id,
+        location: data.location,
         category: data.category,
         status: data.status,
         commissioning_date: format(data.commissioning_date, 'yyyy-MM-dd'),
@@ -171,7 +171,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          {/* NOUVEAU CHAMP : Vrai sélecteur de Client */}
           <FormField control={form.control} name="client_id" render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Building2 size={14} className="mr-1 text-blue-600" /> Client Propriétaire</FormLabel>
@@ -185,7 +184,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
             </FormItem>
           )} />
           
-          {/* CHAMP LOCALISATION : Redevenu un simple Input */}
           <FormField control={form.control} name="location" render={({ field }) => (
             <FormItem>
               <FormLabel>Localisation (Salle/Site)</FormLabel>
@@ -247,7 +245,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
@@ -265,7 +263,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
@@ -283,7 +281,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2060} />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
                 </PopoverContent>
               </Popover>
             </FormItem>
