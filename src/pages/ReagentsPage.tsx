@@ -262,7 +262,7 @@ const ReagentsPage: React.FC = () => {
           <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">Péremptions</CardDescription></CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-red-600">{stats.totalExpiredOrExpiring}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Arrivant à échéance sous 45 jours</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Arrivant à échéance sous 6 jours</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-l-4 border-l-indigo-600 bg-white">
