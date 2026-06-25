@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Factory } from "lucide-react";
+import { CalendarIcon, Loader2, Factory, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -41,7 +41,8 @@ const AssetSchema = z.object({
   model: z.string().min(1, "Le modèle est requis"),
   brand: z.string().min(1, "La marque est requise"),
   manufacturer: z.string().min(1, "Le fabricant est requis"),
-  location: z.string().min(1, "Veuillez sélectionner un site"),
+  client_id: z.string().min(1, "Veuillez sélectionner un client"),
+  location: z.string().min(1, "La localisation (salle/bâtiment) est requise"),
   category: z.string().min(1, "La catégorie est requise"),
   status: z.string().min(1, "Le statut est requis"),
   assigned_to: z.string().optional().nullable().default("none"),
@@ -73,6 +74,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
       model: "",
       brand: "",
       manufacturer: "",
+      client_id: "",
       location: "",
       category: "autre",
       status: "Opérationnel",
@@ -108,7 +110,8 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         model: data.model,
         brand: data.brand,
         manufacturer: data.manufacturer,
-        location: data.location,
+        client_id: data.client_id, // Ajout du vrai lien vers le client
+        location: data.location,   // La vraie localisation textuelle
         category: data.category,
         status: data.status,
         commissioning_date: format(data.commissioning_date, 'yyyy-MM-dd'),
@@ -168,15 +171,31 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          <FormField control={form.control} name="location" render={({ field }) => (
+          {/* NOUVEAU CHAMP : Vrai sélecteur de Client */}
+          <FormField control={form.control} name="client_id" render={({ field }) => (
             <FormItem>
-              <FormLabel>Site</FormLabel>
+              <FormLabel className="flex items-center"><Building2 size={14} className="mr-1 text-blue-600" /> Client Propriétaire</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Choisir un site" /></SelectTrigger></FormControl>
-                <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                <FormControl><SelectTrigger className="rounded-xl border-blue-200"><SelectValue placeholder="Choisir un client" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
               </Select>
+              <FormMessage />
             </FormItem>
           )} />
+          
+          {/* CHAMP LOCALISATION : Redevenu un simple Input */}
+          <FormField control={form.control} name="location" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Localisation (Salle/Site)</FormLabel>
+              <FormControl><Input placeholder="Ex: Laboratoire central..." {...field} className="rounded-xl" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
               <FormLabel>Catégorie</FormLabel>
@@ -188,9 +207,6 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
               </Select>
             </FormItem>
           )} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="status" render={({ field }) => (
             <FormItem>
               <FormLabel>Statut</FormLabel>
@@ -200,6 +216,9 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
               </Select>
             </FormItem>
           )} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="assigned_to" render={({ field }) => (
             <FormItem>
               <FormLabel>Responsable</FormLabel>
@@ -228,15 +247,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar 
-                    mode="single" 
-                    selected={field.value || undefined} 
-                    onSelect={field.onChange} 
-                    locale={fr} 
-                    captionLayout="dropdown" 
-                    fromYear={1980} 
-                    toYear={2050}
-                  />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
                 </PopoverContent>
               </Popover>
             </FormItem>
@@ -254,22 +265,14 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar 
-                    mode="single" 
-                    selected={field.value} 
-                    onSelect={field.onChange} 
-                    locale={fr} 
-                    captionLayout="dropdown" 
-                    fromYear={1980} 
-                    toYear={2050}
-                  />
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2050} />
                 </PopoverContent>
               </Popover>
             </FormItem>
           )} />
           <FormField control={form.control} name="expiry_date" render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Péremption / Expire</FormLabel>
+              <FormLabel>Péremption</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -280,15 +283,7 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar 
-                    mode="single" 
-                    selected={field.value || undefined} 
-                    onSelect={field.onChange} 
-                    locale={fr} 
-                    captionLayout="dropdown" 
-                    fromYear={1980} 
-                    toYear={2060}
-                  />
+                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} captionLayout="dropdown" fromYear={1980} toYear={2060} />
                 </PopoverContent>
               </Popover>
             </FormItem>
