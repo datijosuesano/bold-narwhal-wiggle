@@ -4,9 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Factory, Building2 } from "lucide-react";
+import { Loader2, Factory, Building2 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -231,59 +228,45 @@ const CreateAssetForm: React.FC<CreateAssetFormProps> = ({ onSuccess }) => {
           )} />
         </div>
 
+        {/* REMPLACEMENT DES CALENDRIERS PAR DES CHAMPS INPUT NATIVÉS */}
         <div className="grid grid-cols-3 gap-4 pt-4 border-t">
           <FormField control={form.control} name="manufacturing_date" render={({ field }) => (
-            <FormItem className="flex flex-col">
+            <FormItem>
               <FormLabel>Fabrication</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button variant="outline" className="rounded-xl flex justify-between font-normal px-2">
-                      {field.value ? format(field.value, "dd/MM/yy") : "Date"}
-                      <CalendarIcon size={14} className="opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <Input 
+                  type="date" 
+                  className="rounded-xl" 
+                  value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ""}
+                  onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                />
+              </FormControl>
             </FormItem>
           )} />
           <FormField control={form.control} name="commissioning_date" render={({ field }) => (
-            <FormItem className="flex flex-col">
+            <FormItem>
               <FormLabel>Mise en service</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button variant="outline" className="rounded-xl flex justify-between font-normal px-2">
-                      {field.value ? format(field.value, "dd/MM/yy") : "Date"}
-                      <CalendarIcon size={14} className="opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={fr} initialFocus />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <Input 
+                  type="date" 
+                  className="rounded-xl" 
+                  value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ""}
+                  onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                />
+              </FormControl>
             </FormItem>
           )} />
           <FormField control={form.control} name="expiry_date" render={({ field }) => (
-            <FormItem className="flex flex-col">
+            <FormItem>
               <FormLabel>Péremption</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button variant="outline" className="rounded-xl flex justify-between font-normal px-2">
-                      {field.value ? format(field.value, "dd/MM/yy") : "Date"}
-                      <CalendarIcon size={14} className="opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} locale={fr} initialFocus />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <Input 
+                  type="date" 
+                  className="rounded-xl" 
+                  value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ""}
+                  onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                />
+              </FormControl>
             </FormItem>
           )} />
         </div>
