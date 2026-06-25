@@ -154,7 +154,7 @@ const ReagentsPage: React.FC = () => {
     const daysLeft = differenceInDays(date, today);
 
     if (isBefore(date, today)) return { label: "PÉRIMÉ (REBUT)", class: "bg-red-600 text-white animate-pulse", critical: true };
-    if (daysLeft <= 45) return { label: `Expire dans ${daysLeft} j`, class: "bg-amber-500 text-white font-bold", critical: true };
+    if (daysLeft <= ) return { label: `Expire dans ${daysLeft} j`, class: "bg-amber-500 text-white font-bold", critical: true };
     return null;
   };
 
