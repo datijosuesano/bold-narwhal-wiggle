@@ -97,10 +97,9 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
 
     if (!error) {
       showSuccess("Rapport généré et sauvegardé !");
-      // On attend une micro-seconde pour s'assurer que le DOM est à jour avant d'imprimer
       setTimeout(() => {
         handlePrint();
-      }, 100);
+      }, 150);
     } else {
       showError(`Erreur lors de la sauvegarde: ${error.message}`);
     }
@@ -158,9 +157,9 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
         </form>
       </Form>
 
-      {/* MODIFICATION ICI : On pousse le gabarit hors-écran au lieu de faire un display:none */}
-      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
-        <div ref={printRef} className="bg-white p-10 w-full max-w-[800px] mx-auto text-black font-sans">
+      {/* GABARIT DE RENDU CORRIGÉ ICI AVEC LES CLASSES PRINT NATIVES DE TAILWIND */}
+      <div className="hidden print:block">
+        <div ref={printRef} className="bg-white p-10 w-full text-black font-sans">
           
           {/* EN-TÊTE PDF */}
           <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
@@ -229,10 +228,6 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
               <p className="text-[10px] text-gray-500 text-center mt-1">(Cachet et Signature pour validation)</p>
               <div className="h-20"></div>
             </div>
-          </div>
-
-          <div className="mt-8 pt-4 border-t border-gray-300 text-center">
-            <p className="text-[10px] text-gray-400 font-bold">Document officiel - Généré par BioPulse GMAO le {format(new Date(), 'dd/MM/yyyy à HH:mm')}</p>
           </div>
         </div>
       </div>
