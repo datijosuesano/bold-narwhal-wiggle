@@ -105,12 +105,14 @@ const InterventionsPage: React.FC = () => {
       fetchInterventions();
     }
   };
-const handleDelete = async () => {
+// ... (tes imports)
+
+  const handleDelete = async () => {
     if (!selectedIntervention) return;
     
-    // 1. Suppression optimiste : on met à jour l'interface immédiatement
-    const previousInterventions = [...interventions];
-    setInterventions(interventions.filter(i => i.id !== selectedIntervention.id));
+    // Suppression immédiate de l'affichage
+    const tempInterventions = [...interventions];
+    setInterventions(prev => prev.filter(i => i.id !== selectedIntervention.id));
 
     const { error } = await supabase
       .from('interventions')
@@ -119,40 +121,25 @@ const handleDelete = async () => {
 
     if (error) {
       showError("Erreur lors de la suppression.");
-      // Si erreur, on remet les anciennes données
-      setInterventions(previousInterventions);
+      setInterventions(tempInterventions); // Rétablir si erreur
     } else {
       showSuccess("Intervention supprimée.");
-      // On recharge quand même pour être sûr d'avoir la version serveur
-      fetchInterventions();
     }
     setIsDeleteOpen(false);
   };
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Facture déposée': return <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full"><CheckCircle2 size={10} className="mr-1" /> Déposée</Badge>;
-      case 'Sous garantie': return <Badge className="bg-blue-100 text-blue-700 border-blue-200 rounded-full"><ShieldCheck size={10} className="mr-1" /> Garantie</Badge>;
-      case 'Sous contrat': return <Badge className="bg-purple-100 text-purple-700 border-purple-200 rounded-full"><ShieldAlert size={10} className="mr-1" /> Contrat</Badge>;
-      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200 rounded-full"><XCircle size={10} className="mr-1" /> Non déposée</Badge>;
-    }
-  };
 
-  const getDurationString = (start?: string | null, end?: string | null) => {
-    if (!start || !end) return null;
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    const diffMs = e - s;
-    if (isNaN(diffMs) || diffMs < 0) return null;
-
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(diffMins / 60);
-    const mins = diffMins % 60;
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}j ${hours % 24}h`;
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins} min`;
-  };
+// ... (ton rendu JSX)
+// Assure-toi que dans ta liste tu appelles bien onSuccess comme ceci :
+<Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+  <DialogContent>
+    {selectedIntervention && (
+      <AddPastInterventionForm 
+        initialData={selectedIntervention} 
+        onSuccess={() => { setIsEditOpen(false); fetchInterventions(); }} 
+      />
+    )}
+  </DialogContent>
+</Dialog>
 
   // --- SÉCURISATION MAXIMALE DU FILTRE CONTRE LES VALEURS NULL ---
   const filteredInterventions = useMemo(() => {
