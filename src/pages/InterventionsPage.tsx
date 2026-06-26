@@ -108,27 +108,26 @@ const InterventionsPage: React.FC = () => {
 const handleDelete = async () => {
     if (!selectedIntervention) return;
     
-    try {
-      const { error } = await supabase
-        .from('interventions')
-        .delete()
-        .eq('id', selectedIntervention.id);
+    // 1. Suppression optimiste : on met à jour l'interface immédiatement
+    const previousInterventions = [...interventions];
+    setInterventions(interventions.filter(i => i.id !== selectedIntervention.id));
 
-      if (error) {
-        // Affiche la raison exacte du blocage (Ex: Contrainte PostgreSQL)
-        console.error("Détails erreur suppression:", error);
-        showError(`Impossible de supprimer : ${error.message}`);
-      } else {
-        showSuccess("Intervention supprimée avec succès.");
-        fetchInterventions();
-      }
-    } catch (catchErr: any) {
-      showError(`Erreur système : ${catchErr.message}`);
-    } finally {
-      setIsDeleteOpen(false);
+    const { error } = await supabase
+      .from('interventions')
+      .delete()
+      .eq('id', selectedIntervention.id);
+
+    if (error) {
+      showError("Erreur lors de la suppression.");
+      // Si erreur, on remet les anciennes données
+      setInterventions(previousInterventions);
+    } else {
+      showSuccess("Intervention supprimée.");
+      // On recharge quand même pour être sûr d'avoir la version serveur
+      fetchInterventions();
     }
-  }; 
-
+    setIsDeleteOpen(false);
+  };
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Facture déposée': return <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full"><CheckCircle2 size={10} className="mr-1" /> Déposée</Badge>;
