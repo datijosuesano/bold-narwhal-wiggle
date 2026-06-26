@@ -31,8 +31,6 @@ import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-// 1. CORRECTION DU SCHÉMA : on rend client et technician "optionnels" 
-// pour ne pas bloquer la sauvegarde s'ils sont vides.
 const ReportSchema = z.object({
   reportNumber: z.string().min(1, "Le numéro est requis"),
   type: z.enum(["Intervention", "Mission"]),
@@ -58,7 +56,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(ReportSchema),
     defaultValues: {
-      reportNumber: `RPT-${format(new Date(), 'yyyyMMdd-HHmm')}`, // Auto-généré
+      reportNumber: `RPT-${format(new Date(), 'yyyyMMdd-HHmm')}`,
       type: "Intervention",
       title: initialData?.title || "",
       client: initialData?.assets?.location || initialData?.intervention_place || "",
@@ -68,15 +66,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
     },
   });
 
-  // On écoute en temps réel les valeurs tapées pour mettre à jour l'aperçu PDF
   const formValues = form.watch(); 
 
-  // 2. FONCTION D'IMPRESSION
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `${formValues.reportNumber}_${formValues.title}`,
     onAfterPrint: () => {
-      onSuccess(); // Ferme la modale APRÈS l'impression
+      onSuccess(); 
     },
     pageStyle: `
       @page { size: A4 portrait; margin: 15mm; }
@@ -84,12 +80,10 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
     `,
   });
 
-  // 3. SOUMISSION DU FORMULAIRE (Sauvegarde + Impression)
   const onSubmit = async (data: ReportFormValues) => {
     if (!user) return;
     setIsLoading(true);
     
-    // Étape A : Sauvegarde dans Supabase
     const { error } = await supabase.from('reports').insert({
       user_id: user.id,
       title: data.title,
@@ -103,8 +97,10 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
 
     if (!error) {
       showSuccess("Rapport généré et sauvegardé !");
-      // Étape B : Lancement de la fenêtre d'impression
-      handlePrint(); 
+      // On attend une micro-seconde pour s'assurer que le DOM est à jour avant d'imprimer
+      setTimeout(() => {
+        handlePrint();
+      }, 100);
     } else {
       showError(`Erreur lors de la sauvegarde: ${error.message}`);
     }
@@ -162,8 +158,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({ onSuccess, initialD
         </form>
       </Form>
 
-      {/* 4. GABARIT D'IMPRESSION CACHÉ (WYSIWYG) */}
-      <div className="hidden">
+      {/* MODIFICATION ICI : On pousse le gabarit hors-écran au lieu de faire un display:none */}
+      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
         <div ref={printRef} className="bg-white p-10 w-full max-w-[800px] mx-auto text-black font-sans">
           
           {/* EN-TÊTE PDF */}
