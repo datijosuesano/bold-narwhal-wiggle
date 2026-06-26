@@ -105,17 +105,29 @@ const InterventionsPage: React.FC = () => {
       fetchInterventions();
     }
   };
-
-  const handleDelete = async () => {
+const handleDelete = async () => {
     if (!selectedIntervention) return;
-    const { error } = await supabase.from('interventions').delete().eq('id', selectedIntervention.id);
-    if (error) showError("Erreur lors de la suppression.");
-    else {
-      showSuccess("Intervention supprimée.");
-      fetchInterventions();
+    
+    try {
+      const { error } = await supabase
+        .from('interventions')
+        .delete()
+        .eq('id', selectedIntervention.id);
+
+      if (error) {
+        // Affiche la raison exacte du blocage (Ex: Contrainte PostgreSQL)
+        console.error("Détails erreur suppression:", error);
+        showError(`Impossible de supprimer : ${error.message}`);
+      } else {
+        showSuccess("Intervention supprimée avec succès.");
+        fetchInterventions();
+      }
+    } catch (catchErr: any) {
+      showError(`Erreur système : ${catchErr.message}`);
+    } finally {
+      setIsDeleteOpen(false);
     }
-    setIsDeleteOpen(false);
-  };
+  }; };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
