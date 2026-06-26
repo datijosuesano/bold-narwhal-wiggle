@@ -4,9 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon, Loader2, Save, User, Building2 } from "lucide-react";
+import { Loader2, Save, User, Building2 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -86,12 +83,22 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [techs, setTechs] = useState<{id: string, name: string}[]>([]);
 
+  // Sécurité 1 : Traducteur automatique des anciennes valeurs de la BDD vers le sélecteur
+  const normalizeInitialStatus = (status: string): string => {
+    const s = (status || "").toLowerCase().trim();
+    if (s === "opérationnel" || s === "en service") return "Opérationnel";
+    if (s === "en panne") return "En panne";
+    if (s === "en maintenance" || s === "maintenance" || s === "maintenance en cours") return "Maintenance en cours";
+    if (s === "réformé") return "Réformé";
+    return "Opérationnel";
+  };
+
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(AssetSchema),
     defaultValues: {
       name: asset.name,
       category: asset.category || "Non classé",
-      status: asset.status,
+      status: normalizeInitialStatus(asset.status), // Application de la normalisation
       description: asset.description || "",
       serialNumber: asset.serialNumber,
       model: asset.model,
@@ -121,46 +128,51 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const onSubmit = async (data: AssetFormValues) => {
     setIsLoading(true);
 
-    // --- CORRECTION AUTOMATIQUE DU STATUT ---
-    // On force la casse exacte attendue par la base de données PostgreSQL
-    let dbStatus = data.status;
-    if (dbStatus.toLowerCase() === "en panne") {
-      dbStatus = "En panne"; 
-    } else if (dbStatus.toLowerCase() === "maintenance" || dbStatus.toLowerCase() === "en maintenance") {
-      dbStatus = "En maintenance"; 
-    } else if (dbStatus.toLowerCase() === "opérationnel" || dbStatus.toLowerCase() === "en service") {
-      dbStatus = "En service"; // (Ou "Opérationnel" si ta base de données utilise ça)
+    // Sécurité 2 : Alignement strict avec l'ENUM PostgreSQL public.asset_status_enum
+    let dbStatus = "Opérationnel";
+    const currentStatus = data.status.toLowerCase().trim();
+    
+    if (currentStatus === "en panne") {
+      dbStatus = "En panne";
+    } else if (currentStatus === "maintenance en cours" || currentStatus === "en maintenance" || currentStatus === "maintenance") {
+      dbStatus = "Maintenance en cours";
+    } else if (currentStatus === "réformé") {
+      dbStatus = "Réformé";
+    } else if (currentStatus === "opérationnel" || currentStatus === "en service") {
+      dbStatus = "Opérationnel";
     }
 
-    const { error } = await supabase
-      .from('assets')
-      .update({
-        name: data.name,
-        category: data.category,
-        status: dbStatus, // On utilise le statut corrigé
-        description: data.description,
-        serial_number: data.serialNumber,
-        model: data.model,
-        brand: data.brand,
-        manufacturer: data.manufacturer,
-        client_id: data.client_id, 
-        location: data.location,   
-        assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
-        manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
-        commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
-        expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
-        purchase_cost: data.purchaseCost,
-      })
-      .eq('id', asset.id);
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .update({
+          name: data.name,
+          category: data.category,
+          status: dbStatus, // Envoi de la chaîne parfaitement nettoyée
+          description: data.description,
+          serial_number: data.serialNumber,
+          model: data.model,
+          brand: data.brand,
+          manufacturer: data.manufacturer,
+          client_id: data.client_id, 
+          location: data.location,   
+          assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
+          manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
+          commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
+          expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
+          purchase_cost: data.purchaseCost,
+        })
+        .eq('id', asset.id);
 
-    setIsLoading(false);
+      if (error) throw error;
 
-    if (error) {
-      console.error("Update error:", error);
-      showError(`Erreur: ${error.message}`);
-    } else {
       showSuccess("Mise à jour réussie !");
       onSuccess();
+    } catch (error: any) {
+      console.error("Update error:", error);
+      showError(`Erreur: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -179,7 +191,8 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           <FormField control={form.control} name="status" render={({ field }) => (
             <FormItem>
               <FormLabel>Statut</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              {/* Utilisation de value={field.value} pour rendre le Select entièrement contrôlé par React Hook Form */}
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
                   {ASSET_STATUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -252,7 +265,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         <FormField control={form.control} name="assignedTo" render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable Actuel</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+            <Select onValueChange={field.onChange} value={field.value || "none"}>
               <FormControl>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Non assigné" /></SelectTrigger>
               </FormControl>
