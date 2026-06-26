@@ -1,104 +1,79 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Wrench, Plus, Loader2, Search, Filter, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
-import AddPastInterventionForm from '@/components/AddPastInterventionForm';
+import { Textarea } from "@/components/ui/textarea";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const InterventionsPage: React.FC = () => {
-  const [interventions, setInterventions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedIntervention, setSelectedIntervention] = useState<any | null>(null);
+const InterventionSchema = z.object({
+  rit_number: z.string().min(1, "RIT requis"),
+  title: z.string().min(3, "Titre trop court"),
+  description: z.string().min(5, "Détaillez les travaux"),
+});
 
-  const fetchInterventions = async () => {
+const AddPastInterventionForm: React.FC<{ initialData?: any; onSuccess: () => void; }> = ({ initialData, onSuccess }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+
+  const form = useForm({
+    resolver: zodResolver(InterventionSchema),
+    defaultValues: {
+      rit_number: initialData?.rit_number || "",
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+    },
+  });
+
+  const onSubmit = async (data: any) => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('interventions')
-      .select('*, assets(name, location)')
-      .order('intervention_date', { ascending: false });
+    const payload = { ...data, user_id: user?.id };
 
-    if (error) {
-      console.error("Erreur Supabase:", error);
-      showError("Erreur de chargement");
-    } else {
-      setInterventions(data || []);
-      console.log("Données chargées:", data);
+    try {
+      if (initialData?.id) {
+        // MODIFICATION : Mise à jour de la ligne existante
+        const { error } = await supabase.from('interventions').update(payload).eq('id', initialData.id);
+        if (error) throw error;
+        showSuccess("Mise à jour réussie !");
+      } else {
+        // CRÉATION : Nouvelle ligne
+        const { error } = await supabase.from('interventions').insert(payload);
+        if (error) throw error;
+        showSuccess("Enregistrement réussi !");
+      }
+      onSuccess();
+    } catch (err: any) {
+      showError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  useEffect(() => { fetchInterventions(); }, []);
-
-  const filtered = useMemo(() => {
-    return interventions.filter(i => 
-      (i.title?.toLowerCase().includes(searchTerm.toLowerCase())) || 
-      (i.rit_number?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [interventions, searchTerm]);
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Interventions</h1>
-        <Button onClick={fetchInterventions} variant="outline">Actualiser</Button>
-      </div>
-
-      <Input 
-        placeholder="Rechercher..." 
-        onChange={(e) => setSearchTerm(e.target.value)} 
-      />
-
-      <Card>
-        <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-slate-50">
-                <th className="p-4 text-left">RIT</th>
-                <th className="p-4 text-left">Équipement</th>
-                <th className="p-4 text-left">Objet</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={4} className="p-10 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr>
-              ) : filtered.map(item => (
-                <tr key={item.id} className="border-b">
-                  <td className="p-4 font-mono">{item.rit_number || "---"}</td>
-                  <td className="p-4">{item.assets?.name || "N/A"}</td>
-                  <td className="p-4">{item.title}</td>
-                  <td className="p-4 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => { setSelectedIntervention(item); setIsEditOpen(true); }}>
-                      <Edit2 size={16} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          {selectedIntervention && (
-            <AddPastInterventionForm 
-              initialData={selectedIntervention} 
-              onSuccess={() => { setIsEditOpen(false); fetchInterventions(); }} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField control={form.control} name="rit_number" render={({ field }) => (
+          <FormItem><FormLabel>N° RIT</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+        )} />
+        <FormField control={form.control} name="title" render={({ field }) => (
+          <FormItem><FormLabel>Objet</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+        )} />
+        <FormField control={form.control} name="description" render={({ field }) => (
+          <FormItem><FormLabel>Détails</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+        )} />
+        <Button type="submit" disabled={isLoading} className="w-full">
+          {isLoading ? <Loader2 className="animate-spin" /> : "Enregistrer"}
+        </Button>
+      </form>
+    </Form>
   );
 };
 
-export default InterventionsPage;
+export default AddPastInterventionForm;
