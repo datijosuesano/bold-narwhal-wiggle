@@ -127,7 +127,7 @@ const handleDelete = async () => {
     } finally {
       setIsDeleteOpen(false);
     }
-  }; };
+  }; 
 
   const getStatusBadge = (status: string) => {
     switch (status) {
