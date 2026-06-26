@@ -96,14 +96,7 @@ const AddPastInterventionForm: React.FC<{ initialData?: any; onSuccess: () => vo
       }
 
       setSavedInterventionId(interventionId);
-      showSuccess("Intervention enregistrée !");
-      if (!initialData?.id) onSuccess();
-    } catch (err: any) {
-      showError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      showSuccess("I };
 
   return (
     <div className="space-y-6">
@@ -133,7 +126,14 @@ const AddPastInterventionForm: React.FC<{ initialData?: any; onSuccess: () => vo
               <FormItem><FormLabel>Objet</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
             )} />
 
-            <FormField control={form.control} name="description" render={({ field }) => (
+           ntervention enregistrée !");
+      if (!initialData?.id) onSuccess();
+    } catch (err: any) {
+      showError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem><FormLabel>Détails</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
             )} />
 
