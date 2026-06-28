@@ -57,6 +57,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
       intervention_place: initialData?.intervention_place || "Sur Site",
     },
   });
+  
   useEffect(() => {
     // Si on est en mode création (pas d'initialData), on génère le prochain numéro
     if (!initialData) {
