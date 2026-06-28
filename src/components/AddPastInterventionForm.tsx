@@ -40,6 +40,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
   const [assets, setAssets] = useState<{ id: string; name: string; location: string }[]>([]);
   const [techs, setTechs] = useState<{ id: string; name: string }[]>([]);
   const { user } = useAuth();
+  
 const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
@@ -60,7 +61,7 @@ const form = useForm<InterventionFormValues>({
       total_cost: initialData?.total_cost || 0,
       intervention_place: initialData?.intervention_place || "Sur Site",
     },
-  });});
+  });
 
   useEffect(() => {
     // Si on est en mode création (pas d'initialData), on génère le prochain numéro
