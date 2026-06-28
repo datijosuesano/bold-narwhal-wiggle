@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, Wrench, Calendar, MapPin, DollarSign, FileText } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
 
 const InterventionSchema = z.object({
   rit_number: z.string().min(1, "RIT requis"),
+  physical_rit_number: z.string().optional(), // Nouveau champ pour tes archives
   title: z.string().min(3, "Titre trop court"),
   description: z.string().min(5, "Détaillez les travaux"),
   maintenance_type: z.string().min(1, "Type requis"),
@@ -44,7 +44,8 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
-      rit_number: initialData?.rit_number || `RIT-${Math.floor(100000 + Math.random() * 900000)}`,
+      rit_number: initialData?.rit_number || "",
+      physical_rit_number: initialData?.physical_rit_number || "", // Chargement initial
       title: initialData?.title || "",
       description: initialData?.description || "",
       maintenance_type: initialData?.maintenance_type || "Corrective",
@@ -59,19 +60,15 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
 
   useEffect(() => {
     const loadSelectData = async () => {
-      try {
-        const [assetsRes, profilesRes] = await Promise.all([
-          supabase.from("assets").select("id, name, location").order("name"),
-          supabase.from("profiles").select("id, first_name, last_name").order("last_name")
-        ]);
-        setAssets(assetsRes.data || []);
-        setTechs((profilesRes.data || []).map(t => ({
-          id: t.id,
-          name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Technicien'
-        })));
-      } catch (err) {
-        console.error("Erreur de chargement des ressources :", err);
-      }
+      const [assetsRes, profilesRes] = await Promise.all([
+        supabase.from("assets").select("id, name, location").order("name"),
+        supabase.from("profiles").select("id, first_name, last_name").order("last_name")
+      ]);
+      setAssets(assetsRes.data || []);
+      setTechs((profilesRes.data || []).map(t => ({
+        id: t.id,
+        name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Technicien'
+      })));
     };
     loadSelectData();
   }, []);
@@ -86,22 +83,13 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
 
     try {
       if (initialData?.id) {
-        // --- MODIFICATION ---
-        const { error } = await supabase
-          .from("interventions")
-          .update(payload)
-          .eq("id", initialData.id);
-
+        const { error } = await supabase.from("interventions").update(payload).eq("id", initialData.id);
         if (error) throw error;
         showSuccess("Intervention mise à jour !");
       } else {
-        // --- CRÉATION ---
-        const { error } = await supabase
-          .from("interventions")
-          .insert(payload);
-
+        const { error } = await supabase.from("interventions").insert(payload);
         if (error) throw error;
-        showSuccess("Intervention enregistrée avec succès !");
+        showSuccess("Intervention enregistrée !");
       }
       onSuccess();
     } catch (err: any) {
@@ -113,195 +101,70 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
-        
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="rit_number"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>N° de Rapport (RIT)</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Ex: RIT-102910" className="rounded-xl font-mono uppercase" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="maintenance_type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type de maintenance</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Choisir" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="Corrective">Corrective (Dépannage)</SelectItem>
-                    <SelectItem value="Préventive">Préventive (Entretien)</SelectItem>
-                    <SelectItem value="Curative">Curative</SelectItem>
-                    <SelectItem value="Améliorative">Améliorative</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
+          <FormField control={form.control} name="rit_number" render={({ field }) => (
             <FormItem>
-              <FormLabel>Objet / Titre de l'intervention</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Ex: Remplacement alimentation ou révision" className="rounded-xl" />
-              </FormControl>
+              <FormLabel>N° RIT (Application)</FormLabel>
+              <FormControl><Input {...field} className="rounded-xl font-mono" /></FormControl>
               <FormMessage />
             </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
+          )} />
+          
+          <FormField control={form.control} name="physical_rit_number" render={({ field }) => (
             <FormItem>
-              <FormLabel>Détail des actions réalisées</FormLabel>
-              <FormControl>
-                <Textarea {...field} placeholder="Décrivez les travaux effectués..." className="rounded-xl resize-none h-24" />
-              </FormControl>
+              <FormLabel>N° RIT Physique (Rapport papier)</FormLabel>
+              <FormControl><Input {...field} placeholder="Ex: 12" className="rounded-xl border-blue-200" /></FormControl>
               <FormMessage />
             </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="asset_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Équipement concerné</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="rounded-xl">
-                    {assets.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} ({a.location})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="technician_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Technicien Intervenant</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Attribuer à" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="rounded-xl">
-                    {techs.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          )} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="start_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date & Heure de début</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} className="rounded-xl" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField control={form.control} name="title" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Objet de l'intervention</FormLabel>
+            <FormControl><Input {...field} className="rounded-xl" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
 
-          <FormField
-            control={form.control}
-            name="end_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date & Heure de fin</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} className="rounded-xl" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField control={form.control} name="description" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Détail des travaux</FormLabel>
+            <FormControl><Textarea {...field} className="rounded-xl resize-none h-20" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="intervention_place"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Lieu de l'intervention</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="Sur Site">Sur Site (Client)</SelectItem>
-                    <SelectItem value="Atelier / Service Technique">Atelier / Service Technique</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="total_cost"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Coût total (FCFA)</FormLabel>
-                <FormControl>
-                  <Input type="number" min="0" {...field} className="rounded-xl font-bold" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FormField control={form.control} name="asset_id" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Équipement</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent className="rounded-xl">
+                  {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="maintenance_type" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Corrective">Corrective</SelectItem>
+                  <SelectItem value="Préventive">Préventive</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 font-bold shadow-md mt-4" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12 mt-4" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
-          {initialData ? "Sauvegarder les modifications" : "Enregistrer l'Intervention"}
+          {initialData ? "Sauvegarder" : "Enregistrer l'intervention"}
         </Button>
       </form>
     </Form>
