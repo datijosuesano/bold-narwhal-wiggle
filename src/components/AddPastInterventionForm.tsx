@@ -40,24 +40,28 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
   const [assets, setAssets] = useState<{ id: string; name: string; location: string }[]>([]);
   const [techs, setTechs] = useState<{ id: string; name: string }[]>([]);
   const { user } = useAuth();
-
-  const form = useForm<InterventionFormValues>({
+const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
       rit_number: initialData?.rit_number || "",
-      physical_rit_number: initialData?.physical_rit_number || "", // Chargement initial
+      physical_rit_number: initialData?.physical_rit_number || "",
       title: initialData?.title || "",
       description: initialData?.description || "",
       maintenance_type: initialData?.maintenance_type || "Corrective",
       asset_id: initialData?.asset_id || "",
       technician_id: initialData?.technician_id || user?.id || "",
-      start_date: initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-      end_date: initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      // Si on modifie, on prend la date stockée, sinon on prend "maintenant"
+      start_date: initialData?.start_date 
+        ? new Date(initialData.start_date).toISOString().slice(0, 16) 
+        : new Date().toISOString().slice(0, 16),
+      end_date: initialData?.end_date 
+        ? new Date(initialData.end_date).toISOString().slice(0, 16) 
+        : new Date().toISOString().slice(0, 16),
       total_cost: initialData?.total_cost || 0,
       intervention_place: initialData?.intervention_place || "Sur Site",
     },
-  });
-  
+  });});
+
   useEffect(() => {
     // Si on est en mode création (pas d'initialData), on génère le prochain numéro
     if (!initialData) {
