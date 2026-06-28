@@ -80,7 +80,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
       };
       generateNextRit();
     }
-  }, [initialData, form]); }, []);
+  }, [initialData, form]); , []);
 
   const onSubmit = async (data: InterventionFormValues) => {
     setIsLoading(true);
