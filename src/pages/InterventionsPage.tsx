@@ -27,6 +27,7 @@ const InterventionsPage = () => {
 
   const fetchInterventions = async () => {
     setIsLoading(true);
+    // On sélectionne aussi physical_rit_number
     const { data } = await supabase
       .from('interventions')
       .select('*, assets(name, location)')
@@ -47,7 +48,8 @@ const InterventionsPage = () => {
   const filtered = useMemo(() => {
     return interventions.filter(i => 
       i.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      i.rit_number?.toLowerCase().includes(searchTerm.toLowerCase())
+      i.rit_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.physical_rit_number?.toString().includes(searchTerm)
     );
   }, [interventions, searchTerm]);
 
@@ -69,7 +71,7 @@ const InterventionsPage = () => {
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold">Interventions</h1>
-            <p className="text-slate-500">Gestion et suivi technique</p>
+            <p className="text-slate-500">Gestion des rapports physiques et numériques</p>
         </div>
         <Button onClick={() => { setSelected(null); setIsEditOpen(true); }} className="rounded-xl bg-blue-600 hover:bg-blue-700">
             <Plus className="mr-2" size={16} /> Ajouter une Intervention
@@ -79,7 +81,7 @@ const InterventionsPage = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Rechercher par RIT ou Objet..." 
+          placeholder="Rechercher par RIT (numérique ou physique)..." 
           className="rounded-xl pl-10 bg-white" 
           value={searchTerm} 
           onChange={(e) => setSearchTerm(e.target.value)} 
@@ -108,11 +110,14 @@ const InterventionsPage = () => {
                     <tr key={item.id} className="hover:bg-slate-50 transition-all">
                       <td className="p-4">
                         <div className="font-mono font-bold text-slate-800">{item.rit_number || "---"}</div>
+                        {item.physical_rit_number && (
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 text-[10px] my-1">
+                                Physique: {item.physical_rit_number}
+                            </Badge>
+                        )}
                         <div className="text-xs text-slate-400">{item.intervention_date}</div>
                       </td>
-                      <td className="p-4">
-                        <div className="font-bold text-slate-700">{item.assets?.name || "---"}</div>
-                      </td>
+                      <td className="p-4 font-bold text-slate-700">{item.assets?.name || "---"}</td>
                       <td className="p-4">
                         <div className="font-semibold text-slate-800">{item.title}</div>
                         {getDurationString(item.start_date, item.end_date) && (
