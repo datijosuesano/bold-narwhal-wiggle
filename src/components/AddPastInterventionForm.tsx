@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,17 +18,18 @@ import { useAuth } from "@/contexts/AuthContext";
 const InterventionSchema = z.object({
   rit_number: z.string().min(1, "RIT requis"),
   physical_rit_number: z.string().optional(),
-  title: z.string().min(3, "Titre trop court"),
+  title: z.string().min(3, "Titre requis"),
   description: z.string().optional(),
   maintenance_type: z.string().min(1, "Type requis"),
-  asset_id: z.string().min(1, "Équipement requis"),
-  technician_id: z.string().min(1, "Technicien requis"),
+  asset_id: z.string().optional(),
+  technician_id: z.string().optional(),
   start_date: z.string().min(1, "Date début requise"),
   end_date: z.string().min(1, "Date fin requise"),
   total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
   intervention_place: z.string().optional(),
   invoice_number: z.string().optional(),
   invoice_status: z.string().optional(),
+  invoice_deposited_at: z.string().optional(),
   accessories_received: z.string().optional(),
   parts_replaced: z.boolean().optional(),
 });
@@ -41,7 +43,7 @@ interface AddPastInterventionFormProps {
 
 const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initialData, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [assets, setAssets] = useState<{ id: string; name: string; location: string }[]>([]);
+  const [assets, setAssets] = useState<{ id: string; name: string }[]>([]);
   const [techs, setTechs] = useState<{ id: string; name: string }[]>([]);
   const { user } = useAuth();
 
@@ -61,30 +63,19 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
       intervention_place: initialData?.intervention_place || "Sur Site",
       invoice_number: initialData?.invoice_number || "",
       invoice_status: initialData?.invoice_status || "Non facturé",
+      invoice_deposited_at: initialData?.invoice_deposited_at ? initialData.invoice_deposited_at.slice(0, 16) : "",
       accessories_received: initialData?.accessories_received || "",
       parts_replaced: initialData?.parts_replaced || false,
     },
   });
 
-  useEffect(() => {
-    if (!initialData) {
-      const generateNextRit = async () => {
-        const { data } = await supabase.from('interventions').select('rit_number').order('created_at', { ascending: false }).limit(1);
-        if (data && data.length > 0 && data[0].rit_number) {
-          const parts = data[0].rit_number.split('-');
-          const nextNum = String(parseInt(parts[2] || "0") + 1).padStart(3, '0');
-          form.setValue("rit_number", `RIT-2026-${nextNum}`);
-        } else {
-          form.setValue("rit_number", "RIT-2026-001");
-        }
-      };
-      generateNextRit();
-    }
-  }, [initialData, form]);
-
   const onSubmit = async (data: InterventionFormValues) => {
     setIsLoading(true);
-    const payload = { ...data, user_id: user?.id || null, intervention_date: data.start_date.split('T')[0] };
+    const payload = { 
+      ...data, 
+      user_id: user?.id || null, 
+      intervention_date: data.start_date.split('T')[0] 
+    };
 
     try {
       if (initialData?.id) {
@@ -92,7 +83,7 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
         showSuccess("Mise à jour réussie !");
       } else {
         await supabase.from("interventions").insert(payload);
-        showSuccess("Intervention enregistrée !");
+        showSuccess("Enregistrement réussi !");
       }
       onSuccess();
     } catch (err: any) {
@@ -104,43 +95,52 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
-        {/* SECTION 1: Identité */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+        
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="rit_number" render={({ field }) => (
-            <FormItem><FormLabel>RIT (Logiciel)</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>RIT (Logiciel)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="physical_rit_number" render={({ field }) => (
-            <FormItem><FormLabel>RIT (Physique)</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+            <FormItem><FormLabel>RIT (Physique)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
         </div>
 
-        {/* SECTION 2: Détails */}
         <FormField control={form.control} name="title" render={({ field }) => (
-          <FormItem><FormLabel>Objet</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+          <FormItem><FormLabel>Objet</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
         )} />
 
         <div className="grid grid-cols-2 gap-4">
-           <FormField control={form.control} name="invoice_number" render={({ field }) => (
-            <FormItem><FormLabel>N° Facture</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
+          <FormField control={form.control} name="invoice_number" render={({ field }) => (
+            <FormItem><FormLabel>N° Facture</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="invoice_status" render={({ field }) => (
             <FormItem><FormLabel>Statut Facture</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent><SelectItem value="Facturé">Facturé</SelectItem><SelectItem value="Non facturé">Non facturé</SelectItem></SelectContent>
+              <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent><SelectItem value="Facturé">Facturé</SelectItem><SelectItem value="Non facturé">Non facturé</SelectItem></SelectContent>
               </Select>
             </FormItem>
           )} />
         </div>
 
-        <FormField control={form.control} name="accessories_received" render={({ field }) => (
-          <FormItem><FormLabel>Accessoires reçus</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl></FormItem>
+        <FormField control={form.control} name="invoice_deposited_at" render={({ field }) => (
+          <FormItem><FormLabel>Date de dépôt facture</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl></FormItem>
         )} />
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12" disabled={isLoading}>
+        <FormField control={form.control} name="accessories_received" render={({ field }) => (
+          <FormItem><FormLabel>Accessoires reçus</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+        )} />
+
+        <FormField control={form.control} name="parts_replaced" render={({ field }) => (
+          <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 border rounded-xl">
+            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+            <FormLabel>Pièces remplacées (Cocher si oui)</FormLabel>
+          </FormItem>
+        )} />
+
+        <Button type="submit" className="w-full bg-blue-600" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
-          Sauvegarder
+          Enregistrer le rapport complet
         </Button>
       </form>
     </Form>
