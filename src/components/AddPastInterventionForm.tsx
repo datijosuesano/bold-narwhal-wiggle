@@ -16,16 +16,20 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const InterventionSchema = z.object({
   rit_number: z.string().min(1, "RIT requis"),
-  physical_rit_number: z.string().optional(), // Nouveau champ pour tes archives
+  physical_rit_number: z.string().optional(),
   title: z.string().min(3, "Titre trop court"),
-  description: z.string().min(5, "Détaillez les travaux"),
+  description: z.string().optional(),
   maintenance_type: z.string().min(1, "Type requis"),
   asset_id: z.string().min(1, "Équipement requis"),
   technician_id: z.string().min(1, "Technicien requis"),
   start_date: z.string().min(1, "Date début requise"),
   end_date: z.string().min(1, "Date fin requise"),
   total_cost: z.coerce.number().min(0, "Le coût doit être positif"),
-  intervention_place: z.enum(["Sur Site", "Atelier / Service Technique"]),
+  intervention_place: z.string().optional(),
+  invoice_number: z.string().optional(),
+  invoice_status: z.string().optional(),
+  accessories_received: z.string().optional(),
+  parts_replaced: z.boolean().optional(),
 });
 
 type InterventionFormValues = z.infer<typeof InterventionSchema>;
@@ -40,8 +44,8 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
   const [assets, setAssets] = useState<{ id: string; name: string; location: string }[]>([]);
   const [techs, setTechs] = useState<{ id: string; name: string }[]>([]);
   const { user } = useAuth();
-  
-const form = useForm<InterventionFormValues>({
+
+  const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
     defaultValues: {
       rit_number: initialData?.rit_number || "",
@@ -51,33 +55,24 @@ const form = useForm<InterventionFormValues>({
       maintenance_type: initialData?.maintenance_type || "Corrective",
       asset_id: initialData?.asset_id || "",
       technician_id: initialData?.technician_id || user?.id || "",
-      // Si on modifie, on prend la date stockée, sinon on prend "maintenant"
-      start_date: initialData?.start_date 
-        ? new Date(initialData.start_date).toISOString().slice(0, 16) 
-        : new Date().toISOString().slice(0, 16),
-      end_date: initialData?.end_date 
-        ? new Date(initialData.end_date).toISOString().slice(0, 16) 
-        : new Date().toISOString().slice(0, 16),
+      start_date: initialData?.start_date ? initialData.start_date.slice(0, 16) : new Date().toISOString().slice(0, 16),
+      end_date: initialData?.end_date ? initialData.end_date.slice(0, 16) : new Date().toISOString().slice(0, 16),
       total_cost: initialData?.total_cost || 0,
       intervention_place: initialData?.intervention_place || "Sur Site",
+      invoice_number: initialData?.invoice_number || "",
+      invoice_status: initialData?.invoice_status || "Non facturé",
+      accessories_received: initialData?.accessories_received || "",
+      parts_replaced: initialData?.parts_replaced || false,
     },
   });
 
   useEffect(() => {
-    // Si on est en mode création (pas d'initialData), on génère le prochain numéro
     if (!initialData) {
       const generateNextRit = async () => {
-        const { data } = await supabase
-          .from('interventions')
-          .select('rit_number')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
+        const { data } = await supabase.from('interventions').select('rit_number').order('created_at', { ascending: false }).limit(1);
         if (data && data.length > 0 && data[0].rit_number) {
-          const lastRit = data[0].rit_number; // Format attendu: "RIT-2026-001"
-          const parts = lastRit.split('-');
-          const lastNum = parseInt(parts[2] || "0");
-          const nextNum = String(lastNum + 1).padStart(3, '0');
+          const parts = data[0].rit_number.split('-');
+          const nextNum = String(parseInt(parts[2] || "0") + 1).padStart(3, '0');
           form.setValue("rit_number", `RIT-2026-${nextNum}`);
         } else {
           form.setValue("rit_number", "RIT-2026-001");
@@ -85,24 +80,18 @@ const form = useForm<InterventionFormValues>({
       };
       generateNextRit();
     }
-  }, [initialData, form]); 
+  }, [initialData, form]);
 
   const onSubmit = async (data: InterventionFormValues) => {
     setIsLoading(true);
-    const payload = {
-      ...data,
-      user_id: user?.id || null,
-      intervention_date: data.start_date.split('T')[0]
-    };
+    const payload = { ...data, user_id: user?.id || null, intervention_date: data.start_date.split('T')[0] };
 
     try {
       if (initialData?.id) {
-        const { error } = await supabase.from("interventions").update(payload).eq("id", initialData.id);
-        if (error) throw error;
-        showSuccess("Intervention mise à jour !");
+        await supabase.from("interventions").update(payload).eq("id", initialData.id);
+        showSuccess("Mise à jour réussie !");
       } else {
-        const { error } = await supabase.from("interventions").insert(payload);
-        if (error) throw error;
+        await supabase.from("interventions").insert(payload);
         showSuccess("Intervention enregistrée !");
       }
       onSuccess();
@@ -116,69 +105,42 @@ const form = useForm<InterventionFormValues>({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-2">
+        {/* SECTION 1: Identité */}
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="rit_number" render={({ field }) => (
-            <FormItem>
-              <FormLabel>N° RIT (Application)</FormLabel>
-              <FormControl><Input {...field} className="rounded-xl font-mono" /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>RIT (Logiciel)</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
-          
           <FormField control={form.control} name="physical_rit_number" render={({ field }) => (
-            <FormItem>
-              <FormLabel>N° RIT Physique (Rapport papier)</FormLabel>
-              <FormControl><Input {...field} placeholder="Ex: 12" className="rounded-xl border-blue-200" /></FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormItem><FormLabel>RIT (Physique)</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
         </div>
 
+        {/* SECTION 2: Détails */}
         <FormField control={form.control} name="title" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Objet de l'intervention</FormLabel>
-            <FormControl><Input {...field} className="rounded-xl" /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-
-        <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Détail des travaux</FormLabel>
-            <FormControl><Textarea {...field} className="rounded-xl resize-none h-20" /></FormControl>
-            <FormMessage />
-          </FormItem>
+          <FormItem><FormLabel>Objet</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
         )} />
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="asset_id" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Équipement</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent className="rounded-xl">
-                  {assets.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FormItem>
+           <FormField control={form.control} name="invoice_number" render={({ field }) => (
+            <FormItem><FormLabel>N° Facture</FormLabel><FormControl><Input {...field} className="rounded-xl" /></FormControl></FormItem>
           )} />
-          <FormField control={form.control} name="maintenance_type" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Type</FormLabel>
+          <FormField control={form.control} name="invoice_status" render={({ field }) => (
+            <FormItem><FormLabel>Statut Facture</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="Corrective">Corrective</SelectItem>
-                  <SelectItem value="Préventive">Préventive</SelectItem>
-                </SelectContent>
+                <SelectContent><SelectItem value="Facturé">Facturé</SelectItem><SelectItem value="Non facturé">Non facturé</SelectItem></SelectContent>
               </Select>
             </FormItem>
           )} />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12 mt-4" disabled={isLoading}>
+        <FormField control={form.control} name="accessories_received" render={({ field }) => (
+          <FormItem><FormLabel>Accessoires reçus</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl></FormItem>
+        )} />
+
+        <Button type="submit" className="w-full bg-blue-600 rounded-xl h-12" disabled={isLoading}>
           {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" size={18} />}
-          {initialData ? "Sauvegarder" : "Enregistrer l'intervention"}
+          Sauvegarder
         </Button>
       </form>
     </Form>
