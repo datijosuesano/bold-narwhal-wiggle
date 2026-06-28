@@ -58,20 +58,29 @@ const AddPastInterventionForm: React.FC<AddPastInterventionFormProps> = ({ initi
     },
   });
 
-  useEffect(() => {
-    const loadSelectData = async () => {
-      const [assetsRes, profilesRes] = await Promise.all([
-        supabase.from("assets").select("id, name, location").order("name"),
-        supabase.from("profiles").select("id, first_name, last_name").order("last_name")
-      ]);
-      setAssets(assetsRes.data || []);
-      setTechs((profilesRes.data || []).map(t => ({
-        id: t.id,
-        name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Technicien'
-      })));
-    };
-    loadSelectData();
-  }, []);
+  useEffect(() => useEffect(() => {
+    // Si on est en mode création (pas d'initialData), on génère le prochain numéro
+    if (!initialData) {
+      const generateNextRit = async () => {
+        const { data } = await supabase
+          .from('interventions')
+          .select('rit_number')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0 && data[0].rit_number) {
+          const lastRit = data[0].rit_number; // Format attendu: "RIT-2026-001"
+          const parts = lastRit.split('-');
+          const lastNum = parseInt(parts[2] || "0");
+          const nextNum = String(lastNum + 1).padStart(3, '0');
+          form.setValue("rit_number", `RIT-2026-${nextNum}`);
+        } else {
+          form.setValue("rit_number", "RIT-2026-001");
+        }
+      };
+      generateNextRit();
+    }
+  }, [initialData, form]); }, []);
 
   const onSubmit = async (data: InterventionFormValues) => {
     setIsLoading(true);
