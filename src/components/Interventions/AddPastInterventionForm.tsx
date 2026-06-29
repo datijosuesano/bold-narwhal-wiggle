@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   createIntervention,
   updateIntervention,
-} from "@/services/interventionService";
+} from "@/components/interventios/interventionService";
 
 const InterventionSchema = z.object({
   rit_number: z.string(),
