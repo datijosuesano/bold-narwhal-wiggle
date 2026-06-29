@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import WorkOrderForm from "@/components/WorkOrderForm";
-import AddPastInterventionForm from "@/components/AddPastInterventionForm";
+import AddPastInterventionForm from "@/components/interventions/AddPastInterventionForm";
 import InterventionDetailDialog from "@/components/InterventionDetailDialog";
 import { useWorkOrders, WorkOrder } from "@/hooks/useWorkOrders";
 import { useAuth } from "@/contexts/AuthContext";
