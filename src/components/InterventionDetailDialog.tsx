@@ -139,59 +139,57 @@ const printRef = useRef<HTMLDivElement>(null);
   // =========================
   // CHARGEMENT TECHNICIEN
   // =========================
-  useEffect(() => {
-    const fetchTech = async () => {
-      if (!intervention) return;
-      const targetId = intervention.technician_id || intervention.user_id;
-      if (!targetId) {
-        setTechName("Non spécifié");
-        return;
-      }
-      const { data } = await supabase
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', targetId)
-        .maybeSingle();
+ const loadDialogData = async () => {
+  if (!intervention) return;
 
-      if (data) {
-        setTechName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
-      } else {
-        setTechName("Non spécifié");
-      }
-    };
+  setLoading(true);
 
-    if (isOpen && intervention) {
-      fetchTech();
+  try {
+    const targetId =
+      intervention.technician_id || intervention.user_id;
+
+    const [techResult, partsResult] = await Promise.all([
+      targetId
+        ? supabase
+            .from("profiles")
+            .select("id, first_name, last_name")
+            .eq("id", targetId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+
+      supabase
+        .from("intervention_parts")
+        .select(`
+          id,
+          quantity,
+          unit_cost,
+          spare_part_id,
+          spare_parts(
+            id,
+            name,
+            reference,
+            purchase_cost
+          )
+        `)
+        .eq("intervention_id", intervention.id),
+    ]);
+
+    setTechnician(techResult.data);
+
+    if (partsResult.error) {
+      throw partsResult.error;
     }
-  }, [isOpen, intervention]);
 
-  // ===================================
-  // CHARGEMENT DES PIÈCES SÉLECTIONNÉES
-  // ===================================
-  useEffect(() => {
-    const fetchUsedParts = async () => {
-      if (!intervention) return;
-      const { data, error } = await supabase
-        .from('intervention_parts')
-        .select('quantity, spare_parts(name, reference)')
-        .eq('intervention_id', intervention.id);
-      
-      if (!error && data) {
-        setUsedParts(data.map((item: any) => ({
-          name: item.spare_parts?.name || "Pièce inconnue",
-          ref: item.spare_parts?.reference || "N/A",
-          quantity: item.quantity,
-          source: "Stock GMAO"
-        })));
-      } else {
-        setUsedParts([]);
-      }
-    };
+    setUsedParts(partsResult.data ?? []);
+  } catch (err) {
+    console.error(err);
 
-    if (isOpen && intervention) {
-      fetchUsedParts();
-    }
-  }, [isOpen, intervention]);
+    setTechnician(null);
+    setUsedParts([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // =========================
   // CALCUL DURÉE D'INTERVENTION
