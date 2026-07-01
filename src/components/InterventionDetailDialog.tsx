@@ -83,11 +83,6 @@ interface Technician {
   last_name?: string;
 }
 
-interface Props {
-  intervention: Intervention | null;
-  isOpen: boolean;
-  onClose: () => void;
-}
 interface InterventionDetailDialogProps {
   intervention: Intervention | null;
   isOpen: boolean;
