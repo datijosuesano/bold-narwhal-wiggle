@@ -191,6 +191,11 @@ const printRef = useRef<HTMLDivElement>(null);
   }
 };
 
+useEffect(() => {
+  if (!isOpen || !intervention) return;
+
+  loadDialogData();
+}, [isOpen, intervention?.id]);
   // =========================
   // CALCUL DURÉE D'INTERVENTION
   // =========================
