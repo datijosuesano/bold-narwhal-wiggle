@@ -127,10 +127,15 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   isOpen,
   onClose
 }) => {
-  const [techName, setTechName] = useState<string>("");
-  const [usedParts, setUsedParts] = useState<{ name: string; ref: string; quantity: number; source: string }[]>([]);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
 
+const [technician, setTechnician] =
+  useState<Technician | null>(null);
+
+const [usedParts, setUsedParts] =
+  useState<UsedPart[]>([]);
+
+const printRef = useRef<HTMLDivElement>(null);
   // =========================
   // CHARGEMENT TECHNICIEN
   // =========================
