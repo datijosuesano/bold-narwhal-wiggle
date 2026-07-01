@@ -64,7 +64,30 @@ interface Intervention {
     brand?: string | null;
   } | null;
 }
+interface UsedPart {
+  id: string;
+  spare_part_id: string;
+  quantity: number;
+  unit_cost?: number;
+  spare_parts?: {
+    id: string;
+    name: string;
+    reference: string;
+    purchase_cost?: number;
+  } | null;
+}
 
+interface Technician {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+interface Props {
+  intervention: Intervention | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
 interface InterventionDetailDialogProps {
   intervention: Intervention | null;
   isOpen: boolean;
