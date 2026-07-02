@@ -178,7 +178,7 @@ export const interventionService = {
   },
 
   /* =========================================================
-     SPARE PARTS (CORRIGÉ SELON TES COLONNES)
+     SPARE PARTS
   ========================================================= */
 
   async getSpareParts() {
@@ -199,154 +199,113 @@ export const interventionService = {
 
     if (error) throw error;
     return data;
-  }
-};
+  },
 
-async createFullIntervention(payload: any, parts: any[]) {
-  const { data: intervention, error } = await supabase
-    .from("interventions")
-    .insert(payload)
-    .select()
-    .single();
+  /* =========================================================
+     NOUVELLES FONCTIONS COMPLEXES
+  ========================================================= */
 
-  if (error) throw error;
+  async createFullIntervention(payload: any, parts: any[]) {
+    const { data: intervention, error } = await supabase
+      .from("interventions")
+      .insert(payload)
+      .select()
+      .single();
 
-  if (parts?.length) {
-    const formattedParts = parts.map(p => ({
-      intervention_id: intervention.id,
-      part_id: p.part_id,
-      quantity: p.quantity,
-    }));
+    if (error) throw error;
 
-    const { error: partsError } = await supabase
-      .from("intervention_parts")
-      .insert(formattedParts);
-
-    if (partsError) throw partsError;
-
-    // batch RPC (MEILLEUR)
-    await Promise.all(
-      parts.map(p =>
-        supabase.rpc("decrease_stock", {
-          part_id: p.part_id,
-          qty: p.quantity,
-        })
-      )
-    );
-  }
-
-  return intervention;
-}
-
-async updateFullIntervention(
-  interventionId: string,
-  payload: any,
-  newParts: any[]
-) {
-  // 1. récupérer anciens items
-  const { data: oldParts, error: oldError } = await supabase
-    .from("intervention_parts")
-    .select("part_id, quantity")
-    .eq("intervention_id", interventionId);
-
-  if (oldError) throw oldError;
-
-  // 2. update intervention d'abord
-  const { error: updateError } = await supabase
-    .from("interventions")
-    .update(payload)
-    .eq("id", interventionId);
-
-  if (updateError) throw updateError;
-
-  // 3. delete anciens parts
-  const { error: deleteError } = await supabase
-    .from("intervention_parts")
-    .delete()
-    .eq("intervention_id", interventionId);
-
-  if (deleteError) throw deleteError;
-
-  // 4. restore stock (batch)
-  if (oldParts?.length) {
-    await Promise.all(
-      oldParts.map(p =>
-        supabase.rpc("increase_stock", {
-          part_id: p.part_id,
-          qty: p.quantity,
-        })
-      )
-    );
-  }
-
-  // 5. insert new parts
-  if (newParts?.length) {
-    const formatted = newParts.map(p => ({
-      intervention_id: interventionId,
-      part_id: p.part_id,
-      quantity: p.quantity,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("intervention_parts")
-      .insert(formatted);
-
-    if (insertError) throw insertError;
-
-    await Promise.all(
-      newParts.map(p =>
-        supabase.rpc("decrease_stock", {
-          part_id: p.part_id,
-          qty: p.quantity,
-        })
-      )
-    );
-  }
-
-  return true;
-};
-  /* ================= 3. UPDATE INTERVENTION ================= */
-
-  const { error: updateError } = await supabase
-    .from("interventions")
-    .update(payload)
-    .eq("id", interventionId);
-
-  if (updateError) throw updateError;
-
-  /* ================= 4. DELETE OLD PARTS ================= */
-
-  const { error: deleteError } = await supabase
-    .from("intervention_parts")
-    .delete()
-    .eq("intervention_id", interventionId);
-
-  if (deleteError) throw deleteError;
-
-  /* ================= 5. INSERT NEW PARTS ================= */
-
-  if (newParts?.length) {
-    const formatted = newParts.map((p) => ({
-      intervention_id: interventionId,
-      spare_part_id: p.part_id,
-      quantity: p.quantity,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("intervention_parts")
-      .insert(formatted);
-
-    if (insertError) throw insertError;
-
-    /* ================= 6. DECREASE NEW STOCK ================= */
-
-    for (const p of newParts) {
-      await supabase.rpc("decrease_stock", {
+    if (parts?.length) {
+      const formattedParts = parts.map(p => ({
+        intervention_id: intervention.id,
         part_id: p.part_id,
-        qty: p.quantity,
-      });
-    }
-  }
+        quantity: p.quantity,
+      }));
 
-  return true;
+      const { error: partsError } = await supabase
+        .from("intervention_parts")
+        .insert(formattedParts);
+
+      if (partsError) throw partsError;
+
+      // batch RPC (MEILLEUR)
+      await Promise.all(
+        parts.map(p =>
+          supabase.rpc("decrease_stock", {
+            part_id: p.part_id,
+            qty: p.quantity,
+          })
+        )
+      );
+    }
+
+    return intervention;
+  },
+
+  async updateFullIntervention(
+    interventionId: string,
+    payload: any,
+    newParts: any[]
+  ) {
+    // 1. récupérer anciens items
+    const { data: oldParts, error: oldError } = await supabase
+      .from("intervention_parts")
+      .select("part_id, quantity")
+      .eq("intervention_id", interventionId);
+
+    if (oldError) throw oldError;
+
+    // 2. update intervention d'abord
+    const { error: updateError } = await supabase
+      .from("interventions")
+      .update(payload)
+      .eq("id", interventionId);
+
+    if (updateError) throw updateError;
+
+    // 3. delete anciens parts
+    const { error: deleteError } = await supabase
+      .from("intervention_parts")
+      .delete()
+      .eq("intervention_id", interventionId);
+
+    if (deleteError) throw deleteError;
+
+    // 4. restore stock (batch)
+    if (oldParts?.length) {
+      await Promise.all(
+        oldParts.map(p =>
+          supabase.rpc("increase_stock", {
+            part_id: p.part_id,
+            qty: p.quantity,
+          })
+        )
+      );
+    }
+
+    // 5. insert new parts
+    if (newParts?.length) {
+      const formatted = newParts.map(p => ({
+        intervention_id: interventionId,
+        part_id: p.part_id,
+        quantity: p.quantity,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("intervention_parts")
+        .insert(formatted);
+
+      if (insertError) throw insertError;
+
+      await Promise.all(
+        newParts.map(p =>
+          supabase.rpc("decrease_stock", {
+            part_id: p.part_id,
+            qty: p.quantity,
+          })
+        )
+      );
+    }
+
+    return true;
+  }
 };
