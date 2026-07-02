@@ -349,4 +349,4 @@ async updateFullIntervention(
   }
 
   return true;
-}
+};
