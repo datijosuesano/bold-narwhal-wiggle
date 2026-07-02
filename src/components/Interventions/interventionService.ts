@@ -304,7 +304,7 @@ async updateFullIntervention(
   }
 
   return true;
-}
+};
   /* ================= 3. UPDATE INTERVENTION ================= */
 
   const { error: updateError } = await supabase
