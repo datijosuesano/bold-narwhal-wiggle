@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,41 +11,50 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
 import { Plus, Search, Loader2, Edit2, Trash2, Eye, Clock } from "lucide-react";
-
 import { showSuccess, showError } from "@/utils/toast";
 
 import { interventionService } from "@/components/interventions/interventionService";
-
 import AddPastIntervention from "@/components/interventions/AddPastInterventionForm";
 import InterventionDetailDialog from "@/components/interventions/InterventionDetailDialog";
 
 /* =========================================================
+   TYPES
+========================================================= */
+interface InterventionListItem {
+  id: string;
+  title: string;
+  rit_number?: string | null;
+  physical_rit_number?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  assets?: {
+    name: string;
+  } | null;
+}
+
+/* =========================================================
    PAGE
 ========================================================= */
-
 const InterventionsPage = () => {
-  const [interventions, setInterventions] = useState<any[]>([]);
+  const [interventions, setInterventions] = useState<InterventionListItem[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [search, setSearch] = useState("");
 
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const [selectedEdit, setSelectedEdit] = useState<any | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+  const [selectedEdit, setSelectedEdit] = useState<InterventionListItem | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<InterventionListItem | null>(null);
 
   /* ========================= FETCH ========================= */
-
   const fetchInterventions = async () => {
     setLoading(true);
-
     try {
       const data = await interventionService.getAll();
       setInterventions(data || []);
     } catch (err) {
+      console.error(err);
       showError("Erreur chargement interventions");
     } finally {
       setLoading(false);
@@ -58,50 +66,47 @@ const InterventionsPage = () => {
   }, []);
 
   /* ========================= SEARCH ========================= */
-
   const filtered = useMemo(() => {
-    const s = search.toLowerCase();
+    const s = search.toLowerCase().trim();
+    if (!s) return interventions;
 
     return interventions.filter((i) => {
       return (
         i.title?.toLowerCase().includes(s) ||
         i.rit_number?.toLowerCase().includes(s) ||
-        i.physical_rit_number?.toString()?.toLowerCase().includes(s)
+        i.physical_rit_number?.toString().toLowerCase().includes(s) ||
+        i.assets?.name?.toLowerCase().includes(s) // Ajout de la recherche par équipement
       );
     });
   }, [interventions, search]);
 
   /* ========================= DURATION ========================= */
-
-  const duration = (start?: string, end?: string) => {
+  const duration = (start?: string | null, end?: string | null) => {
     if (!start || !end) return null;
 
     const diff = new Date(end).getTime() - new Date(start).getTime();
     const mins = Math.floor(diff / 60000);
 
     if (mins <= 0) return null;
-
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   };
 
   /* ========================= DELETE ========================= */
-
   const handleDelete = async (id: string) => {
     const backup = interventions;
-
     setInterventions((prev) => prev.filter((i) => i.id !== id));
 
     try {
       await interventionService.delete(id);
-      showSuccess("Supprimé");
+      showSuccess("Intervention supprimée");
     } catch (err) {
+      console.error(err);
       setInterventions(backup);
-      showError("Erreur suppression");
+      showError("Erreur lors de la suppression");
     }
   };
 
   /* ========================= RENDER ========================= */
-
   return (
     <div className="p-6 space-y-6">
 
@@ -128,10 +133,9 @@ const InterventionsPage = () => {
       {/* SEARCH */}
       <div className="relative">
         <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-
         <Input
           className="pl-10"
-          placeholder="Recherche RIT / titre"
+          placeholder="Recherche RIT, titre ou équipement..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -140,10 +144,8 @@ const InterventionsPage = () => {
       {/* TABLE */}
       <Card>
         <CardContent className="p-0">
-
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-
               <thead className="bg-slate-50 text-left">
                 <tr>
                   <th className="p-4">RIT</th>
@@ -154,41 +156,37 @@ const InterventionsPage = () => {
               </thead>
 
               <tbody>
-
                 {loading ? (
                   <tr>
                     <td colSpan={4} className="p-10 text-center">
-                      <Loader2 className="animate-spin mx-auto" />
+                      <Loader2 className="animate-spin mx-auto text-blue-500" />
                     </td>
                   </tr>
-
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-10 text-center text-gray-400">
-                      Aucune intervention
+                      Aucune intervention trouvée
                     </td>
                   </tr>
-
                 ) : (
                   filtered.map((i) => (
-                    <tr key={i.id} className="border-t">
-
+                    <tr key={i.id} className="border-t hover:bg-slate-50 transition-colors">
+                      
                       {/* RIT */}
-                      <td className="p-4 font-mono font-bold">
+                      <td className="p-4 font-mono font-bold text-slate-700">
                         {i.rit_number || "---"}
                       </td>
 
                       {/* ASSET */}
-                      <td className="p-4">
+                      <td className="p-4 text-slate-600">
                         {i.assets?.name || "---"}
                       </td>
 
                       {/* TITLE */}
                       <td className="p-4">
-                        <div className="font-semibold">{i.title}</div>
-
+                        <div className="font-semibold text-slate-800">{i.title}</div>
                         {duration(i.start_date, i.end_date) && (
-                          <Badge className="mt-1 flex w-fit items-center gap-1">
+                          <Badge variant="secondary" className="mt-1 flex w-fit items-center gap-1 text-[10px]">
                             <Clock size={12} />
                             {duration(i.start_date, i.end_date)}
                           </Badge>
@@ -197,8 +195,7 @@ const InterventionsPage = () => {
 
                       {/* ACTIONS */}
                       <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-
+                        <div className="flex justify-end gap-1">
                           <Button
                             size="icon"
                             variant="ghost"
@@ -207,7 +204,7 @@ const InterventionsPage = () => {
                               setDetailOpen(true);
                             }}
                           >
-                            <Eye size={16} />
+                            <Eye size={16} className="text-blue-600" />
                           </Button>
 
                           <Button
@@ -218,39 +215,33 @@ const InterventionsPage = () => {
                               setEditOpen(true);
                             }}
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={16} className="text-amber-600" />
                           </Button>
 
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="text-red-500"
                             onClick={() => handleDelete(i.id)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} className="text-red-500" />
                           </Button>
-
                         </div>
                       </td>
-
                     </tr>
                   ))
                 )}
-
               </tbody>
-
             </table>
           </div>
-
         </CardContent>
       </Card>
 
-      {/* EDIT */}
+      {/* EDIT MODAL */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedEdit ? "Modifier intervention" : "Nouvelle intervention"}
+              {selectedEdit ? "Modifier l'intervention" : "Nouvelle intervention"}
             </DialogTitle>
           </DialogHeader>
 
@@ -265,8 +256,9 @@ const InterventionsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DETAIL */}
+      {/* DETAIL MODAL */}
       <InterventionDetailDialog
+        // @ts-ignore - Le composant de détail attend un type plus riche, on passe ce qu'on a
         intervention={selectedDetail}
         isOpen={detailOpen}
         onClose={() => setDetailOpen(false)}
