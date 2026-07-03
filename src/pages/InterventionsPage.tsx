@@ -20,7 +20,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { interventionService } from "@/components/interventions/interventionService";
 
 import AddPastIntervention from "@/components/interventions/AddPastInterventionForm";
-import InterventionDetailDialog from "@/components/InterventionDetailDialog";
+import InterventionDetailDialog from "@/components/interventions/InterventionDetailDialog";
 
 /* =========================================================
    PAGE
