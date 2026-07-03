@@ -309,3 +309,37 @@ export const interventionService = {
     return true;
   }
 };
+
+/* -----------------------------
+     DÉTAILS COMPLÉMENTAIRES (DIALOGUE)
+  ----------------------------- */
+  async getTechnician(id: string) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getPartsWithDetails(interventionId: string) {
+    const { data, error } = await supabase
+      .from("intervention_parts")
+      .select(`
+        id,
+        quantity,
+        part_id,
+        spare_parts!intervention_parts_part_id_fkey(
+          id,
+          name,
+          reference,
+          purchase_cost
+        )
+      `)
+      .eq("intervention_id", interventionId);
+
+    if (error) throw error;
+    return data;
+  },
