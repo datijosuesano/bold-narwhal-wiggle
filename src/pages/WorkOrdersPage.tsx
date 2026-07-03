@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import WorkOrderForm from "@/components/WorkOrderForm";
 import AddPastInterventionForm from "@/components/interventions/AddPastInterventionForm";
-import InterventionDetailDialog from "@/components/InterventionDetailDialog";
+import InterventionDetailDialog from "@/components/interventions/InterventionDetailDialog";
 import { useWorkOrders, WorkOrder } from "@/hooks/useWorkOrders";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
