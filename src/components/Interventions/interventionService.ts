@@ -43,7 +43,10 @@ export const interventionService = {
   async getAll() {
     const { data, error } = await supabase
       .from("interventions")
-      .select("*")
+      .select(`
+        *,
+        assets(name)
+      `)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -307,10 +310,9 @@ export const interventionService = {
     }
 
     return true;
-  }
-};
+  },
 
-/* -----------------------------
+  /* -----------------------------
      DÉTAILS COMPLÉMENTAIRES (DIALOGUE)
   ----------------------------- */
   async getTechnician(id: string) {
@@ -342,4 +344,5 @@ export const interventionService = {
 
     if (error) throw error;
     return data;
-  },
+  }
+}; // L'ACCOLADE FINALE EST BIEN ICI !
