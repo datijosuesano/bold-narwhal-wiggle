@@ -47,11 +47,12 @@ import {
   Cell
 } from "recharts";
 
-import CreateReagentForm from "@/components/CreateReagentForm";
-import ReagentStockAdjustment from "@/components/ReagentStockAdjustment";
-import ReagentHistoryDialog from "@/components/ReagentHistoryDialog";
+// Nouveaux chemins pointant vers le dossier "reagents"
+import CreateReagentForm from "@/components/reagents/CreateReagentForm";
+import ReagentStockAdjustment from "@/components/reagents/ReagentStockAdjustment";
+import ReagentHistoryDialog from "@/components/reagents/ReagentHistoryDialog";
+import { reagentService } from "@/components/reagents/reagentService";
 
-import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { format, differenceInDays, isBefore } from "date-fns";
 
@@ -96,21 +97,18 @@ const ReagentsPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const [reagentsRes, movementsRes, profilesRes] = await Promise.all([
-        supabase.from("lab_reagents").select("*").order("name"),
-        supabase.from("reagent_stock_movements")
-                .select("*, lab_reagents(name)")
-                .order("created_at", { ascending: false })
-                .limit(100),
-        supabase.from("profiles").select("id, first_name, last_name")
+      // Appel propre au nouveau service
+      const [reagentsData, movementsData, profilesData] = await Promise.all([
+        reagentService.getReagents(),
+        reagentService.getRecentMovements(100),
+        reagentService.getTechnicians()
       ]);
 
-      if (reagentsRes.error) throw reagentsRes.error;
-      setReagents((reagentsRes.data as Reagent[]) ?? []);
+      setReagents((reagentsData as Reagent[]) ?? []);
 
-      const textMap = new Map((profilesRes.data || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
+      const textMap = new Map((profilesData || []).map(p => [p.id, `${p.first_name} ${p.last_name}`]));
       
-      const formattedLogs: AuditLog[] = (movementsRes.data || []).map((m: any) => ({
+      const formattedLogs: AuditLog[] = (movementsData || []).map((m: any) => ({
         id: m.id,
         reagent_id: m.reagent_id,
         reagent_name: m.lab_reagents?.name || "Réactif",
@@ -145,7 +143,6 @@ const ReagentsPage: React.FC = () => {
     return { isCritical, dailyConsumption, reorderPoint, consumption30d };
   }, [auditLogs]);
 
-  // MODULE DE CALCUL PROGRESSIF DE LA PÉREMPTION
   const getExpiryStatus = (expiryDate: string | null) => {
     if (!expiryDate) return null;
     const date = new Date(expiryDate);
@@ -171,7 +168,6 @@ const ReagentsPage: React.FC = () => {
     const totalValuation = reagents.reduce((sum, r) => sum + (r.current_stock * (r.purchase_cost || 0)), 0);
     let totalCritical = 0;
     
-    // Initialisation des compteurs dynamiques
     let expiredCount = 0;
     let criticalCount = 0; 
     let warningCount = 0;  
@@ -246,7 +242,6 @@ const ReagentsPage: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       
-      {/* HEADER ECRAN */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <div className="p-3 bg-blue-100 rounded-2xl">
@@ -280,7 +275,6 @@ const ReagentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPIS ECRAN */}
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <Card className="shadow-sm border-l-4 border-l-amber-500 bg-white">
           <CardHeader className="pb-1"><CardDescription className="text-[10px] font-black uppercase text-slate-400">À Commander</CardDescription></CardHeader>
@@ -290,7 +284,6 @@ const ReagentsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* CARTE DE SUIVI PROGRESSIF DES PÉREMPTIONS */}
         <Card className="shadow-sm border-l-4 border-l-red-600 bg-white">
           <CardHeader className="pb-1">
             <CardDescription className="text-[10px] font-black uppercase text-slate-400">
@@ -324,7 +317,6 @@ const ReagentsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* GRAPHIQUE ET AUDIT ECRAN */}
       <div className="grid gap-8 lg:grid-cols-12">
         <Card className="shadow-xl border-none bg-white rounded-2xl lg:col-span-5 flex flex-col justify-between">
           <CardHeader className="border-b pb-4">
@@ -387,7 +379,6 @@ const ReagentsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* TABLE ECRAN PRINCIPALE */}
       <Card className="shadow-lg overflow-hidden border-none bg-white rounded-2xl">
         <CardHeader className="border-b bg-slate-50/50">
           <div className="flex justify-between items-center">
@@ -474,7 +465,6 @@ const ReagentsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* MODALE D'APERÇU WYSIWYG & EXPORT */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl h-[85vh] flex flex-col rounded-2xl p-0 overflow-hidden bg-slate-50">
           <DialogHeader className="p-6 bg-white border-b shrink-0 shadow-sm z-10">
@@ -482,7 +472,7 @@ const ReagentsPage: React.FC = () => {
               <Eye className="w-5 h-5 mr-2 text-blue-600" /> Aperçu du Document Final
             </DialogTitle>
             <DialogDescription>
-              Vérifiez la mise en page avant d'export en PDF ou d'imprimer.
+              Vérifiez la mise en page avant d'exporter en PDF ou d'imprimer.
             </DialogDescription>
           </DialogHeader>
           

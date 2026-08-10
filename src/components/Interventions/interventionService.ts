@@ -1,90 +1,68 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/* =========================================================
-   TYPES SIMPLIFIÉS (alignés DB)
-========================================================= */
-
-export interface InterventionPart {
-  id?: string;
-  intervention_id?: string;
-  spare_part_id: string;
-  quantity: number;
-  unit_cost?: number;
-}
-
-export interface InterventionAttachment {
-  id?: string;
-  intervention_id: string;
-  file_name: string;
-  file_url: string;
-  file_type?: string;
-  created_at?: string;
-}
-
-export interface Intervention {
-  id?: string;
-  title: string;
-  description?: string;
-  asset_id?: string;
-  technician_id?: string;
-  status?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-/* =========================================================
-   INTERVENTIONS
-========================================================= */
+import type {
+  Intervention,
+  InterventionCreateInput,
+  InterventionUpdateInput,
+  InterventionPart,
+  InterventionAttachment,
+  Technician,
+  SparePart,
+  SelectedPart,
+} from "./types";
 
 export const interventionService = {
-  /* -----------------------------
-     GET ALL INTERVENTIONS
-  ----------------------------- */
-  async getAll() {
+  /* =========================================================
+      INTERVENTIONS
+  ========================================================= */
+
+  async getAll(): Promise<Intervention[]> {
     const { data, error } = await supabase
       .from("interventions")
       .select(`
         *,
-        assets(name)
+        assets(
+          id,
+          name,
+          location
+        )
       `)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as Intervention[];
   },
 
-  /* -----------------------------
-     GET ONE INTERVENTION FULL
-  ----------------------------- */
-  async getById(id: string) {
+  async getById(id: string): Promise<Intervention> {
     const { data, error } = await supabase
       .from("interventions")
-      .select("*")
+      .select(`
+        *,
+        assets(
+          id,
+          name,
+          location
+        )
+      `)
       .eq("id", id)
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Intervention;
   },
 
-  /* -----------------------------
-     CREATE INTERVENTION
-  ----------------------------- */
-  async create(intervention: Intervention) {
+  async create(intervention: InterventionCreateInput): Promise<Intervention> {
     const { data, error } = await supabase
       .from("interventions")
-      .insert([intervention])
+      .insert(intervention)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Intervention;
   },
 
-  /* -----------------------------
-     UPDATE INTERVENTION
-  ----------------------------- */
-  async update(id: string, updates: Partial<Intervention>) {
+  async update(id: string, updates: InterventionUpdateInput): Promise<Intervention> {
     const { data, error } = await supabase
       .from("interventions")
       .update(updates)
@@ -93,13 +71,10 @@ export const interventionService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Intervention;
   },
 
-  /* -----------------------------
-     DELETE INTERVENTION
-  ----------------------------- */
-  async delete(id: string) {
+  async delete(id: string): Promise<boolean> {
     const { error } = await supabase
       .from("interventions")
       .delete()
@@ -110,81 +85,73 @@ export const interventionService = {
   },
 
   /* =========================================================
-     PARTS (PIÈCES UTILISÉES)
+      EQUIPEMENTS (ASSETS)
   ========================================================= */
 
-  async getParts(interventionId: string) {
+  async getAssets(): Promise<{ id: string; name: string }[]> {
     const { data, error } = await supabase
-      .from("intervention_parts")
-      .select("*")
-      .eq("intervention_id", interventionId);
+      .from("assets")
+      .select("id, name")
+      .order("name");
 
     if (error) throw error;
-    return data;
-  },
-
-  async addPart(part: InterventionPart) {
-    const { data, error } = await supabase
-      .from("intervention_parts")
-      .insert([part])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async deletePart(id: string) {
-    const { error } = await supabase
-      .from("intervention_parts")
-      .delete()
-      .eq("id", id);
-
-    if (error) throw error;
-    return true;
+    return data ?? [];
   },
 
   /* =========================================================
-     ATTACHMENTS (METADATA UNIQUEMENT)
-     ⚠️ Upload géré ailleurs (InterventionAttachmentsManager)
+      TECHNICIENS
   ========================================================= */
 
-  async getAttachments(interventionId: string) {
+  async getTechnicians(): Promise<Technician[]> {
     const { data, error } = await supabase
-      .from("intervention_attachments")
-      .select("*")
-      .eq("intervention_id", interventionId);
+      .from("profiles")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        role
+      `)
+      .in("role", ["admin", "technicien_biomedical"])
+      .order("first_name");
 
     if (error) throw error;
-    return data;
+
+    return (data ?? []).map((tech) => ({
+      id: tech.id,
+      first_name: tech.first_name,
+      last_name: tech.last_name,
+      role: tech.role,
+      full_name: `${tech.first_name ?? ""} ${tech.last_name ?? ""}`.trim(),
+    }));
   },
 
-  async addAttachmentMetadata(attachment: InterventionAttachment) {
+  async getTechnician(id: string): Promise<Technician | null> {
     const { data, error } = await supabase
-      .from("intervention_attachments")
-      .insert([attachment])
-      .select()
-      .single();
+      .from("profiles")
+      .select(`
+        id,
+        first_name,
+        last_name
+      `)
+      .eq("id", id)
+      .maybeSingle();
 
     if (error) throw error;
-    return data;
-  },
+    if (!data) return null;
 
-  async deleteAttachment(id: string) {
-    const { error } = await supabase
-      .from("intervention_attachments")
-      .delete()
-      .eq("id", id);
-
-    if (error) throw error;
-    return true;
+    return {
+      id: data.id,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      full_name: `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim(),
+    };
   },
 
   /* =========================================================
-     SPARE PARTS
+      PIECES DETACHEES (STOCK)
   ========================================================= */
 
-  async getSpareParts() {
+  async getSpareParts(): Promise<SparePart[]> {
     const { data, error } = await supabase
       .from("spare_parts")
       .select(`
@@ -194,136 +161,28 @@ export const interventionService = {
         current_stock,
         purchase_cost,
         min_stock,
-        location,
         supplier,
-        compatible_equipment,
-        created_at
-      `);
+        location,
+        compatible_equipment
+      `)
+      .order("name");
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as SparePart[];
   },
 
   /* =========================================================
-     NOUVELLES FONCTIONS COMPLEXES
+      PIECES D'INTERVENTION
   ========================================================= */
 
-  async createFullIntervention(payload: any, parts: any[]) {
-    const { data: intervention, error } = await supabase
-      .from("interventions")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (parts?.length) {
-      const formattedParts = parts.map(p => ({
-        intervention_id: intervention.id,
-        part_id: p.part_id,
-        quantity: p.quantity,
-      }));
-
-      const { error: partsError } = await supabase
-        .from("intervention_parts")
-        .insert(formattedParts);
-
-      if (partsError) throw partsError;
-
-      // batch RPC (MEILLEUR)
-      await Promise.all(
-        parts.map(p =>
-          supabase.rpc("decrease_stock", {
-            part_id: p.part_id,
-            qty: p.quantity,
-          })
-        )
-      );
-    }
-
-    return intervention;
-  },
-
-  async updateFullIntervention(
-    interventionId: string,
-    payload: any,
-    newParts: any[]
-  ) {
-    // 1. récupérer anciens items
-    const { data: oldParts, error: oldError } = await supabase
-      .from("intervention_parts")
-      .select("part_id, quantity")
-      .eq("intervention_id", interventionId);
-
-    if (oldError) throw oldError;
-
-    // 2. update intervention d'abord
-    const { error: updateError } = await supabase
-      .from("interventions")
-      .update(payload)
-      .eq("id", interventionId);
-
-    if (updateError) throw updateError;
-
-    // 3. delete anciens parts
-    const { error: deleteError } = await supabase
-      .from("intervention_parts")
-      .delete()
-      .eq("intervention_id", interventionId);
-
-    if (deleteError) throw deleteError;
-
-    // 4. restore stock (batch)
-    if (oldParts?.length) {
-      await Promise.all(
-        oldParts.map(p =>
-          supabase.rpc("increase_stock", {
-            part_id: p.part_id,
-            qty: p.quantity,
-          })
-        )
-      );
-    }
-
-    // 5. insert new parts
-    if (newParts?.length) {
-      const formatted = newParts.map(p => ({
-        intervention_id: interventionId,
-        part_id: p.part_id,
-        quantity: p.quantity,
-      }));
-
-      const { error: insertError } = await supabase
-        .from("intervention_parts")
-        .insert(formatted);
-
-      if (insertError) throw insertError;
-
-      await Promise.all(
-        newParts.map(p =>
-          supabase.rpc("decrease_stock", {
-            part_id: p.part_id,
-            qty: p.quantity,
-          })
-        )
-      );
-    }
-
-    return true;
-  },
-
-  /* -----------------------------
-     DÉTAILS COMPLÉMENTAIRES (DIALOGUE)
-  ----------------------------- */
-  async getTechnician(id: string) {
+  async getParts(interventionId: string): Promise<InterventionPart[]> {
     const { data, error } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name")
-      .eq("id", id)
-      .maybeSingle();
+      .from("intervention_parts")
+      .select("*")
+      .eq("intervention_id", interventionId);
 
     if (error) throw error;
-    return data;
+    return (data ?? []) as InterventionPart[];
   },
 
   async getPartsWithDetails(interventionId: string) {
@@ -343,6 +202,84 @@ export const interventionService = {
       .eq("intervention_id", interventionId);
 
     if (error) throw error;
-    return data;
+    return data ?? [];
+  },
+
+  /* =========================================================
+      PIECES JOINTES
+  ========================================================= */
+
+  async getAttachments(interventionId: string) {
+    const { data, error } = await supabase
+      .from("intervention_attachments")
+      .select("*")
+      .eq("intervention_id", interventionId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async addAttachmentMetadata(attachment: InterventionAttachment): Promise<InterventionAttachment> {
+    const { data, error } = await supabase
+      .from("intervention_attachments")
+      .insert(attachment)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as InterventionAttachment;
+  },
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    const { error } = await supabase
+      .from("intervention_attachments")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+    return true;
+  },
+
+  /* =========================================================
+      LOGIQUE METIER COMBINEE
+  ========================================================= */
+
+  async createFullIntervention(
+    payload: InterventionCreateInput,
+    parts: SelectedPart[]
+  ): Promise<Intervention> {
+    const { data: intervention, error } = await supabase
+      .from("interventions")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (parts && parts.length > 0) {
+      const formattedParts = parts.map((part) => ({
+        intervention_id: intervention.id,
+        part_id: part.part_id,
+        quantity: part.quantity,
+      }));
+
+      const { error: partsError } = await supabase
+        .from("intervention_parts")
+        .insert(formattedParts);
+
+      if (partsError) throw partsError;
+
+      await Promise.all(
+        parts.map((part) =>
+          supabase.rpc("decrease_stock", {
+            part_id: part.part_id,
+            qty: part.quantity,
+          })
+        )
+      );
+    }
+
+    return intervention as Intervention;
   }
-}; // L'ACCOLADE FINALE EST BIEN ICI !
+};

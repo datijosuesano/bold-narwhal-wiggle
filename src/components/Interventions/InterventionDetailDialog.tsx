@@ -23,9 +23,7 @@ import {
   FileSpreadsheet,
   Printer,
   Download,
-  AlertTriangle,
   User,
-  Wrench,
   Package,
   History,
   Timer
@@ -35,9 +33,11 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import InterventionAttachmentsManager from './InterventionAttachmentsManager';
-import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import html2pdf from 'html2pdf.js';
+
+// IMPORT DU SERVICE (Vérifie le chemin selon ton arborescence)
+import { interventionService } from './interventionService';
 
 interface Intervention {
   id: string;
@@ -64,11 +64,11 @@ interface Intervention {
     brand?: string | null;
   } | null;
 }
+
 interface UsedPart {
   id: string;
-  spare_part_id: string;
+  part_id: string;
   quantity: number;
-  unit_cost?: number;
   spare_parts?: {
     id: string;
     name: string;
@@ -128,76 +128,49 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   onClose
 }) => {
   const [loading, setLoading] = useState(false);
+  const [technician, setTechnician] = useState<Technician | null>(null);
+  const [usedParts, setUsedParts] = useState<UsedPart[]>([]);
+  const printRef = useRef<HTMLDivElement>(null);
 
-const [technician, setTechnician] =
-  useState<Technician | null>(null);
-
-const [usedParts, setUsedParts] =
-  useState<UsedPart[]>([]);
-
-const printRef = useRef<HTMLDivElement>(null);
   // =========================
-  // CHARGEMENT TECHNICIEN
+  // CHARGEMENT DONNÉES (VIA SERVICE)
   // =========================
- const loadDialogData = async () => {
-  if (!intervention) return;
+  const loadDialogData = async () => {
+    if (!intervention) return;
+    setLoading(true);
 
-  setLoading(true);
+    try {
+      const targetId = intervention.technician_id || intervention.user_id;
 
-  try {
-    const targetId =
-      intervention.technician_id || intervention.user_id;
+      // Un seul appel groupé via Promise.all pour plus de rapidité, 100% via le service
+      const [techResult, partsResult] = await Promise.all([
+        targetId ? interventionService.getTechnician(targetId) : Promise.resolve(null),
+        interventionService.getPartsWithDetails(intervention.id)
+      ]);
 
-    const [techResult, partsResult] = await Promise.all([
-      targetId
-        ? supabase
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .eq("id", targetId)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-
-      supabase
-        .from("intervention_parts")
-        .select(`
-          id,
-          quantity,
-          unit_cost,
-          spare_part_id,
-          spare_parts(
-            id,
-            name,
-            reference,
-            purchase_cost
-          )
-        `)
-        .eq("intervention_id", intervention.id),
-    ]);
-
-    setTechnician(techResult.data);
-
-    if (partsResult.error) {
-      throw partsResult.error;
+      setTechnician(techResult);
+      setUsedParts(partsResult || []);
+    } catch (err) {
+      console.error("Erreur lors du chargement des détails :", err);
+      setTechnician(null);
+      setUsedParts([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setUsedParts(partsResult.data ?? []);
-  } catch (err) {
-    console.error(err);
+  useEffect(() => {
+    if (!isOpen || !intervention) return;
+    loadDialogData();
+  }, [isOpen, intervention?.id]);
 
-    setTechnician(null);
-    setUsedParts([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  // Construction sécurisée du nom du technicien
+  const techName = technician 
+    ? `${technician.first_name || ""} ${technician.last_name || ""}`.trim() 
+    : null;
 
-useEffect(() => {
-  if (!isOpen || !intervention) return;
-
-  loadDialogData();
-}, [isOpen, intervention?.id]);
   // =========================
-  // CALCUL DURÉE D'INTERVENTION
+  // CALCULS DURÉES
   // =========================
   const durationString = useMemo(() => {
     if (!intervention?.start_date || !intervention?.end_date) return null;
@@ -221,9 +194,6 @@ useEffect(() => {
     return `${mins} min`;
   }, [intervention]);
 
-  // =========================
-  // CALCUL TEMPS DE PRISE EN CHARGE
-  // =========================
   const responseTimeString = useMemo(() => {
     if (!intervention?.created_at || !intervention?.start_date) return null;
     const requestDate = new Date(intervention.created_at);
@@ -280,7 +250,6 @@ useEffect(() => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] rounded-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-0 bg-white">
         
-        {/* CONTENU IMPRIMABLE */}
         <div ref={printRef} className="p-6 space-y-6 print-intervention-area bg-white">
           
           {/* HEADER */}
@@ -310,7 +279,6 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* ACTIONS */}
             <div className="flex gap-2 print:hidden">
               <Button onClick={handleExportPDF} size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9">
                 <Download size={16} className="mr-1.5" /> Exporter PDF
@@ -409,7 +377,7 @@ useEffect(() => {
             </p>
           </div>
 
-          {/* PIÈCES DE RECHANGE UTILISÉES (Priorité 3) */}
+          {/* PIÈCES DE RECHANGE UTILISÉES */}
           <div className="space-y-1.5">
             <h4 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1">
               <Package size={14} className="text-slate-400" />
@@ -420,12 +388,12 @@ useEffect(() => {
                 {usedParts.map((part, index) => (
                   <div key={index} className="p-3 flex justify-between items-center hover:bg-slate-50">
                     <div>
-                      <p className="font-bold text-slate-800">{part.name}</p>
-                      <p className="text-[10px] font-mono text-slate-400">Ref: {part.ref}</p>
+                      {/* CORRECTION DU BUG D'AFFICHAGE ICI */}
+                      <p className="font-bold text-slate-800">{part.spare_parts?.name || "Pièce inconnue"}</p>
+                      <p className="text-[10px] font-mono text-slate-400">Ref: {part.spare_parts?.reference || "N/A"}</p>
                     </div>
                     <div className="text-right">
                       <Badge variant="secondary" className="font-bold rounded-lg text-[10px]">Qté: {part.quantity}</Badge>
-                      <p className="text-[9px] text-emerald-600 font-bold uppercase mt-0.5">{part.source}</p>
                     </div>
                   </div>
                 ))}
@@ -451,7 +419,7 @@ useEffect(() => {
             </div>
           )}
 
-          {/* HISTORIQUE ADMINISTRATIF (Priorité 5) */}
+          {/* HISTORIQUE ADMINISTRATIF */}
           <div className="space-y-2 pt-2 border-t">
             <h4 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1">
               <History size={14} className="text-slate-400" />
@@ -518,34 +486,13 @@ useEffect(() => {
       {/* STYLE IMPRESSION UNIQUE */}
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-intervention-area,
-          .print-intervention-area * {
-            visibility: visible;
-          }
+          body * { visibility: hidden; }
+          .print-intervention-area, .print-intervention-area * { visibility: visible; }
           .print-intervention-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white;
-            padding: 20px;
+            position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 20px;
           }
-          .print\\:hidden,
-          button,
-          nav,
-          aside,
-          footer,
-          header {
-            display: none !important;
-          }
-          .shadow,
-          .shadow-md,
-          .shadow-lg {
-            box-shadow: none !important;
-          }
+          .print\\:hidden, button, nav, aside, footer, header { display: none !important; }
+          .shadow, .shadow-md, .shadow-lg { box-shadow: none !important; }
         }
       `}</style>
     </Dialog>

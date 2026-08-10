@@ -20,12 +20,12 @@ import {
   ClipboardList
 } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";""
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import CreateWorkOrderForm from "@/components/CreateWorkOrderForm";
+import CreateWorkOrderForm from "@/components/WorkOrders/CreateWorkOrderForm";
 import CloseInterventionDialog from "@/components/CloseInterventionDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";

@@ -28,7 +28,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import ImageUpload from "./ImageUpload";
+import ImageUpload from "@/components/ImageUpload";
 import { ASSET_CATEGORIES, ASSET_STATUS } from "@/utils/constants";
 
 const AssetSchema = z.object({

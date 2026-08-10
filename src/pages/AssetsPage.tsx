@@ -40,10 +40,10 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
-import CreateAssetForm from "@/components/CreateAssetForm";
-import EditAssetForm from "@/components/EditAssetForm";
-import AssetDetailView from "@/components/AssetDetailView";
-import AssetQRCode from "@/components/AssetQRCode";
+import CreateAssetForm from "@/components/Assets/CreateAssetForm";
+import EditAssetForm from "@/components/Assets/EditAssetForm";
+import AssetDetailView from "@/components/Assets/AssetDetailView";
+import AssetQRCode from "@/components/Assets/AssetQRCode";
 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';

@@ -10,7 +10,7 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { showError } from '@/utils/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import WorkOrderForm from '@/components/WorkOrderForm';
+import WorkOrderForm from '@/components/WorkOrders/WorkOrderForm';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Asset {

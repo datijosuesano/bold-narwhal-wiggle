@@ -6,8 +6,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/ui/badge';
 import { Card } from "@/components/ui/card";
-import CreateClientForm from '@/components/CreateClientForm';
-import EditClientForm from '@/components/EditClientForm';
+import CreateClientForm from '@/components/Clients/CreateClientForm';
+import EditClientForm from '@/components/Clients/EditClientForm';
 import CreateContractForm from '@/components/CreateContractForm';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';

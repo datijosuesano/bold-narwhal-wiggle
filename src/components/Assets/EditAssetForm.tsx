@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Loader2, Save, User, Building2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -26,51 +25,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
 import { ASSET_STATUS } from "@/utils/constants";
 
-const AssetSchema = z.object({
-  name: z.string().min(3, "Le nom est requis."),
-  category: z.string().min(1, "La catégorie est requise."),
-  status: z.string().min(1, "Le statut est requis"),
-  description: z.string().optional(),
-  serialNumber: z.string().min(1, "Le numéro de série est requis."),
-  model: z.string().min(1, "Le modèle est requis."),
-  brand: z.string().min(1, "La marque est requise."),
-  manufacturer: z.string().min(1, "Le fabricant est requis."),
-  client_id: z.string().min(1, "Le client est requis."),
-  location: z.string().min(1, "La localisation (salle) est requise."),
-  assignedTo: z.string().optional().nullable(),
-  manufacturingDate: z.date().optional().nullable(),
-  commissioningDate: z.date({
-    required_error: "La date de mise en service est requise.",
-  }),
-  expiryDate: z.date().optional().nullable(),
-  purchaseCost: z.union([z.string(), z.number()]).transform((val) => {
-    if (typeof val === 'number') return val;
-    return parseFloat(val) || 0;
-  }),
-});
+// Imports de la nouvelle architecture
+import { assetService } from "./assetService";
+import { AssetSchema, AssetFormValues } from "./schema";
 
-type AssetFormValues = z.infer<typeof AssetSchema>;
-
-interface Asset {
+export interface Asset {
   id: string;
   name: string;
   category: string;
   client_id?: string;
   location: string;
   status: string;
-  serialNumber: string;
+  serial_number: string;
   model: string;
   brand?: string;
   manufacturer: string;
-  manufacturingDate?: Date;
-  commissioningDate: Date;
-  expiryDate?: Date | null;
-  purchaseCost: number;
+  manufacturing_date?: string | Date | null;
+  commissioning_date: string | Date;
+  expiry_date?: string | Date | null;
+  purchase_cost: number;
   description?: string;
   assigned_to?: string | null;
+  image_url?: string;
 }
 
 interface EditAssetFormProps {
@@ -83,7 +61,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   const [techs, setTechs] = useState<{id: string, name: string}[]>([]);
 
-  // Sécurité 1 : Traducteur automatique des anciennes valeurs de la BDD vers le sélecteur
+  // Traducteur automatique des anciennes valeurs de la BDD vers le sélecteur
   const normalizeInitialStatus = (status: string): string => {
     const s = (status || "").toLowerCase().trim();
     if (s === "opérationnel" || s === "en service") return "Opérationnel";
@@ -97,30 +75,35 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
     resolver: zodResolver(AssetSchema),
     defaultValues: {
       name: asset.name,
-      category: asset.category || "Non classé",
-      status: normalizeInitialStatus(asset.status), // Application de la normalisation
+      category: asset.category || "autre",
+      status: normalizeInitialStatus(asset.status),
       description: asset.description || "",
-      serialNumber: asset.serialNumber,
-      model: asset.model,
+      serial_number: asset.serial_number || "",
+      model: asset.model || "",
       brand: asset.brand || "",
-      manufacturer: asset.manufacturer,
+      manufacturer: asset.manufacturer || "",
       client_id: asset.client_id || "", 
       location: asset.location || "",
-      assignedTo: asset.assigned_to || "none",
-      manufacturingDate: asset.manufacturingDate || null,
-      commissioningDate: asset.commissioningDate,
-      expiryDate: asset.expiryDate || null,
-      purchaseCost: asset.purchaseCost,
+      assigned_to: asset.assigned_to || "none",
+      manufacturing_date: asset.manufacturing_date ? new Date(asset.manufacturing_date) : null,
+      commissioning_date: asset.commissioning_date ? new Date(asset.commissioning_date) : new Date(),
+      expiry_date: asset.expiry_date ? new Date(asset.expiry_date) : null,
+      purchase_cost: asset.purchase_cost || 0,
+      image_url: asset.image_url || "",
     },
   });
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: clientData } = await supabase.from('clients').select('id, name').order('name');
-      setClients(clientData || []);
-      
-      const { data: techData } = await supabase.from('profiles').select('id, first_name, last_name');
-      setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
+      try {
+        const clientData = await assetService.getClients();
+        setClients(clientData || []);
+        
+        const techData = await assetService.getTechnicians();
+        setTechs(techData?.map(t => ({ id: t.id, name: `${t.first_name} ${t.last_name}` })) || []);
+      } catch (err) {
+        console.error("Erreur de chargement des dépendances", err);
+      }
     };
     fetchData();
   }, []);
@@ -128,7 +111,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   const onSubmit = async (data: AssetFormValues) => {
     setIsLoading(true);
 
-    // Sécurité 2 : Alignement strict avec l'ENUM PostgreSQL public.asset_status_enum
+    // Sécurité : Alignement strict avec l'ENUM PostgreSQL
     let dbStatus = "Opérationnel";
     const currentStatus = data.status.toLowerCase().trim();
     
@@ -143,28 +126,26 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
     }
 
     try {
-      const { error } = await supabase
-        .from('assets')
-        .update({
-          name: data.name,
-          category: data.category,
-          status: dbStatus, // Envoi de la chaîne parfaitement nettoyée
-          description: data.description,
-          serial_number: data.serialNumber,
-          model: data.model,
-          brand: data.brand,
-          manufacturer: data.manufacturer,
-          client_id: data.client_id, 
-          location: data.location,   
-          assigned_to: data.assignedTo === "none" ? null : data.assignedTo,
-          manufacturing_date: data.manufacturingDate ? format(data.manufacturingDate, 'yyyy-MM-dd') : null,
-          commissioning_date: format(data.commissioningDate, 'yyyy-MM-dd'),
-          expiry_date: data.expiryDate ? format(data.expiryDate, 'yyyy-MM-dd') : null,
-          purchase_cost: data.purchaseCost,
-        })
-        .eq('id', asset.id);
+      const payload = {
+        name: data.name,
+        category: data.category,
+        status: dbStatus,
+        description: data.description,
+        serial_number: data.serial_number,
+        model: data.model,
+        brand: data.brand,
+        manufacturer: data.manufacturer,
+        client_id: data.client_id, 
+        location: data.location,   
+        assigned_to: data.assigned_to === "none" ? null : data.assigned_to,
+        manufacturing_date: data.manufacturing_date ? format(data.manufacturing_date, 'yyyy-MM-dd') : null,
+        commissioning_date: format(data.commissioning_date, 'yyyy-MM-dd'),
+        expiry_date: data.expiry_date ? format(data.expiry_date, 'yyyy-MM-dd') : null,
+        purchase_cost: data.purchase_cost,
+        image_url: data.image_url,
+      };
 
-      if (error) throw error;
+      await assetService.updateAsset(asset.id, payload);
 
       showSuccess("Mise à jour réussie !");
       onSuccess();
@@ -191,7 +172,6 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           <FormField control={form.control} name="status" render={({ field }) => (
             <FormItem>
               <FormLabel>Statut</FormLabel>
-              {/* Utilisation de value={field.value} pour rendre le Select entièrement contrôlé par React Hook Form */}
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
@@ -246,7 +226,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="serialNumber" render={({ field }) => (
+          <FormField control={form.control} name="serial_number" render={({ field }) => (
             <FormItem>
               <FormLabel>N° de Série</FormLabel>
               <FormControl><Input {...field} className="rounded-xl font-mono uppercase" /></FormControl>
@@ -262,7 +242,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
           )} />
         </div>
         
-        <FormField control={form.control} name="assignedTo" render={({ field }) => (
+        <FormField control={form.control} name="assigned_to" render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center"><User size={14} className="mr-1" /> Responsable Actuel</FormLabel>
             <Select onValueChange={field.onChange} value={field.value || "none"}>
@@ -287,7 +267,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         )} />
 
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          <FormField control={form.control} name="manufacturingDate" render={({ field }) => (
+          <FormField control={form.control} name="manufacturing_date" render={({ field }) => (
             <FormItem>
               <FormLabel>Date de fabrication</FormLabel>
               <FormControl>
@@ -300,7 +280,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
               </FormControl>
             </FormItem>
           )} />
-          <FormField control={form.control} name="commissioningDate" render={({ field }) => (
+          <FormField control={form.control} name="commissioning_date" render={({ field }) => (
             <FormItem>
               <FormLabel>Mise en service</FormLabel>
               <FormControl>
@@ -317,7 +297,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 pb-4">
-          <FormField control={form.control} name="expiryDate" render={({ field }) => (
+          <FormField control={form.control} name="expiry_date" render={({ field }) => (
             <FormItem>
               <FormLabel>Péremption / Expire</FormLabel>
               <FormControl>
@@ -330,7 +310,7 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
               </FormControl>
             </FormItem>
           )} />
-          <FormField control={form.control} name="purchaseCost" render={({ field }) => (
+          <FormField control={form.control} name="purchase_cost" render={({ field }) => (
             <FormItem>
               <FormLabel>Coût (FCFA)</FormLabel>
               <FormControl><Input type="number" {...field} onChange={e => field.onChange(e.target.value)} className="rounded-xl font-bold" /></FormControl>

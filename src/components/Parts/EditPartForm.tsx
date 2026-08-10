@@ -1,37 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
 
-const PartSchema = z.object({
-  name: z.string().min(3, "Le nom est requis"),
-  reference: z.string().min(3, "La référence est requise"),
-  quantity: z.coerce.number().min(0, "Le stock doit être positif"),
-  minQuantity: z.coerce.number().min(0, "Le seuil doit être positif"),
-  purchaseCost: z.coerce.number().min(0, "Le coût doit être positif"),
-  location: z.string().min(1, "La localisation est requise"),
-  category: z.string().min(1, "La catégorie est requise"),
-  supplier: z.string().optional().default(""),
-  compatible_equipment: z.string().optional().default(""),
-});
-
-type PartFormValues = z.infer<typeof PartSchema>;
+import { PartSchema, PartFormValues } from "./schema";
+import { partService } from "./partService";
 
 interface Part {
   id: string;
@@ -52,7 +32,7 @@ interface EditPartFormProps {
 }
 
 const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<PartFormValues>({
     resolver: zodResolver(PartSchema),
@@ -71,35 +51,21 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
 
   const onSubmit = async (data: PartFormValues) => {
     setIsLoading(true);
-
-    const { error } = await supabase
-      .from('spare_parts')
-      .update({
-        name: data.name,
-        reference: data.reference,
-        current_stock: data.quantity,
-        min_stock: data.minQuantity,
-        purchase_cost: data.purchaseCost,
-        location: data.location,
-        category: data.category,
-        supplier: data.supplier,
-        compatible_equipment: data.compatible_equipment,
-      })
-      .eq('id', part.id);
-
-    setIsLoading(false);
-
-    if (error) {
-      showError(`Erreur: ${error.message}`);
-    } else {
-      showSuccess(`Pièce mise à jour.`);
+    try {
+      await partService.updatePart(part.id, data);
+      showSuccess("Pièce mise à jour.");
       onSuccess();
+    } catch (error: any) {
+      showError(`Erreur: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Ton JSX reste identique, le formulaire est maintenant lié au service */}
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Désignation</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -120,10 +86,10 @@ const EditPartForm: React.FC<EditPartFormProps> = ({ part, onSuccess }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="supplier" render={({ field }) => (
-            <FormItem><FormLabel>Fournisseur Principal</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Fournisseur</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
           <FormField control={form.control} name="compatible_equipment" render={({ field }) => (
-            <FormItem><FormLabel>Compatibilité Équipements</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            <FormItem><FormLabel>Compatibilité</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
           )} />
         </div>
 
