@@ -17,7 +17,8 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function AddPastIntervention({ onSuccess }: Props) {
+// 1. On récupère initialData depuis les Props
+export default function AddPastIntervention({ initialData, onSuccess }: Props) {
   const {
     form,
     step,
@@ -29,7 +30,7 @@ export default function AddPastIntervention({ onSuccess }: Props) {
     nextStep,
     previousStep,
     handleSubmit,
-  } = useInterventionFormState(onSuccess);
+  } = useInterventionFormState(onSuccess, initialData); // 2. On le passe au hook
 
   return (
     <Form {...form}>

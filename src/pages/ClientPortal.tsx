@@ -31,7 +31,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from "@/lib/utils";
-import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays, isBefore } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -49,7 +48,6 @@ interface TimelineItem {
 const ClientPortal: React.FC = () => {
   const [searchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token');
-  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'declare' | 'details' | 'history'>('declare');
   const [step, setStep] = useState<'loading' | 'scan' | 'form' | 'success' | 'error'>('loading');
@@ -83,35 +81,7 @@ const ClientPortal: React.FC = () => {
 
       setIsLoading(true);
       try {
-        // Résoudre le token d'accès et vérifier s'il est actif
-        const { data: tokenData, error: tokenError } = await supabase
-          .from('portal_access_tokens')
-          .select('*')
-          .eq('token', tokenFromUrl)
-          .maybeSingle();
-
-        if (tokenError) throw tokenError;
-
-        if (!tokenData) {
-          setErrorMessage("Lien de portail invalide ou inexistant.");
-          setStep('error');
-          return;
-        }
-
-        if (!tokenData.active) {
-          setErrorMessage("Ce QR Code / Lien d'accès a été désactivé par l'administrateur.");
-          setStep('error');
-          return;
-        }
-
-        // Mettre à jour la date de dernier accès
-        await supabase
-          .from('portal_access_tokens')
-          .update({ last_accessed_at: new Date().toISOString() })
-          .eq('token', tokenFromUrl);
-
-        // Charger les données de l'équipement résolu
-        await loadPortalData(tokenData.asset_id);
+        await loadPortalData();
 
       } catch (err: any) {
         console.error("Erreur de résolution du token:", err);
@@ -125,68 +95,29 @@ const ClientPortal: React.FC = () => {
     resolveTokenAndLoad();
   }, [tokenFromUrl]);
 
-  const loadPortalData = async (id: string) => {
+  const loadPortalData = async () => {
     try {
-      // 1. Fetch Asset
-      const { data: assetData, error: assetError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (assetError) throw assetError;
-
-      if (!assetData) {
-        setErrorMessage("Cet équipement n'existe pas dans notre base de données.");
+      if (!tokenFromUrl) {
+        setErrorMessage("Lien de portail invalide ou inexistant.");
         setStep('error');
         return;
       }
 
-      setAsset(assetData);
+      const { data, error } = await supabase.rpc('get_portal_data', { access_token: tokenFromUrl });
+      if (error) throw error;
+      if (!data?.asset) {
+        setErrorMessage("Lien de portail invalide ou inexistant.");
+        setStep('error');
+        return;
+      }
 
-      // 2. Fetch Contrat Associé (via la clinique du site)
-      const { data: contractData } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('clinic', assetData.location)
-        .eq('status', 'Active')
-        .maybeSingle();
-      
-      setAssociatedContract(contractData);
-
-      // 3. Fetch Dernière Maintenance Préventive
-      const { data: lastMaintData } = await supabase
-        .from('interventions')
-        .select('*')
-        .eq('asset_id', id)
-        .eq('maintenance_type', 'Préventive')
-        .order('intervention_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      setLastMaintenance(lastMaintData);
-
-      // 4. Fetch Prochaine Maintenance Planifiée (OT préventive ouvert)
-      const { data: nextMaintData } = await supabase
-        .from('work_orders')
-        .select('*')
-        .eq('asset_id', id)
-        .eq('maintenance_type', 'Preventive')
-        .eq('status', 'Ouvert')
-        .order('due_date', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      setNextMaintenance(nextMaintData);
-
-      // 5. Fetch Historique Complet (Timeline)
-      const [otsRes, interventionsRes] = await Promise.all([
-        supabase.from('work_orders').select('*').eq('asset_id', id),
-        supabase.from('interventions').select('*').eq('asset_id', id)
-      ]);
+      setAsset(data.asset);
+      setAssociatedContract(data.contract);
+      setLastMaintenance(data.last_maintenance);
+      setNextMaintenance(data.next_maintenance);
 
       const combinedTimeline: TimelineItem[] = [
-        ...(otsRes.data?.map(ot => ({
+        ...(data.work_orders?.map((ot: any) => ({
           id: ot.id,
           title: ot.title,
           date: ot.due_date,
@@ -195,7 +126,7 @@ const ClientPortal: React.FC = () => {
           source: 'OT' as const,
           description: ot.description
         })) || []),
-        ...(interventionsRes.data?.map(i => ({
+        ...(data.interventions?.map((i: any) => ({
           id: i.id,
           title: i.title,
           date: i.intervention_date,
@@ -208,15 +139,7 @@ const ClientPortal: React.FC = () => {
 
       setTimeline(combinedTimeline);
 
-      // 6. Fetch Pannes récentes signalées
-      const { data: breakdownsData } = await supabase
-        .from('work_orders')
-        .select('*')
-        .eq('asset_id', id)
-        .not('reporter_name', 'is', null)
-        .order('created_at', { ascending: false });
-
-      setRecentBreakdowns(breakdownsData || []);
+      setRecentBreakdowns(data.recent_breakdowns || []);
       setStep('form');
 
     } catch (err: any) {
@@ -282,15 +205,11 @@ const ClientPortal: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase.from('work_orders').insert({
-        title: `PANNE SIGNALÉE : ${asset.name}`,
-        description: finalDescription,
+      const { error } = await supabase.rpc('report_portal_breakdown', {
+        access_token: tokenFromUrl,
         reporter_name: reporterName,
-        asset_id: asset.id,
-        priority: priority,
-        status: 'Ouvert',
-        maintenance_type: 'Corrective',
-        user_id: user?.id || null
+        report_description: finalDescription,
+        report_priority: priority,
       });
 
       if (error) throw error;
@@ -298,7 +217,7 @@ const ClientPortal: React.FC = () => {
       showSuccess("Signalement de panne envoyé !");
       setStep('success');
       // Re-charger les données pour afficher la panne dans la liste après succès si besoin
-      loadPortalData(asset.id);
+      loadPortalData();
     } catch (err: any) {
       showError("Erreur lors de l'envoi. Veuillez réessayer.");
     } finally {

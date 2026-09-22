@@ -8,17 +8,22 @@ import { interventionService } from "../interventionService";
 import { InterventionSchema, InterventionFormValues } from "../schema";
 import type { Technician, Asset } from "../types";
 
-export function useInterventionFormState(onSuccess: () => void) {
+// 1. Ajouter initialData aux paramètres
+export function useInterventionFormState(onSuccess: () => void, initialData?: any) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  
+  // Si initialData contient déjà des pièces, on pourrait les charger ici.
+  // Pour l'instant, on initialise avec un tableau vide par défaut.
   const [parts, setParts] = useState<{ part_id: string; quantity: number }[]>([]);
 
+  // 2. Utiliser initialData s'il existe, sinon utiliser les valeurs vides
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
-    defaultValues: {
+    defaultValues: initialData || {
       rit_number: "",
       physical_rit_number: "",
       asset_id: "",
@@ -74,12 +79,25 @@ export function useInterventionFormState(onSuccess: () => void) {
         technician_id: values.technician_id || user?.id,
       };
 
-      await interventionService.createFullIntervention(payload, parts);
-      showSuccess("Intervention créée avec succès");
+      // 3. Le branchement logique : Update si on a un ID, sinon Create
+      if (initialData?.id) {
+        // Mode Modification
+        await interventionService.update(initialData.id, payload);
+        
+        // Note : Si vous modifiez aussi les pièces (parts) lors d'une mise à jour,
+        // il faudra ajouter la logique correspondante ici ou dans votre service.
+        
+        showSuccess("Intervention modifiée avec succès");
+      } else {
+        // Mode Création
+        await interventionService.createFullIntervention(payload, parts);
+        showSuccess("Intervention créée avec succès");
+      }
+      
       onSuccess();
     } catch (error: any) {
       console.error(error);
-      showError(error.message || "Erreur lors de la création de l'intervention");
+      showError(error.message || "Erreur lors de l'enregistrement de l'intervention");
     } finally {
       setLoading(false);
     }
