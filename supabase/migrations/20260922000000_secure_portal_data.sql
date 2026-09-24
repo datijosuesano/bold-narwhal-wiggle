@@ -71,7 +71,7 @@ BEGIN
       )
       FROM public.work_orders w
       WHERE w.asset_id = a.id
-        AND w.maintenance_type = 'Preventive'
+        AND w.maintenance_type = 'Préventive'
         AND w.status = 'Ouvert'
       ORDER BY w.due_date ASC
       LIMIT 1
