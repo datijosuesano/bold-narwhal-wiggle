@@ -48,10 +48,10 @@ import {
 } from "recharts";
 
 // Nouveaux chemins pointant vers le dossier "reagents"
-import CreateReagentForm from "@/components/reagents/CreateReagentForm";
-import ReagentStockAdjustment from "@/components/reagents/ReagentStockAdjustment";
-import ReagentHistoryDialog from "@/components/reagents/ReagentHistoryDialog";
-import { reagentService } from "@/components/reagents/reagentService";
+import CreateReagentForm from "@/components/Reagents/CreateReagentForm";
+import ReagentStockAdjustment from "@/components/Reagents/ReagentStockAdjustment";
+import ReagentHistoryDialog from "@/components/Reagents/ReagentHistoryDialog";
+import { reagentService } from "@/components/Reagents/reagentService";
 
 import { showError } from "@/utils/toast";
 import { format, differenceInDays, isBefore } from "date-fns";

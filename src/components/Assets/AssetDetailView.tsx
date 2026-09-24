@@ -28,7 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import AddPastInterventionForm from "@/components/interventions/AddPastInterventionForm";
+import AddPastInterventionForm from "@/components/Interventions/AddPastInterventionForm";
 import AssetDocuments from "./AssetDocuments";
 import AssetLifeSheet from "./AssetLifeSheet";
 

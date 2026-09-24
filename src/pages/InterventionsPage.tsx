@@ -14,9 +14,9 @@ import {
 import { Plus, Search, Loader2, Edit2, Trash2, Eye, Clock } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 
-import { interventionService } from "@/components/interventions/interventionService";
-import AddPastIntervention from "@/components/interventions/AddPastInterventionForm";
-import InterventionDetailDialog from "@/components/interventions/InterventionDetailDialog";
+import { interventionService } from "@/components/Interventions/interventionService";
+import AddPastIntervention from "@/components/Interventions/AddPastInterventionForm";
+import InterventionDetailDialog from "@/components/Interventions/InterventionDetailDialog";
 
 /* =========================================================
    TYPES
