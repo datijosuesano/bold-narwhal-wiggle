@@ -220,23 +220,42 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   // EXPORT PDF
   // =========================
   const handleExportPDF = async () => {
+    let printableClone: HTMLDivElement | null = null;
     try {
       if (!printRef.current) return;
 
+      // The dialog itself is transformed and clipped by its overlay. Rendering
+      // it directly with html2canvas produces blank or truncated pages. Export
+      // a visible, isolated clone instead and discard all screen-only actions.
+      printableClone = printRef.current.cloneNode(true) as HTMLDivElement;
+      printableClone.querySelectorAll('[data-html2canvas-ignore="true"], .print\\:hidden, button').forEach((element) => element.remove());
+      printableClone.style.position = 'fixed';
+      printableClone.style.left = '0';
+      printableClone.style.top = '0';
+      printableClone.style.width = '794px';
+      printableClone.style.maxWidth = 'none';
+      printableClone.style.maxHeight = 'none';
+      printableClone.style.overflow = 'visible';
+      printableClone.style.zIndex = '-1';
+      printableClone.style.background = 'white';
+      document.body.appendChild(printableClone);
+
       const opt = {
-        margin: 0.4,
+        margin: [10, 10, 10, 10],
         filename: `RIT-${intervention?.rit_number || intervention?.id}.pdf`,
         image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 794 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-page-break', 'tr'] }
       };
 
-      await html2pdf().set(opt).from(printRef.current).save();
+      await html2pdf().set(opt).from(printableClone).save();
       showSuccess("PDF généré avec succès !");
     } catch (error) {
       console.error(error);
       showError("Erreur génération PDF.");
+    } finally {
+      printableClone?.remove();
     }
   };
 
@@ -279,7 +298,7 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-2 print:hidden">
+            <div className="flex gap-2 print:hidden" data-html2canvas-ignore="true">
               <Button onClick={handleExportPDF} size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9">
                 <Download size={16} className="mr-1.5" /> Exporter PDF
               </Button>

@@ -77,6 +77,14 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
         ...values,
         user_id: user?.id,
         technician_id: values.technician_id || user?.id,
+        // PostgreSQL timestamp columns reject an empty string. The form uses an
+        // empty value until the operator provides a date, so send null instead.
+        start_date: values.start_date || null,
+        end_date: values.end_date || null,
+        invoice_deposited_at: values.invoice_deposited_at || null,
+        // Older deployments require work_details; keep it populated alongside
+        // the newer structured fields used by the interface.
+        work_details: values.work_performed || values.description || "Intervention enregistrée.",
       };
 
       // 3. Le branchement logique : Update si on a un ID, sinon Create

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, User, MapPin, Clock, Loader2, Search, Eye, UserCheck, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, User, MapPin, Clock, Loader2, Search, Eye, UserCheck, ShieldCheck, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -31,7 +31,7 @@ interface WorkOrder {
 }
 
 const ReportedBreakdownsPage: React.FC = () => {
-  const { user, hasRole, role } = useAuth();
+  const { user, hasRole } = useAuth();
   const canValidate = hasRole(['admin']);
   
   const [reports, setReports] = useState<WorkOrder[]>([]);
@@ -39,6 +39,7 @@ const ReportedBreakdownsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedReport, setSelectedReport] = useState<WorkOrder | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const fetchReports = useCallback(async () => {
     if (!user) return;
@@ -50,13 +51,6 @@ const ReportedBreakdownsPage: React.FC = () => {
         .select('*, assets(name, location, serial_number)')
         .not('reporter_name', 'is', null);
 
-      // Gestion des filtres selon le rôle utilisateur
-      if (role === 'technicien_biomedical') {
-        query = query.eq('assigned_to', user.id);
-      } else if (role === 'secretaire') { // Rôle administratif
-        query = query.eq('user_id', user.id);
-      }
-
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -67,7 +61,7 @@ const ReportedBreakdownsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, role]);
+  }, [user]);
 
   useEffect(() => { 
     fetchReports(); 
@@ -167,16 +161,26 @@ const ReportedBreakdownsPage: React.FC = () => {
                   </div>
 
                   {canValidate ? (
+                    <div className="grid grid-cols-1 gap-2">
                     <Button 
                       className={cn(
                         "w-full rounded-xl h-11 font-bold shadow-lg text-white",
-                        report.status === 'Ouvert' ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
+                        report.status === 'Terminé'
+                          ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none hover:bg-slate-300"
+                          : report.status === 'Ouvert' ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
                       )}
-                      onClick={() => handleToggleActive && handleTakeAction(report)}
+                      onClick={() => handleTakeAction(report)}
+                      disabled={report.status === 'Terminé'}
                     >
                       {report.status === 'Ouvert' ? <ShieldCheck size={18} className="mr-2" /> : <Eye size={18} className="mr-2" />}
-                      {report.status === 'Ouvert' ? "Valider & Affecter" : "Gérer le flux"}
+                      {report.status === 'Ouvert' ? "Valider & Affecter" : report.status === 'Terminé' ? "Flux terminé" : "Gérer le flux"}
                     </Button>
+                    {report.status === 'Terminé' && (
+                      <Button variant="outline" className="w-full rounded-xl h-10 font-bold" onClick={() => { setSelectedReport(report); setIsInfoOpen(true); }}>
+                        <Info size={16} className="mr-2" /> Informations
+                      </Button>
+                    )}
+                    </div>
                   ) : (
                     <div className="text-center p-2 bg-slate-100 rounded-xl text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                       Accès en lecture seule
@@ -202,6 +206,13 @@ const ReportedBreakdownsPage: React.FC = () => {
               onSuccess={() => { setIsEditOpen(false); fetchReports(); }} 
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isInfoOpen} onOpenChange={setIsInfoOpen}>
+        <DialogContent className="sm:max-w-lg rounded-2xl">
+          <DialogHeader><DialogTitle>Informations de la panne</DialogTitle><DialogDescription>Consultation uniquement - le flux est terminé.</DialogDescription></DialogHeader>
+          {selectedReport && <div className="space-y-4 text-sm"><div><p className="text-xs font-bold uppercase text-slate-400">Équipement</p><p className="font-semibold">{selectedReport.assets?.name || 'Équipement inconnu'}</p></div><div><p className="text-xs font-bold uppercase text-slate-400">Signalé par</p><p>{selectedReport.reporter_name || 'Anonyme'} le {format(new Date(selectedReport.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</p></div><div><p className="text-xs font-bold uppercase text-slate-400">Description</p><p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3">{selectedReport.description || 'Aucune description'}</p></div><Badge className="bg-green-600 text-white">{selectedReport.status}</Badge></div>}
         </DialogContent>
       </Dialog>
     </div>

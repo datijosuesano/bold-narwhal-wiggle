@@ -5,6 +5,7 @@ export const InterventionSchema = z.object({
   rit_number: z.string().optional(),
   physical_rit_number: z.string().optional(),
   asset_id: z.string().min(1, "L'équipement est requis"),
+  technician_id: z.string().optional(),
   intervention_place: z.string().optional(),
   title: z.string().min(1, "L'objet de l'intervention est requis"),
   maintenance_type: z.string().optional(),
@@ -27,6 +28,7 @@ export const InterventionSchema = z.object({
   invoice_deposited_at: z.string().optional(),
   total_cost: z.preprocess((val) => (val ? Number(val) : 0), z.number().optional()),
   client_signature_url: z.string().optional(),
+  parts_replaced: z.boolean().default(false),
 });
 
 export type InterventionFormValues = z.infer<typeof InterventionSchema>;
