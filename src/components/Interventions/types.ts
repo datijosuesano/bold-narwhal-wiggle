@@ -167,6 +167,12 @@ export interface Intervention {
 
   client_signature_url?: string;
 
+  client_validation_name?: string;
+
+  client_validated?: boolean;
+
+  client_validated_at?: string;
+
   created_at?: string;
 
   /* ==========================

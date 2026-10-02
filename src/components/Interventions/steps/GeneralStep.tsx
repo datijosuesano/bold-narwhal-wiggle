@@ -39,19 +39,10 @@ export default function GeneralStep({
       {/* RIT */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        <FormField
-          control={control}
-          name="rit_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>N° RIT</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="rounded-md border bg-muted/40 px-3 py-2">
+          <p className="text-sm font-medium">N° RIT</p>
+          <p className="text-xs text-muted-foreground">Attribué automatiquement à l'enregistrement : RIT-date-ordre.</p>
+        </div>
 
         <FormField
           control={control}

@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import InterventionAttachmentsManager from './InterventionAttachmentsManager';
 import { showSuccess, showError } from '@/utils/toast';
-import html2pdf from 'html2pdf.js';
+import { useReactToPrint } from 'react-to-print';
 
 // IMPORT DU SERVICE (Vérifie le chemin selon ton arborescence)
 import { interventionService } from './interventionService';
@@ -58,6 +58,9 @@ interface Intervention {
   technician_id?: string | null;
   user_id?: string | null;
   invoice_deposited_at?: string | null;
+  client_validation_name?: string | null;
+  client_validated?: boolean | null;
+  client_validated_at?: string | null;
   assets: {
     name: string;
     location: string;
@@ -112,6 +115,13 @@ const getStatusBadge = (status: string) => {
           Contrat
         </Badge>
       );
+    case 'Non requise':
+      return (
+        <Badge className="bg-slate-100 text-slate-700 border-slate-200 rounded-full">
+          <ShieldCheck size={12} className="mr-1" />
+          Non requise
+        </Badge>
+      );
     default:
       return (
         <Badge className="bg-amber-100 text-amber-700 border-amber-200 rounded-full">
@@ -131,6 +141,17 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [usedParts, setUsedParts] = useState<UsedPart[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+  const printIntervention = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `RIT-${intervention?.rit_number || intervention?.id || 'intervention'}`,
+    pageStyle: `
+      @page { size: A4; margin: 12mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-intervention-area { width: auto !important; padding: 0 !important; }
+      [data-print-actions], .print-hidden { display: none !important; }
+      .avoid-page-break { break-inside: avoid; }
+    `,
+  });
 
   // =========================
   // CHARGEMENT DONNÉES (VIA SERVICE)
@@ -219,49 +240,17 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
   // =========================
   // EXPORT PDF
   // =========================
-  const handleExportPDF = async () => {
-    let printableClone: HTMLDivElement | null = null;
-    try {
-      if (!printRef.current) return;
-
-      // The dialog itself is transformed and clipped by its overlay. Rendering
-      // it directly with html2canvas produces blank or truncated pages. Export
-      // a visible, isolated clone instead and discard all screen-only actions.
-      printableClone = printRef.current.cloneNode(true) as HTMLDivElement;
-      printableClone.querySelectorAll('[data-html2canvas-ignore="true"], .print\\:hidden, button').forEach((element) => element.remove());
-      printableClone.style.position = 'fixed';
-      printableClone.style.left = '0';
-      printableClone.style.top = '0';
-      printableClone.style.width = '794px';
-      printableClone.style.maxWidth = 'none';
-      printableClone.style.maxHeight = 'none';
-      printableClone.style.overflow = 'visible';
-      printableClone.style.zIndex = '-1';
-      printableClone.style.background = 'white';
-      document.body.appendChild(printableClone);
-
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `RIT-${intervention?.rit_number || intervention?.id}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 794 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-page-break', 'tr'] }
-      };
-
-      await html2pdf().set(opt).from(printableClone).save();
-      showSuccess("PDF généré avec succès !");
-    } catch (error) {
-      console.error(error);
-      showError("Erreur génération PDF.");
-    } finally {
-      printableClone?.remove();
+  const handleExportPDF = () => {
+    if (!printRef.current) {
+      showError("Le rapport n'est pas prêt à être imprimé.");
+      return;
     }
+    // The browser print engine is reliable for multi-page documents. In its
+    // dialog, the user can select "Enregistrer au format PDF".
+    printIntervention();
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = handleExportPDF;
 
   if (!intervention) return null;
 
@@ -298,9 +287,9 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-2 print:hidden" data-html2canvas-ignore="true">
+            <div className="flex gap-2 print:hidden" data-print-actions>
               <Button onClick={handleExportPDF} size="sm" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9">
-                <Download size={16} className="mr-1.5" /> Exporter PDF
+                <Download size={16} className="mr-1.5" /> Imprimer / PDF
               </Button>
               <Button onClick={handlePrint} size="sm" variant="outline" className="rounded-xl border-slate-200 font-bold h-9">
                 <Printer size={16} className="mr-1.5" /> Imprimer
@@ -474,18 +463,15 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
             </div>
           </div>
 
-          {/* SIGNATURE CLIENT */}
-          {intervention.client_signature_url && (
+          {/* VALIDATION CLIENT */}
+          {intervention.client_validated && (
             <div className="pt-2">
               <p className="text-[10px] font-black uppercase text-slate-400 mb-2">
-                Signature validée du Client
+                Validation client
               </p>
-              <div className="border rounded-lg p-2 bg-white inline-block shadow-inner">
-                <img
-                  src={intervention.client_signature_url}
-                  alt="Signature"
-                  className="max-h-16 w-auto object-contain"
-                />
+              <div className="border rounded-lg p-3 bg-white text-sm">
+                Validée par <strong>{intervention.client_validation_name || "le client"}</strong>
+                {intervention.client_validated_at && ` le ${format(new Date(intervention.client_validated_at), 'dd/MM/yyyy HH:mm')}`}
               </div>
             </div>
           )}
@@ -502,18 +488,6 @@ const InterventionDetailDialog: React.FC<InterventionDetailDialogProps> = ({
         </div>
       </DialogContent>
 
-      {/* STYLE IMPRESSION UNIQUE */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-intervention-area, .print-intervention-area * { visibility: visible; }
-          .print-intervention-area {
-            position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 20px;
-          }
-          .print\\:hidden, button, nav, aside, footer, header { display: none !important; }
-          .shadow, .shadow-md, .shadow-lg { box-shadow: none !important; }
-        }
-      `}</style>
     </Dialog>
   );
 };

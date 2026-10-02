@@ -46,7 +46,8 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
       invoice_status: "Non déposée",
       invoice_deposited_at: "",
       total_cost: 0,
-      client_signature_url: "",
+      client_validation_name: "",
+      client_validated: false,
     },
   });
 
@@ -82,6 +83,7 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
         start_date: values.start_date || null,
         end_date: values.end_date || null,
         invoice_deposited_at: values.invoice_deposited_at || null,
+        client_validated_at: values.client_validated ? new Date().toISOString() : null,
         // Older deployments require work_details; keep it populated alongside
         // the newer structured fields used by the interface.
         work_details: values.work_performed || values.description || "Intervention enregistrée.",

@@ -34,5 +34,16 @@ export const assetService = {
       .insert(payload);
     if (error) throw error;
     return data;
+  },
+
+  async updateAsset(id: string, payload: any) {
+    const { data, error } = await supabase
+      .from("assets")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 };

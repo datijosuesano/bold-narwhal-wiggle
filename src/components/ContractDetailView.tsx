@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 
 import {
   Card,
@@ -26,12 +27,6 @@ import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 
-import {
-  showSuccess,
-  showError
-} from '@/utils/toast';
-
-import html2pdf from 'html2pdf.js';
 
 interface Contract {
   id: string;
@@ -79,6 +74,16 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({
 }) => {
 
   const printRef = useRef<HTMLDivElement>(null);
+  const printContract = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Contrat-${contract.name.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+    pageStyle: `
+      @page { size: A4; margin: 12mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-contract-details { padding: 0 !important; }
+      [data-print-actions] { display: none !important; }
+    `,
+  });
 
   const daysLeft = differenceInDays(
     contract.endDate,
@@ -118,63 +123,13 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({
   // EXPORT PDF
   // =========================
 
-  const handleExportPDF = async () => {
-
-    try {
-
-      if (!printRef.current) return;
-
-      const opt = {
-
-        margin: 0.5,
-
-        filename: `contrat-${contract.name}.pdf`,
-
-        image: {
-          type: 'jpeg',
-          quality: 1
-        },
-
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          scrollY: 0
-        },
-
-        jsPDF: {
-          unit: 'in',
-          format: 'a4',
-          orientation: 'portrait'
-        },
-
-        pagebreak: {
-          mode: ['avoid-all', 'css', 'legacy']
-        }
-      };
-
-      await html2pdf()
-        .set(opt)
-        .from(printRef.current)
-        .save();
-
-      showSuccess("PDF généré avec succès !");
-
-    } catch (error) {
-
-      console.error(error);
-
-      showError("Erreur lors de la génération du PDF.");
-    }
-  };
+  const handleExportPDF = () => printContract();
 
   // =========================
   // IMPRESSION
   // =========================
 
-  const handlePrint = () => {
-
-    window.print();
-  };
+  const handlePrint = handleExportPDF;
 
   return (
 
@@ -211,7 +166,7 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({
 
         </div>
 
-        <div className="flex gap-2 items-center print:hidden">
+        <div className="flex gap-2 items-center print:hidden" data-print-actions>
 
           {/* EXPORT PDF */}
 
@@ -226,7 +181,7 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({
               className="mr-1.5"
             />
 
-            Exporter PDF
+            Imprimer / PDF
 
           </Button>
 
@@ -444,55 +399,6 @@ const ContractDetailView: React.FC<ContractDetailViewProps> = ({
         </CardContent>
 
       </Card>
-
-      {/* STYLES IMPRESSION */}
-
-      <style>{`
-
-        @media print {
-
-          body * {
-            visibility: hidden;
-          }
-
-          .print-contract-details,
-          .print-contract-details * {
-            visibility: visible;
-          }
-
-          .print-contract-details {
-
-            position: absolute;
-
-            left: 0;
-
-            top: 0;
-
-            width: 100%;
-
-            background: white;
-
-            padding: 20px;
-          }
-
-          .print\\:hidden,
-          button,
-          nav,
-          aside,
-          footer,
-          header {
-
-            display: none !important;
-          }
-
-          .shadow-md,
-          .shadow-lg {
-
-            box-shadow: none !important;
-          }
-        }
-
-      `}</style>
 
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Factory,
@@ -12,6 +12,7 @@ import {
   TrendingUp,
   FileText,
   PlusCircle,
+  Printer,
 } from "lucide-react";
 
 import { format } from "date-fns";
@@ -34,6 +35,8 @@ import AssetLifeSheet from "./AssetLifeSheet";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useReactToPrint } from "react-to-print";
+import { QRCodeSVG } from "qrcode.react";
 
 /* =========================
    TYPES
@@ -75,6 +78,30 @@ const AssetDetailView: React.FC<{ asset: Asset }> = ({ asset }) => {
     lastIntervention: null as Date | null,
     frequency: 0,
   });
+  const printRef = useRef<HTMLDivElement>(null);
+  const [portalToken, setPortalToken] = useState<string | null>(null);
+  const [lifeHistory, setLifeHistory] = useState<{ id: string; title: string; date: string; type: string; source: string; status: string }[]>([]);
+  const baseUrl = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, "");
+  const portalUrl = portalToken ? `${baseUrl}/portal?token=${portalToken}` : "";
+
+  const printAssetSheet = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Fiche_${asset.name.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+    pageStyle: `
+      @page { size: A4; margin: 12mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .asset-print-sheet { position: static !important; left: auto !important; top: auto !important; }
+    `,
+  });
+
+  const handlePrintAssetSheet = () => printAssetSheet();
+
+  const handleExportAssetPdf = () => {
+    // Native printing renders the complete standalone document. It avoids the
+    // blank PDFs produced by html2canvas when the equipment dialog is open.
+    handlePrintAssetSheet();
+  };
+
 
   /* =========================
      FETCH DATA
@@ -118,6 +145,25 @@ React.useEffect(() => {
 
   fetchData();
 }, [asset.id, asset.assigned_to, refreshTrigger]);
+
+  React.useEffect(() => {
+    const loadPrintData = async () => {
+      const [tokenResult, workOrdersResult, interventionsResult] = await Promise.all([
+        supabase.rpc("get_portal_token_for_asset", { requested_asset_id: asset.id }).maybeSingle(),
+        supabase.from("work_orders").select("id, title, due_date, maintenance_type, status").eq("asset_id", asset.id),
+        supabase.from("interventions").select("id, title, intervention_date, maintenance_type").eq("asset_id", asset.id),
+      ]);
+
+      setPortalToken(tokenResult.data?.token ?? null);
+      const history = [
+        ...(workOrdersResult.data ?? []).map((item) => ({ id: item.id, title: item.title || "Ordre de travail", date: item.due_date, type: item.maintenance_type || "—", source: "OT", status: item.status || "—" })),
+        ...(interventionsResult.data ?? []).map((item) => ({ id: item.id, title: item.title || "Intervention", date: item.intervention_date, type: item.maintenance_type || "—", source: "Intervention", status: "Terminée" })),
+      ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      setLifeHistory(history);
+    };
+
+    loadPrintData();
+  }, [asset.id, refreshTrigger]);
 
   /* =========================
      LOGIC
@@ -170,6 +216,10 @@ React.useEffect(() => {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="print:hidden rounded-xl" onClick={handleExportAssetPdf}>
+            <Printer className="mr-1.5 h-4 w-4" /> Fiche de vie - Imprimer / PDF
+          </Button>
         <span
           className={cn(
             "px-4 py-2 rounded-full text-sm font-semibold",
@@ -178,6 +228,7 @@ React.useEffect(() => {
         >
           {asset.status}
         </span>
+        </div>
       </div>
 
       {/* ALERT */}
@@ -298,6 +349,39 @@ React.useEffect(() => {
           <AssetDocuments assetId={asset.id} />
         </TabsContent>
       </Tabs>
+
+      <div ref={printRef} className="asset-print-sheet absolute -left-[10000px] top-0 w-[794px] bg-white p-10 text-slate-900">
+        <header className="flex items-start justify-between border-b-4 border-blue-600 pb-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">BioPulse GMAO</p>
+            <h1 className="mt-1 text-3xl font-black">Fiche de vie équipement</h1>
+            <p className="mt-1 text-sm text-slate-600">{asset.name} · S/N {asset.serialNumber || "Non renseigné"}</p>
+          </div>
+          <div className="rounded-lg border p-2 text-center">
+            {portalUrl ? <QRCodeSVG value={portalUrl} size={104} level="H" includeMargin /> : <div className="flex h-[104px] w-[104px] items-center justify-center text-center text-xs text-slate-500">QR indisponible</div>}
+            <p className="mt-1 text-[9px] font-bold text-blue-700">PORTAIL CLIENT</p>
+          </div>
+        </header>
+
+        {asset.image_url && (
+          <section className="mt-5 flex justify-center">
+            <img src={asset.image_url} alt={`Photo de ${asset.name}`} className="max-h-52 max-w-full rounded-lg border object-contain" />
+          </section>
+        )}
+
+        <section className="mt-6 grid grid-cols-2 gap-3 text-sm">
+          {[["Fabricant", asset.manufacturer], ["Modèle", asset.model], ["Catégorie", asset.category], ["Localisation", asset.location], ["Statut", asset.status], ["Mise en service", asset.commissioningDate && !Number.isNaN(new Date(asset.commissioningDate).getTime()) ? format(new Date(asset.commissioningDate), "dd/MM/yyyy") : "Non renseignée"]].map(([label, value]) => <div key={label} className="rounded border border-slate-300 p-3"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 font-semibold">{value || "Non renseigné"}</p></div>)}
+        </section>
+
+        <section className="mt-6"><h2 className="border-b pb-2 text-lg font-black">Description</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{asset.description || "Aucune description renseignée."}</p></section>
+
+        <section className="mt-6">
+          <h2 className="border-b pb-2 text-lg font-black">Historique des actions</h2>
+          <table className="mt-3 w-full border-collapse text-left text-xs"><thead><tr className="bg-slate-100"><th className="border p-2">Action</th><th className="border p-2">Type</th><th className="border p-2">Date</th><th className="border p-2">Source</th><th className="border p-2">Statut</th></tr></thead><tbody>{lifeHistory.length ? lifeHistory.map((item) => <tr key={`${item.source}-${item.id}`}><td className="border p-2">{item.title}</td><td className="border p-2">{item.type}</td><td className="border p-2">{item.date ? format(new Date(item.date), "dd/MM/yyyy") : "—"}</td><td className="border p-2">{item.source}</td><td className="border p-2">{item.status}</td></tr>) : <tr><td colSpan={5} className="border p-4 text-center text-slate-500">Aucune action enregistrée.</td></tr>}</tbody></table>
+        </section>
+
+        <footer className="mt-8 border-t pt-3 text-[10px] text-slate-500">Fiche générée le {format(new Date(), "dd/MM/yyyy à HH:mm")}</footer>
+      </div>
     </div>
   );
 };

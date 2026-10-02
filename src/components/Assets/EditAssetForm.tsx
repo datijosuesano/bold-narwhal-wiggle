@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
 import { ASSET_STATUS } from "@/utils/constants";
+import ImageUpload from "@/components/ImageUpload";
 
 // Imports de la nouvelle architecture
 import { assetService } from "./assetService";
@@ -160,6 +161,12 @@ const EditAssetForm: React.FC<EditAssetFormProps> = ({ asset, onSuccess }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
+        <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
+          <ImageUpload
+            defaultValue={asset.image_url}
+            onUpload={(url) => form.setValue("image_url", url, { shouldDirty: true })}
+          />
+        </div>
         
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="name" render={({ field }) => (

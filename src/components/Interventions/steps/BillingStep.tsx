@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/form";
 
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 import {
   Select,
@@ -73,28 +74,10 @@ export default function BillingStep({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
 
-        <FormField
-          control={control}
-          name="invoice_number"
-          render={({ field }) => (
-            <FormItem>
-
-              <FormLabel>
-                Numéro facture
-              </FormLabel>
-
-              <FormControl>
-                <Input
-                  placeholder="Ex: FAC-2026-001"
-                  {...field}
-                />
-              </FormControl>
-
-              <FormMessage />
-
-            </FormItem>
-          )}
-        />
+        <div className="rounded-md border bg-muted/40 px-3 py-2">
+          <p className="text-sm font-medium">Numéro de facture</p>
+          <p className="text-xs text-muted-foreground">Attribué automatiquement : FAC-année-ordre, uniquement si une facture est requise.</p>
+        </div>
 
 
 
@@ -146,6 +129,10 @@ export default function BillingStep({
                     Annulée
                   </SelectItem>
 
+                  <SelectItem value="Non requise">
+                    Non requise (sous contrat)
+                  </SelectItem>
+
 
                 </SelectContent>
 
@@ -193,38 +180,31 @@ export default function BillingStep({
 
 
 
-      {/* Signature */}
+      {/* Validation client sans URL ni fichier */}
+      <div className="space-y-3 rounded-lg border p-4">
       <FormField
         control={control}
-        name="client_signature_url"
+        name="client_validation_name"
         render={({ field }) => (
           <FormItem>
-
-            <FormLabel>
-              Signature client
-            </FormLabel>
-
-
-            <FormControl>
-
-              <Input
-                placeholder="URL signature ou fichier uploadé"
-                {...field}
-              />
-
-            </FormControl>
-
-
-            <p className="text-xs text-muted-foreground">
-              Ce champ sera remplacé ensuite par le composant SignaturePad.
-            </p>
-
-
+            <FormLabel>Nom du client qui valide</FormLabel>
+            <FormControl><Input placeholder="Nom et prénom" {...field} /></FormControl>
             <FormMessage />
-
           </FormItem>
         )}
       />
+      <FormField
+        control={control}
+        name="client_validated"
+        render={({ field }) => (
+          <FormItem className="flex items-center justify-between gap-4 rounded-md bg-muted/40 p-3">
+            <div><FormLabel>Validation client obtenue</FormLabel><p className="text-xs text-muted-foreground">Enregistre la date de validation, sans demander d'URL.</p></div>
+            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      </div>
 
 
 

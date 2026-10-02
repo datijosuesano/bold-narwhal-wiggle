@@ -27,7 +27,8 @@ export const InterventionSchema = z.object({
   invoice_status: z.string().optional(),
   invoice_deposited_at: z.string().optional(),
   total_cost: z.preprocess((val) => (val ? Number(val) : 0), z.number().optional()),
-  client_signature_url: z.string().optional(),
+  client_validation_name: z.string().optional(),
+  client_validated: z.boolean().default(false),
   parts_replaced: z.boolean().default(false),
 });
 
