@@ -44,7 +44,7 @@ const InterventionsPage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const [selectedEdit, setSelectedEdit] = useState<InterventionListItem | null>(null);
+  const [selectedEdit, setSelectedEdit] = useState<any | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<InterventionListItem | null>(null);
 
   /* ========================= FETCH ========================= */
@@ -103,6 +103,19 @@ const InterventionsPage = () => {
       console.error(err);
       setInterventions(backup);
       showError("Erreur lors de la suppression");
+    }
+  };
+
+  const handleEdit = async (id: string) => {
+    try {
+      // The table only carries a summary. Reload the complete record so all
+      // fields required by the edit form (especially asset_id) are preserved.
+      const intervention = await interventionService.getById(id);
+      setSelectedEdit(intervention);
+      setEditOpen(true);
+    } catch (error) {
+      console.error(error);
+      showError("Impossible de charger l'intervention complète pour modification.");
     }
   };
 
@@ -210,10 +223,7 @@ const InterventionsPage = () => {
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => {
-                              setSelectedEdit(i);
-                              setEditOpen(true);
-                            }}
+                            onClick={() => handleEdit(i.id)}
                           >
                             <Edit2 size={16} className="text-amber-600" />
                           </Button>
