@@ -14,11 +14,12 @@ import ReviewStep from "./steps/ReviewStep";
 
 interface Props {
   initialData?: any;
+  assetId?: string;
   onSuccess: () => void;
 }
 
 // 1. On récupère initialData depuis les Props
-export default function AddPastIntervention({ initialData, onSuccess }: Props) {
+export default function AddPastIntervention({ initialData, assetId, onSuccess }: Props) {
   const {
     form,
     step,
@@ -30,7 +31,7 @@ export default function AddPastIntervention({ initialData, onSuccess }: Props) {
     nextStep,
     previousStep,
     handleSubmit,
-  } = useInterventionFormState(onSuccess, initialData); // 2. On le passe au hook
+  } = useInterventionFormState(onSuccess, initialData, assetId); // 2. On le passe au hook
 
   return (
     <Form {...form}>

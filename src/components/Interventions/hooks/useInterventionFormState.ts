@@ -9,7 +9,7 @@ import { InterventionSchema, InterventionFormValues } from "../schema";
 import type { Technician, Asset } from "../types";
 
 // 1. Ajouter initialData aux paramètres
-export function useInterventionFormState(onSuccess: () => void, initialData?: any) {
+export function useInterventionFormState(onSuccess: () => void, initialData?: any, assetId?: string) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -23,10 +23,10 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
   // 2. Utiliser initialData s'il existe, sinon utiliser les valeurs vides
   const form = useForm<InterventionFormValues>({
     resolver: zodResolver(InterventionSchema),
-    defaultValues: initialData || {
+    defaultValues: {
       rit_number: "",
       physical_rit_number: "",
-      asset_id: "",
+      asset_id: assetId || "",
       technician_id: "",
       title: "",
       description: "",
@@ -48,6 +48,10 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
       total_cost: 0,
       client_validation_name: "",
       client_validated: false,
+      ...initialData,
+      // When launched from an equipment record, keep its identifier even when
+      // the form has not yet been edited by the user.
+      asset_id: initialData?.asset_id || assetId || "",
     },
   });
 
@@ -75,7 +79,11 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
     if (step === 1) {
       const isValid = await form.trigger(["asset_id", "title"]);
       if (!isValid) {
-        showError("Renseignez l'équipement et l'objet de l'intervention pour continuer.");
+        const missing = [
+          form.getFieldState("asset_id").error && "Équipement",
+          form.getFieldState("title").error && "Objet de l'intervention",
+        ].filter(Boolean).join(" et ");
+        showError(`Champ obligatoire manquant : ${missing}.`);
         return;
       }
     }
@@ -133,7 +141,11 @@ export function useInterventionFormState(onSuccess: () => void, initialData?: an
   const onInvalidSubmit = (errors: FieldErrors<InterventionFormValues>) => {
     const firstField = Object.keys(errors)[0] as keyof InterventionFormValues | undefined;
     setStep(1);
-    showError("L'intervention n'a pas été enregistrée : vérifiez l'équipement et l'objet à l'étape Informations générales.");
+    const labels: Partial<Record<keyof InterventionFormValues, string>> = {
+      asset_id: "Équipement",
+      title: "Objet de l'intervention",
+    };
+    showError(`L'intervention n'a pas été enregistrée : ${labels[firstField ?? "asset_id"] || "un champ obligatoire"} est manquant.`);
     if (firstField) form.setFocus(firstField);
   };
 
